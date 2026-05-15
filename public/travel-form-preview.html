@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Form Preview</title>
+    <style>
+        body {
+            margin: 0;
+            background: #eef2f7;
+            color: #111827;
+            font-family: Arial, sans-serif;
+        }
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid #d1d5db;
+            backdrop-filter: blur(6px);
+        }
+        .topbar h1 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .topbar p {
+            margin: 4px 0 0;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        .topbar button {
+            border: 0;
+            border-radius: 8px;
+            background: #0f766e;
+            color: #fff;
+            padding: 10px 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .preview-shell {
+            max-width: 940px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+        }
+        .page-sheet {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto 24px;
+            padding: 18mm 18mm 16mm;
+            background: #fff;
+            color: #111827;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+            font-family: "Times New Roman", serif;
+            font-size: 15px;
+            line-height: 1.42;
+        }
+        .form-no {
+            text-align: right;
+            font-style: italic;
+            margin-bottom: 22px;
+        }
+        .center-title {
+            text-align: center;
+        }
+        .seal {
+            width: 92px;
+            height: 92px;
+            margin: 14px auto 22px;
+            border: 1px solid #444;
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            font-size: 10px;
+            text-align: center;
+        }
+        .main-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 12px 0 24px;
+        }
+        .section-title {
+            font-size: 17px;
+            font-weight: 700;
+            margin: 18px 0 10px;
+        }
+        .instruction-row,
+        .field-row {
+            display: grid;
+            grid-template-columns: 34px 1fr;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .line,
+        .short-line,
+        .signature-line {
+            display: inline-block;
+            border-bottom: 2px dotted #6b7280;
+            vertical-align: middle;
+        }
+        .line {
+            width: 100%;
+            min-width: 240px;
+            height: 1.2em;
+        }
+        .short-line {
+            width: 220px;
+            height: 1.2em;
+        }
+        .signature-line {
+            width: 180px;
+            height: 1.2em;
+        }
+        .multi-line {
+            margin-top: 8px;
+        }
+        .multi-line div {
+            border-bottom: 2px dotted #6b7280;
+            height: 1.25em;
+            margin-bottom: 9px;
+        }
+        .indented {
+            margin-left: 54px;
+        }
+        .split-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+        .split-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 18px;
+        }
+        .small {
+            font-size: 14px;
+        }
+        .page-no {
+            text-align: right;
+            margin-top: 14px;
+        }
+        @media print {
+            body {
+                background: #fff;
+            }
+            .topbar {
+                display: none;
+            }
+            .preview-shell {
+                max-width: none;
+                padding: 0;
+            }
+            .page-sheet {
+                box-shadow: none;
+                margin-bottom: 0;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div>
+            <h1>Travel Form HTML Preview</h1>
+            <p>Standalone file version of the scanned institute form.</p>
+        </div>
+        <button onclick="window.print()">Print Preview</button>
+    </div>
+
+    <div class="preview-shell">
+        <section class="page-sheet">
+            <div class="form-no">Formu Na: NIMR - ADM - F002</div>
+            <div class="center-title">
+                <div style="font-size:20px;font-weight:600;letter-spacing:.02em;">TAASISI YA TAIFA YA UTAFITI WA MAGONJWA YA BINADAMU</div>
+                <div class="seal">NATIONAL<br>INSTITUTE<br>FOR<br>MEDICAL<br>RESEARCH</div>
+            </div>
+            <div class="main-title">FOMU YA MAOMBI YA RUHUSA YA KUSAFIRI NDANI YA NCHI</div>
+
+            <div class="section-title">A: UTANGULIZI:</div>
+            <div class="instruction-row"><div>(i)</div><div>Watumishi wote wanaotarajia kusafiri ndani ya nchi wanapaswa kujaza kikamilifu fomu hii siku 14 kabla ya safari.</div></div>
+            <div class="instruction-row"><div>(ii)</div><div>Pamoja na fomu hii, viambatisho muhimu vinavyothibitisha safari lazima viwepo (mfano barua ya mwaliko, maelezo ya wazi ya gharama zote za safari na kwamba ni nani ana jukumu la kuzilipia, kama zinalipwa kwa sehemu na mfadhili, ni kiasi gani kinatakiwa kugharamiwa na Taasisi).</div></div>
+            <div class="instruction-row"><div>(iii)</div><div>Fomu hii itajazwa na kila Mtumishi wa Taasisi atakayesafiri kwa shughuli za kiofisi ndani ya nchi.</div></div>
+            <div class="instruction-row"><div>(iv)</div><div>Fomu ambayo haikujazwa kikamilifu kuonesha taarifa zote muhimu na kwa kiwango kinachoelevweka au imechelewa chini ya siku zilizotajwa hapo juu haitashughulikiwa na hivyo Mtumishi atakuwa amejinyima ruhusa mwenyewe ya kusafiri.</div></div>
+            <div class="instruction-row"><div>(v)</div><div>Ndani ya kipindi cha wiki mbili baada ya kurudi kutoka safarini Mtumishi anatakiwa kuwasilisha ripoti ya safari kwa Mkurugenzi Mkuu kupitia kwa Mkurugenzi wa Idara/Meneja wa Kituo au Mkuu wa Idara anapofanyia kazi. Nakala ya ripoti hii pia iwasilishwe Ofisi ya Rasilimali Watu na Utawala.</div></div>
+            <div class="instruction-row"><div>(vi)</div><div>Fomu hii ikishajazwa kikamilifu na kibali kutolewa na mwenye Mamlaka, nakala moja ya fomu hii ikiwa imeshavekwa muhuri wa Mkurugenzi Mkuu au Mkurugenzi wa Kituo irudishwe Ofisi ya Rasilimali Watu na Utawala.</div></div>
+            <div class="instruction-row"><div>(vii)</div><div>Safari za dharura zitatumia utaratibu wa dharura.</div></div>
+            <div class="instruction-row"><div>(viii)</div><div>Fomu hii itajazwa nakala mbili (2).</div></div>
+
+            <div class="section-title">B: TAARIFA ZA MTUMISHI ANAYESAFIRI</div>
+            <div class="field-row"><div>(i)</div><div>Jina la Mtumishi anayesafiri <span class="line"></span></div></div>
+            <div class="field-row"><div>(ii)</div><div>Simu <span class="line"></span></div></div>
+            <div class="field-row"><div>(iii)</div><div>Barua Pepe <span class="line"></span></div></div>
+            <div class="field-row"><div>(iv)</div><div>Cheo <span class="line"></span></div></div>
+            <div class="field-row"><div>(v)</div><div>Mikoa/Mkoa/Wilaya anapokwenda <span class="line"></span></div></div>
+            <div class="field-row"><div>(vi)</div><div>Tarehe ya Kuondoka <span class="line"></span></div></div>
+
+            <div class="page-no">1</div>
+        </section>
+
+        <section class="page-sheet">
+            <div class="form-no">Formu Na: NIMR - ADM - F002</div>
+            <div class="field-row"><div>(vii)</div><div>Tarehe ya Kurudi <span class="line"></span></div></div>
+
+            <div class="section-title">C: CHANZO CHA SAFARI (KIELEZWE KWA KINA):</div>
+            <div>Ni nani aliyeanzisha safari? Je ni mtumishi? Je ni Serikali au Mwaliko mwingine? (Eleza kwa ufafanuzi chanzo cha safari utakacho jaza na ambatisha barua ya mwaliko)</div>
+            <div class="multi-line">
+                <div></div><div></div><div></div>
+            </div>
+
+            <div class="section-title">D: FAIDA YA SAFARI NA ATHARI ZITAKAZOKUWEPO KAMA SAFARI HAIKUPITISHWA.</div>
+            <div class="field-row"><div>(i)</div><div>Nini Faida / Tija na Umuhimu wa safari husika kwa Taasisi na Taifa kwa ujumla:</div></div>
+            <div class="indented">
+                <div class="small">(a) Tija na Umuhimu kwa Taasisi:</div>
+                <div class="multi-line"><div></div><div></div><div></div></div>
+                <div class="small">(b) Tija na Umuhimu kwa Taifa:</div>
+                <div class="multi-line"><div></div><div></div><div></div></div>
+            </div>
+            <div class="field-row"><div>(i)</div><div>Athari zitakazokuwepo kama safari haikupitishwa:</div></div>
+            <div class="indented">
+                <div class="multi-line"><div></div><div></div><div></div><div></div></div>
+            </div>
+
+            <div class="section-title">E: GHARAMA ZA SAFARI ZIKIANISHA YAFUATAYO:</div>
+            <div class="field-row"><div>(i)</div><div>Gharama za Usafiri (Taja kiwango)</div></div>
+            <div class="indented multi-line"><div></div><div></div></div>
+            <div class="field-row"><div>(ii)</div><div>Posho zote za safari husika: (Taja kiwango)</div></div>
+            <div class="indented small">(a) <span class="line"></span></div>
+
+            <div class="page-no">2</div>
+        </section>
+
+        <section class="page-sheet">
+            <div class="form-no">Formu Na: NIMR - ADM - F002</div>
+
+            <div class="indented small">
+                <div>(a) <span class="line"></span></div>
+                <div>(b) <span class="line"></span></div>
+                <div>(c) <span class="line"></span></div>
+                <div>(d) <span class="line"></span></div>
+                <div style="margin-top:10px;">b. Taja kifungu cha Safari kinachohusika na Safari inayotarajiwa <span class="line"></span></div>
+            </div>
+
+            <div class="field-row" style="margin-top:18px;"><div>(ii)</div><div>Eleza mlipaji wa gharama za safari husika: (Kama zipo zinazogharamiwa na Serikali, eleza na utaje ni kiasi gani)</div></div>
+            <div class="indented">
+                <div class="small">(a) Gharama zinazolipwa na Wafadhili: (Taja kiwango)</div>
+                <div class="small">(i) <span class="line"></span></div>
+                <div class="small">(ii) <span class="line"></span></div>
+                <div class="small">(iii) <span class="line"></span></div>
+
+                <div class="small" style="margin-top:16px;">(b) Gharama zinazolipwa na Serikali kama zipo. (Jeleweke wazi kuwa pesa iliyokwisha ingia NIMR hata kama ni ile iliyotolewa na Donor's hiyo itahesabiwa ni ya Serikali). (Taja kiwango)</div>
+                <div class="small">(i) <span class="line"></span></div>
+                <div class="small">(ii) <span class="line"></span></div>
+                <div class="small">(iii) <span class="line"></span></div>
+
+                <div class="small" style="margin-top:16px;">(iv) Eleza kama kuna gharama zingine nje ya zilizotajwa hapo juu: (Taja kiwango).</div>
+                <div class="multi-line"><div></div><div></div><div></div></div>
+            </div>
+
+            <div class="section-title">F: MANUFAA YALIYOPATIKANA KWA TAASISI NA TAIFA KWA SAFARI KAMA HIYO KWA KIPINDI CHA NYUMA: (IMPACT ASSESSMENT OF THE PREVIOUS TRAVELS).</div>
+            <div class="multi-line"><div></div><div></div><div></div></div>
+            <div class="split-2">
+                <div>Saini ya anayesafiri: <span class="short-line"></span></div>
+                <div>Tarehe: <span class="signature-line"></span></div>
+            </div>
+
+            <div class="section-title">G: TAJA JINA LA AFISA NA CHEO CHA UTAKAYEMKAIMISHA MAJUKUMU YAKO. (AMBATISHA MAKUBALIANO YA KUKABIDHIANA MAJUKU (HANDOVER NOTE)</div>
+            <div class="multi-line"><div></div></div>
+
+            <div class="page-no">3</div>
+        </section>
+
+        <section class="page-sheet">
+            <div class="form-no">Formu Na: NIMR - ADM - F002</div>
+
+            <div class="section-title">H: MAONI YA MKURUGENZI, MENEJA/MKUU WA IDARA KUHUSU TIJA NA UMUHIMU WA SAFARI KWA TAASISI NA TAIFA.</div>
+            <div class="field-row"><div>(i)</div><div>Tija na Umuhimu.</div></div>
+            <div class="indented multi-line"><div></div><div></div><div></div><div></div></div>
+            <div class="field-row"><div>(ii)</div><div>ARUHUSIWE/ASIRUHUSIWE <span class="line"></span></div></div>
+            <div class="split-2" style="margin-top:14px;">
+                <div>Saini ya Mkuu wa Idara <span class="short-line"></span></div>
+                <div>Tarehe <span class="signature-line"></span></div>
+            </div>
+            <div style="margin-top:14px;">Mhuri wa Ofisi:</div>
+
+            <div class="section-title">I: MAONI YA MKUU WA IDARA/KITUO AU MKURUGENZI KUHUSU TIJA NA UMUHIMU WA SAFARI KWA TAASISI NA TAIFA.</div>
+            <div class="field-row"><div>(i)</div><div>Tija na umuhimu</div></div>
+            <div class="indented multi-line"><div></div><div></div><div></div><div></div></div>
+            <div class="field-row"><div>(ii)</div><div>ARUHUSIWE/ASIRUHUSIWE <span class="line"></span></div></div>
+            <div class="split-2" style="margin-top:14px;">
+                <div>(iii) Saini ya Kiongozi <span class="short-line"></span></div>
+                <div>Tarehe: <span class="signature-line"></span></div>
+            </div>
+
+            <div class="section-title">J: KIBALI CHA KUSAFIRI NDANI YA TANZANIA (ITAJAZWA NA MENEJA WA KITUO AU MKURUGENZI MKUU).</div>
+            <div class="small">Maombi ya kusafiri ndani ya Tanzania kwa mtumishi aliyetajwa hapo juu,</div>
+            <div style="margin-top:12px;">YAMEKUBALIWA/YAMEKATALIWA <span class="line"></span></div>
+            <div class="split-2" style="margin-top:16px;">
+                <div>Saini ya Mkurugenzi Mkuu / Mkuu wa Kituo <span class="short-line"></span></div>
+                <div>Tarehe <span class="signature-line"></span></div>
+            </div>
+
+            <div class="section-title">K: KWA TAARIFA</div>
+            <div>Meneja Rasilimali Watu na Utawala/Afisa Rasilimali Watu/Afisa Utawala.</div>
+            <div class="split-3" style="margin-top:20px;">
+                <div><span class="line"></span><br>Jina</div>
+                <div><span class="line"></span><br>Saini</div>
+                <div><span class="line"></span><br>Tarehe</div>
+            </div>
+            <div style="margin-top:22px;">Mhuri wa Ofisi</div>
+
+            <div class="page-no">4</div>
+        </section>
+    </div>
+</body>
+</html>
