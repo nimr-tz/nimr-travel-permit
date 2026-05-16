@@ -36,22 +36,31 @@ class ApprovalChainService
 
     /**
      * After an approval action is recorded, advance the request to the
-     * next step or mark it fully approved/rejected.
+     * next step or mark it fully approved/rejected/returned.
      */
     public function advance(TravelRequest $request, string $decision): void
     {
         if ($decision === 'rejected') {
             $request->update([
-                'status'               => 'rejected',
-                'current_approver_id'  => null,
+                'status'              => TravelRequest::STATUS_REJECTED,
+                'current_approver_id' => null,
             ]);
             return;
         }
 
-        $chain       = $request->approval_chain;
-        $currentId   = $request->current_approver_id;
+        if ($decision === 'returned') {
+            $request->update([
+                'status'              => TravelRequest::STATUS_RETURNED,
+                'current_approver_id' => null,
+                'approval_chain'      => null,
+                'submitted_at'        => null,
+            ]);
+            return;
+        }
 
-        // Find the index of the current step
+        $chain     = $request->approval_chain;
+        $currentId = $request->current_approver_id;
+
         $currentIndex = collect($chain)->search(fn($step) => (int)$step['approver_id'] === (int)$currentId);
 
         $nextStep = $chain[$currentIndex + 1] ?? null;
@@ -61,9 +70,8 @@ class ApprovalChainService
                 'current_approver_id' => $nextStep['approver_id'],
             ]);
         } else {
-            // No more steps — fully approved
             $request->update([
-                'status'              => 'approved',
+                'status'              => TravelRequest::STATUS_APPROVED,
                 'current_approver_id' => null,
             ]);
         }

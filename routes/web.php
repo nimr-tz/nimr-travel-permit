@@ -8,6 +8,13 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TravelRequestController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/locale/{locale}', function (string $locale) {
+    if (in_array($locale, ['en', 'sw'])) {
+        session(['locale' => $locale]);
+    }
+    return back();
+})->name('locale.switch');
+
 Route::get('/', function () {
     return auth()->check()
         ? redirect()->route('dashboard')
@@ -28,11 +35,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/travel-requests/{travelRequest}/approve', [ApprovalController::class, 'store'])->name('travel-requests.approve');
     Route::get('/travel-requests/{travelRequest}/print',   [TravelRequestController::class, 'print'])->name('travel-requests.print');
 
-    Route::get('/users',              [UserController::class, 'index'])->name('users.index');
-    Route::get('/users/create',       [UserController::class, 'create'])->name('users.create');
-    Route::post('/users',             [UserController::class, 'store'])->name('users.store');
-    Route::get('/users/{user}/edit',  [UserController::class, 'edit'])->name('users.edit');
-    Route::patch('/users/{user}',     [UserController::class, 'update'])->name('users.update');
+    Route::middleware(\App\Http\Middleware\EnsureIsAdmin::class)->group(function () {
+        Route::get('/users',              [UserController::class, 'index'])->name('users.index');
+        Route::get('/users/create',       [UserController::class, 'create'])->name('users.create');
+        Route::post('/users',             [UserController::class, 'store'])->name('users.store');
+        Route::get('/users/{user}/edit',  [UserController::class, 'edit'])->name('users.edit');
+        Route::patch('/users/{user}',     [UserController::class, 'update'])->name('users.update');
+    });
+
+    Route::delete('/travel-requests/{travelRequest}/cancel', [TravelRequestController::class, 'cancel'])->name('travel-requests.cancel');
+    Route::get('/travel-requests/{travelRequest}/download',  [TravelRequestController::class, 'download'])->name('travel-requests.download');
 
     Route::get('/profile',    [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile',  [ProfileController::class, 'update'])->name('profile.update');

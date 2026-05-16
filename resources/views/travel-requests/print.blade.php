@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="sw">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -177,8 +177,8 @@
 
 {{-- Print / Back controls --}}
 <div class="print-controls">
-    <a href="{{ route('travel-requests.show', $travelRequest) }}" class="btn-back">← Rudi</a>
-    <button class="btn-print" onclick="window.print()">🖨 Chapisha</button>
+    <a href="{{ route('travel-requests.show', $travelRequest) }}" class="btn-back">← {{ __('common.back') }}</a>
+    <button class="btn-print" onclick="window.print()">{{ __('common.print') }}</button>
 </div>
 
 <div class="page">

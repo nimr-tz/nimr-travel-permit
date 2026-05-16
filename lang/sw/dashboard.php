@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'title'         => 'Dashibodi',
+    'welcome'       => 'Karibu,',
+    'total'         => 'Maombi Yote',
+    'pending'       => 'Yanasubiri',
+    'approved'      => 'Yaliyoidhinishwa',
+    'rejected'      => 'Yaliyokataliwa',
+    'needs_action'  => 'Inahitaji Hatua Yako',
+    'needs_approval'=> 'Inahitaji Idhini',
+    'my_requests'   => 'Maombi Yangu',
+    'all_recent'    => 'Maombi Yote — Hivi Karibuni',
+    'view_all'      => 'Ona yote →',
+    'view'          => 'Angalia →',
+    'no_my_requests'=> 'Bado hujawahi wasilisha ombi.',
+    'no_requests'   => 'Hakuna maombi bado.',
+    'first_request' => '+ Wasilisha Ombi la Kwanza',
+    'waiting_for'   => 'Kwa: :name',
+    'request_number'=> 'Nambari',
+    'applicant'     => 'Mtumishi',
+    'destination'   => 'Marudio',
+    'unit'          => 'Kitengo',
+    'date'          => 'Tarehe',
+    'approval_queue'=> 'Maombi ya Idhini',
+];

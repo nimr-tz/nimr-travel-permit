@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'title'         => 'Dashboard',
+    'welcome'       => 'Welcome,',
+    'total'         => 'Total Requests',
+    'pending'       => 'Pending',
+    'approved'      => 'Approved',
+    'rejected'      => 'Rejected',
+    'needs_action'  => 'Needs Your Action',
+    'needs_approval'=> 'Needs Approval',
+    'my_requests'   => 'My Requests',
+    'all_recent'    => 'All Requests — Recent',
+    'view_all'      => 'View all →',
+    'view'          => 'View →',
+    'no_my_requests'=> 'You have not submitted any requests yet.',
+    'no_requests'   => 'No requests yet.',
+    'first_request' => '+ Submit First Request',
+    'waiting_for'   => 'With: :name',
+    'request_number'=> 'Number',
+    'applicant'     => 'Applicant',
+    'destination'   => 'Destination',
+    'unit'          => 'Unit',
+    'date'          => 'Date',
+    'approval_queue'=> 'Approval Queue',
+];

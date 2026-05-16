@@ -8,6 +8,40 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TravelRequest extends Model
 {
+    const STATUS_DRAFT     = 'draft';
+    const STATUS_PENDING   = 'pending';
+    const STATUS_APPROVED  = 'approved';
+    const STATUS_REJECTED  = 'rejected';
+    const STATUS_RETURNED  = 'returned';
+    const STATUS_CANCELLED = 'cancelled';
+
+    const STATUSES = [
+        self::STATUS_DRAFT,
+        self::STATUS_PENDING,
+        self::STATUS_APPROVED,
+        self::STATUS_REJECTED,
+        self::STATUS_RETURNED,
+        self::STATUS_CANCELLED,
+    ];
+
+    const STATUS_LABELS = [
+        self::STATUS_DRAFT     => 'Rasimu',
+        self::STATUS_PENDING   => 'Inasubiri Idhini',
+        self::STATUS_APPROVED  => 'Imeidhinishwa',
+        self::STATUS_REJECTED  => 'Imekataliwa',
+        self::STATUS_RETURNED  => 'Imerudishwa kwa Marekebisho',
+        self::STATUS_CANCELLED => 'Imefutwa',
+    ];
+
+    const STATUS_COLORS = [
+        self::STATUS_DRAFT     => 'bg-gray-100 text-gray-600',
+        self::STATUS_PENDING   => 'bg-amber-100 text-amber-700',
+        self::STATUS_APPROVED  => 'bg-green-100 text-green-700',
+        self::STATUS_REJECTED  => 'bg-red-100 text-red-700',
+        self::STATUS_RETURNED  => 'bg-orange-100 text-orange-700',
+        self::STATUS_CANCELLED => 'bg-gray-100 text-gray-400',
+    ];
+
     protected $fillable = [
         'request_number',
         'requester_id',
@@ -63,11 +97,11 @@ class TravelRequest extends Model
     protected function casts(): array
     {
         return [
-            'b_departure_date'       => 'date',
-            'b_return_date'          => 'date',
-            'f_traveller_signed_date'=> 'date',
-            'approval_chain'         => 'array',
-        'submitted_at'           => 'datetime',
+            'b_departure_date'        => 'date',
+            'b_return_date'           => 'date',
+            'f_traveller_signed_date' => 'date',
+            'approval_chain'          => 'array',
+            'submitted_at'            => 'datetime',
         ];
     }
 
@@ -89,5 +123,40 @@ class TravelRequest extends Model
     public function approvalActions(): HasMany
     {
         return $this->hasMany(ApprovalAction::class)->orderBy('acted_at');
+    }
+
+    public function isEditable(): bool
+    {
+        return in_array($this->status, [self::STATUS_DRAFT, self::STATUS_RETURNED]);
+    }
+
+    public function isCancellable(): bool
+    {
+        if (!in_array($this->status, [self::STATUS_DRAFT, self::STATUS_PENDING, self::STATUS_RETURNED])) {
+            return false;
+        }
+
+        return !$this->approvalActions()
+            ->where('decision', 'approved')
+            ->exists();
+    }
+
+    public function statusLabel(): string
+    {
+        return __('common.status_' . $this->status, [], app()->getLocale())
+            ?: (self::STATUS_LABELS[$this->status] ?? ucfirst($this->status));
+    }
+
+    public static function getStatusLabels(): array
+    {
+        return array_combine(self::STATUSES, array_map(
+            fn($s) => __('common.status_' . $s),
+            self::STATUSES
+        ));
+    }
+
+    public function statusColor(): string
+    {
+        return self::STATUS_COLORS[$this->status] ?? 'bg-gray-100 text-gray-500';
     }
 }
