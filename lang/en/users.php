@@ -47,5 +47,6 @@ return [
     'field_password_hint'=> '(Leave blank to keep unchanged)',
     'field_password_ph' => 'New password',
     'invite_notice'     => 'An invitation email will be sent to this address with a link to set their password. No password is required now.',
-    'invited_success'   => ':name has been added and an invitation email has been sent.',
+    'invited_success'           => ':name has been added and an invitation email has been sent.',
+    'deactivate_pending_warning'=> 'Cannot deactivate: this user has :count pending approval(s). Reassign or resolve those requests first.',
 ];

@@ -32,4 +32,12 @@ return [
     'supervisor_updated' => 'Msimamizi amesasishwa.',
     'supervisor_invalid' => 'Chagua msimamizi hai kutoka kitengo chako.',
     'supervisor_candidates_empty' => 'Hakuna wasimamizi wanaofaa kwa kitengo chako kwa sasa.',
+    'my_profile'        => 'Maelezo Yangu',
+    'profile_staff_no'  => 'Namba ya Utumishi',
+    'profile_role'      => 'Jukumu',
+    'profile_phone'     => 'Simu',
+    'profile_email'     => 'Barua Pepe',
+    'profile_unit'      => 'Kitengo',
+    'profile_edit'      => 'Hariri Wasifu',
+    'profile_not_set'   => 'Haijawekwa',
 ];

@@ -81,7 +81,19 @@ class UserController extends Controller
             $validated['password'] = Hash::make($validated['password']);
         }
 
-        $validated['is_active'] = $request->boolean('is_active');
+        $newIsActive = $request->boolean('is_active');
+        $validated['is_active'] = $newIsActive;
+
+        if ($user->is_active && !$newIsActive) {
+            $pendingCount = \App\Models\TravelRequest::where('current_approver_id', $user->id)
+                ->where('status', 'pending')
+                ->count();
+            if ($pendingCount > 0) {
+                return back()->withInput()->withErrors([
+                    'is_active' => __('users.deactivate_pending_warning', ['count' => $pendingCount]),
+                ]);
+            }
+        }
 
         $user->update($validated);
 

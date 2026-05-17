@@ -32,4 +32,12 @@ return [
     'supervisor_updated' => 'Supervisor updated.',
     'supervisor_invalid' => 'Choose an active supervisor from your unit.',
     'supervisor_candidates_empty' => 'No eligible supervisors are available for your current unit.',
+    'my_profile'        => 'My Details',
+    'profile_staff_no'  => 'Staff No.',
+    'profile_role'      => 'Role',
+    'profile_phone'     => 'Phone',
+    'profile_email'     => 'Email',
+    'profile_unit'      => 'Unit',
+    'profile_edit'      => 'Edit Profile',
+    'profile_not_set'   => 'Not set',
 ];

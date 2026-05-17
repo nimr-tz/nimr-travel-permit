@@ -63,6 +63,12 @@ class ApprovalChainService
 
         $currentIndex = collect($chain)->search(fn($step) => (int)$step['approver_id'] === (int)$currentId);
 
+        if ($currentIndex === false) {
+            throw new \RuntimeException(
+                "Approver [{$currentId}] not found in approval chain for request [{$request->id}]. Possible data corruption."
+            );
+        }
+
         $nextStep = $chain[$currentIndex + 1] ?? null;
 
         if ($nextStep) {

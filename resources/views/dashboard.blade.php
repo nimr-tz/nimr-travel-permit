@@ -48,6 +48,42 @@
             @endforeach
         </div>
 
+        {{-- ── My Details ──────────────────────────────────────────────── --}}
+        <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">{{ __('dashboard.my_profile') }}</h3>
+                <a href="{{ route('profile.edit') }}" class="text-xs font-medium transition hover:underline" style="color:#05499c;">{{ __('dashboard.profile_edit') }}</a>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('dashboard.profile_staff_no') }}</p>
+                    <p class="text-sm font-semibold text-slate-800 truncate">{{ $user->staff_number ?: __('dashboard.profile_not_set') }}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('dashboard.profile_role') }}</p>
+                    <p class="text-sm font-semibold text-slate-800 truncate">{{ __('common.role_' . $user->role) }}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('dashboard.profile_unit') }}</p>
+                    <p class="text-sm font-semibold text-slate-800 truncate">{{ $user->unit?->name ?: __('dashboard.profile_not_set') }}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('dashboard.profile_email') }}</p>
+                    <p class="text-sm font-semibold text-slate-800 truncate">{{ $user->email }}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('dashboard.profile_phone') }}</p>
+                    <p class="text-sm font-semibold text-slate-800 truncate">{{ $user->phone ?: __('dashboard.profile_not_set') }}</p>
+                </div>
+                @if (!$user->isHr() && !$user->isDirectorGeneral() && $user->supervisor)
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('dashboard.my_supervisor') }}</p>
+                    <p class="text-sm font-semibold text-slate-800 truncate">{{ $user->supervisor->name }}</p>
+                </div>
+                @endif
+            </div>
+        </div>
+
         @if (!$user->isHr() && !$user->isDirectorGeneral())
         <div class="card p-5">
             <div class="flex flex-col md:flex-row md:items-start gap-5">

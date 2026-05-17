@@ -11,6 +11,7 @@ use App\Services\ApprovalChainService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -148,8 +149,19 @@ class TravelRequestController extends Controller
     {
         $this->authorize('update', $travelRequest);
 
-        $validated = $this->validateForm($request, withFile: false);
+        $validated = $this->validateForm($request, withFile: true);
         $isDraft   = $request->input('action') === 'draft';
+
+        // Handle file replacement
+        if ($request->hasFile('g_handover_document')) {
+            if ($travelRequest->g_handover_document) {
+                Storage::disk('private')->delete($travelRequest->g_handover_document);
+            }
+            $validated['g_handover_document'] = $request->file('g_handover_document')
+                ->store('handover-documents', 'private');
+        } else {
+            unset($validated['g_handover_document']);
+        }
 
         if (!$isDraft) {
             try {
@@ -214,7 +226,7 @@ class TravelRequestController extends Controller
             'b_email'                    => ['nullable', 'email', 'max:255'],
             'b_position'                 => ['nullable', 'string', 'max:255'],
             'b_destination'              => ['required', 'string', 'max:500'],
-            'b_departure_date'           => ['required', 'date', 'after_or_equal:today'],
+            'b_departure_date'           => ['required', 'date', 'after:today'],
             'b_return_date'              => ['required', 'date', 'after_or_equal:b_departure_date'],
             'c_travel_source'            => ['nullable', 'string'],
             'd_benefit_to_institution'   => ['nullable', 'string'],
@@ -260,8 +272,11 @@ class TravelRequestController extends Controller
             if ($firstApprover) {
                 $firstApprover->notify(new TravelRequestSubmittedNotification($travelRequest));
             }
-        } catch (\Throwable) {
-            // Notification failure must never break the main flow
+        } catch (\Throwable $e) {
+            Log::warning('Failed to notify first approver for request ' . $travelRequest->request_number, [
+                'approver_id' => $travelRequest->current_approver_id,
+                'error'       => $e->getMessage(),
+            ]);
         }
     }
 }

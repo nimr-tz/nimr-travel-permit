@@ -13,6 +13,7 @@ use App\Services\ApprovalChainService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ApprovalController extends Controller
 {
@@ -90,8 +91,11 @@ class ApprovalController extends Controller
             } elseif ($decision === 'returned') {
                 $requester?->notify(new TravelRequestReturnedNotification($travelRequest));
             }
-        } catch (\Throwable) {
-            // Notification failure must never break the main flow
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send approval notification for request ' . $travelRequest->request_number, [
+                'decision' => $decision,
+                'error'    => $e->getMessage(),
+            ]);
         }
     }
 }

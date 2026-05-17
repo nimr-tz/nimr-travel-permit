@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('request_number')->unique();
             $table->foreignId('requester_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('unit_id')->constrained('units')->restrictOnDelete();
-            $table->enum('status', ['draft', 'pending', 'approved', 'rejected'])->default('draft');
+            $table->enum('status', ['draft', 'pending', 'approved', 'rejected', 'returned', 'cancelled'])->default('draft');
             // Points to the user who needs to act next (null if draft or fully resolved)
             $table->foreignId('current_approver_id')->nullable()->constrained('users')->nullOnDelete();
 

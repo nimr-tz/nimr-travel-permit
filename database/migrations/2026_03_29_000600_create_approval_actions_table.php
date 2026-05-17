@@ -20,7 +20,7 @@ return new class extends Migration
             // hr         = HR receives for information (Section K)
             $table->enum('stage', ['supervisor', 'director', 'final', 'hr']);
 
-            $table->enum('decision', ['approved', 'rejected']);
+            $table->enum('decision', ['approved', 'rejected', 'returned']);
             $table->text('comment')->nullable();
             $table->timestamp('acted_at');
             $table->timestamps();
