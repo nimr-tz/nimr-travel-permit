@@ -44,7 +44,6 @@
                         <th class="table-th hidden lg:table-cell">{{ __('users.col_unit') }}</th>
                         <th class="table-th">{{ __('users.col_role') }}</th>
                         <th class="table-th hidden sm:table-cell">{{ __('users.col_status') }}</th>
-                        <th class="table-th hidden xl:table-cell">{{ __('users.col_supervisor') }}</th>
                         <th class="table-th w-16 text-right">{{ __('users.col_actions') }}</th>
                     </tr>
                 </thead>
@@ -87,7 +86,6 @@
                                 </span>
                             @endif
                         </td>
-                        <td class="table-td hidden xl:table-cell text-slate-500 text-sm">{{ $user->supervisor?->name ?? '—' }}</td>
                         <td class="table-td text-right">
                             <a href="{{ route('users.edit', $user) }}"
                                 class="btn-ghost btn-sm text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50">
@@ -97,7 +95,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-16 text-center">
+                        <td colspan="6" class="px-6 py-16 text-center">
                             <p class="text-sm text-slate-400">{{ __('users.no_users') }}</p>
                         </td>
                     </tr>

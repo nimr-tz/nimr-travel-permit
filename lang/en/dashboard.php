@@ -23,4 +23,13 @@ return [
     'unit'          => 'Unit',
     'date'          => 'Date',
     'approval_queue'=> 'Approval Queue',
+    'my_supervisor' => 'My Supervisor',
+    'supervisor_not_assigned' => 'No supervisor assigned',
+    'supervisor_not_assigned_hint' => 'Choose one below if your unit uses supervisor-level review.',
+    'supervisor_select_label' => 'Choose supervisor',
+    'supervisor_select_placeholder' => 'No supervisor',
+    'supervisor_save' => 'Save',
+    'supervisor_updated' => 'Supervisor updated.',
+    'supervisor_invalid' => 'Choose an active supervisor from your unit.',
+    'supervisor_candidates_empty' => 'No eligible supervisors are available for your current unit.',
 ];

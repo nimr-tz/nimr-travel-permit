@@ -3,6 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\TravelRequest;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -10,6 +15,7 @@ class DashboardController extends Controller
     public function __invoke(): View
     {
         $user = auth()->user();
+        $user->load(['unit', 'supervisor.unit']);
 
         // My own requests
         $myRequests = TravelRequest::with(['requester', 'unit', 'currentApprover'])
@@ -53,10 +59,71 @@ class DashboardController extends Controller
             'approvalRequests' => $approvalRequests,
             'allRequests'      => $allRequests,
             'needsMyAction'    => $needsMyAction,
+            'supervisor'       => $user->supervisor,
+            'supervisorCandidates' => $this->supervisorCandidatesFor($user),
             'totalRequests'    => $statsBase->count(),
             'pendingCount'     => $statsBase->where('status', 'pending')->count(),
             'approvedCount'    => $statsBase->where('status', 'approved')->count(),
             'rejectedCount'    => $statsBase->where('status', 'rejected')->count(),
         ]);
+    }
+
+    public function updateSupervisor(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_if($user->isHr() || $user->isDirectorGeneral(), 403);
+
+        $validated = $request->validate([
+            'supervisor_id' => ['nullable', 'integer'],
+        ]);
+
+        $supervisorId = $validated['supervisor_id'] ?? null;
+
+        if (!$supervisorId) {
+            $user->forceFill(['supervisor_id' => null])->save();
+
+            return redirect()->route('dashboard')
+                ->with('status', __('dashboard.supervisor_updated'));
+        }
+
+        $candidateIds = $this->supervisorCandidatesFor($user)->pluck('id')->all();
+
+        if (!in_array((int) $supervisorId, $candidateIds, true)) {
+            throw ValidationException::withMessages([
+                'supervisor_id' => __('dashboard.supervisor_invalid'),
+            ]);
+        }
+
+        $user->forceFill(['supervisor_id' => (int) $supervisorId])->save();
+
+        return redirect()->route('dashboard')
+            ->with('status', __('dashboard.supervisor_updated'));
+    }
+
+    private function supervisorCandidatesFor(User $user): Collection
+    {
+        if (!$user->unit_id || !$user->unit) {
+            return new Collection();
+        }
+
+        $roles = match ($user->unit->type) {
+            'research_centre', 'hq_standalone' => ['manager'],
+            'hq_section' => ['head', 'manager'],
+            'hq_directorate' => ['director'],
+            default => [],
+        };
+
+        if ($roles === []) {
+            return new Collection();
+        }
+
+        return User::query()
+            ->where('unit_id', $user->unit_id)
+            ->where('id', '!=', $user->id)
+            ->where('is_active', true)
+            ->whereIn('role', $roles)
+            ->orderBy('name')
+            ->get();
     }
 }

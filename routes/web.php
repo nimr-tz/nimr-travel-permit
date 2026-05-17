@@ -23,6 +23,7 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::patch('/dashboard/supervisor', [DashboardController::class, 'updateSupervisor'])->name('dashboard.supervisor.update');
     Route::get('/approvals', ApprovalsController::class)->name('approvals.index');
 
     Route::get('/travel-requests',                  [TravelRequestController::class, 'index'])->name('travel-requests.index');

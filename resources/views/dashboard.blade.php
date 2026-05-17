@@ -48,6 +48,60 @@
             @endforeach
         </div>
 
+        @if (!$user->isHr() && !$user->isDirectorGeneral())
+        <div class="card p-5">
+            <div class="flex flex-col md:flex-row md:items-start gap-5">
+                <div class="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style="background-color:#05499c15;">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#05499c;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <div class="min-w-0 flex-1 grid lg:grid-cols-[1fr,360px] gap-5">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('dashboard.my_supervisor') }}</p>
+                        @if ($supervisor)
+                            <p class="text-base font-bold text-slate-900">{{ $supervisor->name }}</p>
+                            <p class="text-sm text-slate-500 mt-0.5">
+                                {{ $supervisor->job_title ?? __('common.role_' . $supervisor->role) }}
+                                @if ($supervisor->unit) &middot; {{ $supervisor->unit->name }} @endif
+                            </p>
+                        @else
+                            <p class="text-base font-bold text-slate-900">{{ __('dashboard.supervisor_not_assigned') }}</p>
+                            <p class="text-sm text-slate-500 mt-0.5">{{ __('dashboard.supervisor_not_assigned_hint') }}</p>
+                        @endif
+                    </div>
+
+                    <form method="POST" action="{{ route('dashboard.supervisor.update') }}" class="space-y-2">
+                        @csrf
+                        @method('PATCH')
+
+                        <label for="supervisor_id" class="block text-xs font-semibold text-slate-500">{{ __('dashboard.supervisor_select_label') }}</label>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <select id="supervisor_id" name="supervisor_id"
+                                class="min-w-0 flex-1 rounded-lg border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">{{ __('dashboard.supervisor_select_placeholder') }}</option>
+                                @foreach ($supervisorCandidates as $candidate)
+                                    <option value="{{ $candidate->id }}" @selected((int) old('supervisor_id', $user->supervisor_id) === $candidate->id)>
+                                        {{ $candidate->name }} - {{ $candidate->job_title ?? __('common.role_' . $candidate->role) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <button type="submit" class="btn-primary btn-sm whitespace-nowrap">{{ __('dashboard.supervisor_save') }}</button>
+                        </div>
+
+                        @error('supervisor_id')
+                            <p class="text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+
+                        @if ($supervisorCandidates->isEmpty())
+                            <p class="text-xs text-slate-400">{{ __('dashboard.supervisor_candidates_empty') }}</p>
+                        @endif
+                    </form>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- ── Needs My Action ─────────────────────────────────────────── --}}
         @if (!$user->isHr() && $needsMyAction->count() > 0)
         <div>

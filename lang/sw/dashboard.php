@@ -23,4 +23,13 @@ return [
     'unit'          => 'Kitengo',
     'date'          => 'Tarehe',
     'approval_queue'=> 'Maombi ya Idhini',
+    'my_supervisor' => 'Msimamizi Wangu',
+    'supervisor_not_assigned' => 'Hakuna msimamizi aliyepangwa',
+    'supervisor_not_assigned_hint' => 'Chagua hapa chini kama kitengo chako kinatumia mapitio ya msimamizi.',
+    'supervisor_select_label' => 'Chagua msimamizi',
+    'supervisor_select_placeholder' => 'Hakuna msimamizi',
+    'supervisor_save' => 'Hifadhi',
+    'supervisor_updated' => 'Msimamizi amesasishwa.',
+    'supervisor_invalid' => 'Chagua msimamizi hai kutoka kitengo chako.',
+    'supervisor_candidates_empty' => 'Hakuna wasimamizi wanaofaa kwa kitengo chako kwa sasa.',
 ];

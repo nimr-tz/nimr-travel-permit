@@ -15,7 +15,7 @@ class UserController extends Controller
 {
     public function index(): View
     {
-        $users = User::with('unit', 'supervisor')
+        $users = User::with('unit')
             ->orderBy('name')
             ->paginate(20);
 
@@ -26,8 +26,7 @@ class UserController extends Controller
     {
         $units = Unit::orderBy('type')->orderBy('name')->get();
         $roles = ['staff', 'head', 'manager', 'director', 'centre_manager', 'director_general', 'hr'];
-        $supervisors = User::orderBy('name')->get();
-        return view('users.create', compact('units', 'roles', 'supervisors'));
+        return view('users.create', compact('units', 'roles'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -40,7 +39,6 @@ class UserController extends Controller
             'staff_number'  => ['nullable', 'string', 'max:100'],
             'job_title'     => ['nullable', 'string', 'max:255'],
             'role'          => ['required', 'in:staff,head,manager,director,centre_manager,director_general,hr'],
-            'supervisor_id' => ['nullable', 'exists:users,id'],
             'is_active'     => ['boolean'],
         ]);
 
@@ -60,8 +58,7 @@ class UserController extends Controller
     {
         $units = Unit::orderBy('type')->orderBy('name')->get();
         $roles = ['staff', 'head', 'manager', 'director', 'centre_manager', 'director_general', 'hr'];
-        $supervisors = User::where('id', '!=', $user->id)->orderBy('name')->get();
-        return view('users.edit', compact('user', 'units', 'roles', 'supervisors'));
+        return view('users.edit', compact('user', 'units', 'roles'));
     }
 
     public function update(Request $request, User $user): RedirectResponse
@@ -75,7 +72,6 @@ class UserController extends Controller
             'staff_number'  => ['nullable', 'string', 'max:100'],
             'job_title'     => ['nullable', 'string', 'max:255'],
             'role'          => ['required', 'in:staff,head,manager,director,centre_manager,director_general,hr'],
-            'supervisor_id' => ['nullable', 'exists:users,id'],
             'is_active'     => ['boolean'],
         ]);
 

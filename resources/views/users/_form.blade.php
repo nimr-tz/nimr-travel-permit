@@ -77,17 +77,6 @@
                     @endforeach
                 </select>
             </div>
-            <div class="field">
-                <label class="label">{{ __('users.field_supervisor') }}</label>
-                <select name="supervisor_id" class="select @error('supervisor_id') input-error @enderror">
-                    <option value="">{{ __('users.field_supervisor_ph') }}</option>
-                    @foreach ($supervisors as $sup)
-                    <option value="{{ $sup->id }}" {{ old('supervisor_id', $user->supervisor_id ?? '') == $sup->id ? 'selected' : '' }}>
-                        {{ $sup->name }}{{ $sup->job_title ? ' — ' . $sup->job_title : '' }}
-                    </option>
-                    @endforeach
-                </select>
-            </div>
             <div class="flex items-center gap-3 pt-1 self-end pb-0.5">
                 <input type="checkbox" name="is_active" id="is_active" value="1"
                     class="h-4 w-4 rounded border-slate-300 text-indigo-600 shadow-sm focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"

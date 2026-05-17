@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -17,7 +18,25 @@ class RegisteredUserController extends Controller
     public function create(): View
     {
         return view('auth.register', [
-            'units' => Unit::query()->orderBy('name')->get(),
+            'hqStandaloneUnits' => Unit::query()
+                ->where('type', 'hq_standalone')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(),
+            'hqDirectorates' => Unit::query()
+                ->with(['children' => fn ($query) => $query
+                    ->where('type', 'hq_section')
+                    ->where('is_active', true)
+                    ->orderBy('name')])
+                ->where('type', 'hq_directorate')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(),
+            'researchCentres' => Unit::query()
+                ->where('type', 'research_centre')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -37,16 +56,19 @@ class RegisteredUserController extends Controller
             ],
             'staff_number' => ['nullable', 'string', 'max:100'],
             'job_title'    => ['nullable', 'string', 'max:255'],
-            'unit_id'      => ['nullable', 'exists:units,id'],
+            'organizational_level' => ['required', 'in:headquarters,research_centre'],
+            'unit_id'      => ['required', 'exists:units,id'],
             'password'     => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
+
+        $unit = $this->validateOrganizationalPlacement($request);
 
         $user = User::create([
             'name'         => $request->name,
             'email'        => $request->email,
             'staff_number' => $request->staff_number,
             'job_title'    => $request->job_title,
-            'unit_id'      => $request->unit_id,
+            'unit_id'      => $unit->id,
             'password'     => Hash::make($request->password),
             'is_active'    => true,
         ]);
@@ -55,5 +77,39 @@ class RegisteredUserController extends Controller
 
         return redirect()->route('login')
             ->with('status', __('auth.verify_email_sent'));
+    }
+
+    private function validateOrganizationalPlacement(Request $request): Unit
+    {
+        $unit = Unit::query()
+            ->whereKey($request->integer('unit_id'))
+            ->where('is_active', true)
+            ->first();
+
+        if (!$unit) {
+            throw ValidationException::withMessages([
+                'unit_id' => 'Please select an active NIMR unit.',
+            ]);
+        }
+
+        if ($request->organizational_level === 'headquarters' && !$unit->isHq()) {
+            throw ValidationException::withMessages([
+                'unit_id' => 'Please select a headquarters unit.',
+            ]);
+        }
+
+        if ($request->organizational_level === 'research_centre' && !$unit->isResearchCentre()) {
+            throw ValidationException::withMessages([
+                'unit_id' => 'Please select a research centre.',
+            ]);
+        }
+
+        if ($unit->type === 'hq_section' && !$unit->parent()->where('type', 'hq_directorate')->where('is_active', true)->exists()) {
+            throw ValidationException::withMessages([
+                'unit_id' => 'The selected section is not attached to an active directorate.',
+            ]);
+        }
+
+        return $unit;
     }
 }
