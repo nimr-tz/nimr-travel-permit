@@ -21,7 +21,7 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/approvals', ApprovalsController::class)->name('approvals.index');
 

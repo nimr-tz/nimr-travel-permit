@@ -21,4 +21,7 @@ return [
     'rights_reserved' => 'All rights reserved.',
     'staff_only_title'=> 'This system is for authorized NIMR staff only.',
     'staff_only_sub'  => 'Unauthorized access is not permitted.',
+    'deactivated'          => 'Your account has been deactivated. Please contact HR.',
+    'email_domain_invalid' => 'Only :domain email addresses are allowed to register.',
+    'verify_email_sent'    => 'Registration successful. Please check your email and verify your account before signing in.',
 ];

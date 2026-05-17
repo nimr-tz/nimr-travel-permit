@@ -46,4 +46,6 @@ return [
     'field_password'    => 'Nenosiri',
     'field_password_hint'=> '(Acha wazi ikiwa haubadilishi)',
     'field_password_ph' => 'Nenosiri jipya',
+    'invite_notice'     => 'Barua pepe ya mwaliko itatumwa kwa anwani hii na kiungo cha kuweka nenosiri. Hakuna nenosiri linalohitajika sasa.',
+    'invited_success'   => ':name ameongezwa na barua pepe ya mwaliko imetumwa.',
 ];

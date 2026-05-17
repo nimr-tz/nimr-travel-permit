@@ -101,17 +101,23 @@
 
     <div class="border-t border-slate-100 pt-5">
         <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">{{ __('users.form_security') }}</h3>
+        @if (isset($user))
+        {{-- Edit: allow password change --}}
         <div class="field max-w-sm">
             <label class="label">
                 {{ __('users.field_password') }}
-                @isset($user)<span class="font-normal text-slate-400 ml-1">{{ __('users.field_password_hint') }}</span>@endisset
-                @unless(isset($user))<span class="text-red-500">*</span>@endunless
+                <span class="font-normal text-slate-400 ml-1">{{ __('users.field_password_hint') }}</span>
             </label>
             <input type="password" name="password" class="input @error('password') input-error @enderror"
-                {{ isset($user) ? '' : 'required' }}
-                placeholder="{{ isset($user) ? '••••••••' : __('users.field_password_ph') }}"
-                autocomplete="new-password">
+                placeholder="••••••••" autocomplete="new-password">
         </div>
+        @else
+        {{-- Create: invitation email will be sent --}}
+        <div class="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-700 max-w-md">
+            <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <p>{{ __('users.invite_notice') }}</p>
+        </div>
+        @endif
     </div>
 
 </div>

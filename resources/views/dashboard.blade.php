@@ -49,7 +49,7 @@
         </div>
 
         {{-- ── Needs My Action ─────────────────────────────────────────── --}}
-        @if (!$user->isHr() && !$user->isDirectorGeneral() && $needsMyAction->count() > 0)
+        @if (!$user->isHr() && $needsMyAction->count() > 0)
         <div>
             <div class="flex items-center gap-3 mb-3">
                 <h3 class="text-sm font-bold text-slate-800">{{ __('dashboard.needs_action') }}</h3>
@@ -78,6 +78,7 @@
 
         {{-- ── Approval queue (acted-on) ──────────────────────────────── --}}
         @if (!$user->isHr() && !$user->isDirectorGeneral() && $approvalRequests->count() > 0)
+        {{-- Staff/manager/director/head approval queue --}}
         <div>
             <div class="flex items-center gap-3 mb-3">
                 <h3 class="text-sm font-bold text-slate-800">{{ __('dashboard.approval_queue') }}</h3>

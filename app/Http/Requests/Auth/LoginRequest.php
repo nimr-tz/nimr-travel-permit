@@ -50,6 +50,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        if (! Auth::user()->is_active) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => trans('auth.deactivated', [], app()->getLocale()) ?: 'Your account has been deactivated. Please contact HR.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

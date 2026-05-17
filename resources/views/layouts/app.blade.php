@@ -54,6 +54,9 @@
 
                 if ($user->isHr() || $user->isDirectorGeneral()) {
                     $navItems[] = ['route' => 'travel-requests.index', 'label' => __('nav.all_requests'), 'icon' => 'document-list', 'badge' => null, 'pattern' => 'travel-requests.*'];
+                    if ($user->isDirectorGeneral()) {
+                        $navItems[] = ['route' => 'approvals.index', 'label' => __('nav.approvals'), 'icon' => 'check-circle', 'badge' => $pendingCount ?: null, 'pattern' => 'approvals.*'];
+                    }
                 } else {
                     $navItems[] = ['route' => 'travel-requests.index', 'label' => __('nav.my_requests'), 'icon' => 'document-list', 'badge' => null, 'pattern' => 'travel-requests.index'];
                     $navItems[] = ['route' => 'travel-requests.create', 'label' => __('nav.new_request'), 'icon' => 'plus-circle', 'badge' => null, 'pattern' => 'travel-requests.create'];

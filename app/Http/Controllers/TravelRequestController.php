@@ -10,6 +10,7 @@ use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -99,17 +100,19 @@ class TravelRequestController extends Controller
             $documentPath = $request->file('g_handover_document')->store('handover-documents', 'private');
         }
 
-        $travelRequest = TravelRequest::create([
-            ...$validated,
-            'g_handover_document' => $documentPath,
-            'request_number'      => $this->nextRequestNumber(),
-            'requester_id'        => $user->id,
-            'unit_id'             => $user->unit_id,
-            'status'              => $status,
-            'approval_chain'      => $chain,
-            'current_approver_id' => $currentApproverId,
-            'submitted_at'        => $submittedAt,
-        ]);
+        $travelRequest = DB::transaction(function () use ($validated, $documentPath, $user, $status, $chain, $currentApproverId, $submittedAt) {
+            return TravelRequest::create([
+                ...$validated,
+                'g_handover_document' => $documentPath,
+                'request_number'      => $this->nextRequestNumber(),
+                'requester_id'        => $user->id,
+                'unit_id'             => $user->unit_id,
+                'status'              => $status,
+                'approval_chain'      => $chain,
+                'current_approver_id' => $currentApproverId,
+                'submitted_at'        => $submittedAt,
+            ]);
+        });
 
         if (!$isDraft && $chain) {
             $this->notifyFirstApprover($travelRequest);
@@ -121,6 +124,7 @@ class TravelRequestController extends Controller
 
     public function show(TravelRequest $travelRequest): View
     {
+        $this->authorize('view', $travelRequest);
         $travelRequest->load(['requester', 'unit', 'currentApprover', 'approvalActions.actor']);
 
         // Preload all approvers from the chain to avoid N+1 queries in the view
@@ -135,16 +139,14 @@ class TravelRequestController extends Controller
 
     public function edit(TravelRequest $travelRequest): View
     {
-        abort_unless($travelRequest->isEditable(), 403);
-        abort_unless($travelRequest->requester_id === auth()->id(), 403);
+        $this->authorize('update', $travelRequest);
         $user = auth()->user();
         return view('travel-requests.edit', compact('travelRequest', 'user'));
     }
 
     public function update(Request $request, TravelRequest $travelRequest): RedirectResponse
     {
-        abort_unless($travelRequest->isEditable(), 403);
-        abort_unless($travelRequest->requester_id === auth()->id(), 403);
+        $this->authorize('update', $travelRequest);
 
         $validated = $this->validateForm($request, withFile: false);
         $isDraft   = $request->input('action') === 'draft';
@@ -176,8 +178,7 @@ class TravelRequestController extends Controller
 
     public function cancel(Request $request, TravelRequest $travelRequest): RedirectResponse
     {
-        abort_unless($travelRequest->requester_id === auth()->id(), 403);
-        abort_unless($travelRequest->isCancellable(), 403);
+        $this->authorize('cancel', $travelRequest);
 
         $travelRequest->update([
             'status'              => TravelRequest::STATUS_CANCELLED,
@@ -190,14 +191,7 @@ class TravelRequestController extends Controller
 
     public function download(TravelRequest $travelRequest)
     {
-        abort_unless(
-            auth()->id() === $travelRequest->requester_id
-            || auth()->id() === $travelRequest->current_approver_id
-            || auth()->user()->isHr()
-            || auth()->user()->isDirectorGeneral()
-            || $travelRequest->approvalActions()->where('actor_id', auth()->id())->exists(),
-            403
-        );
+        $this->authorize('download', $travelRequest);
 
         abort_unless($travelRequest->g_handover_document, 404);
         abort_unless(Storage::disk('private')->exists($travelRequest->g_handover_document), 404);
@@ -207,6 +201,7 @@ class TravelRequestController extends Controller
 
     public function print(TravelRequest $travelRequest): View
     {
+        $this->authorize('view', $travelRequest);
         $travelRequest->load(['requester', 'unit', 'currentApprover', 'approvalActions.actor']);
         return view('travel-requests.print', compact('travelRequest'));
     }
@@ -254,8 +249,7 @@ class TravelRequestController extends Controller
     protected function nextRequestNumber(): string
     {
         $year = now()->year;
-        $last = TravelRequest::whereYear('created_at', $year)->max('id') ?? 0;
-        $seq  = TravelRequest::whereYear('created_at', $year)->count() + 1;
+        $seq  = TravelRequest::whereYear('created_at', $year)->lockForUpdate()->count() + 1;
         return 'NIMR-ITP-' . $year . '-' . str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
     }
 

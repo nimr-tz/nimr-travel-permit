@@ -41,7 +41,9 @@ class DashboardController extends Controller
             $allRequests = $query->latest()->get();
         }
 
-        $needsMyAction = $approvalRequests->where('current_approver_id', $user->id)->where('status', 'pending');
+        $needsMyAction = ($user->isDirectorGeneral() ? $allRequests : $approvalRequests)
+            ->where('current_approver_id', $user->id)
+            ->where('status', 'pending');
 
         $statsBase = $user->isHr() || $user->isDirectorGeneral() ? $allRequests : $myRequests->merge($approvalRequests);
 

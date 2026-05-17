@@ -46,4 +46,6 @@ return [
     'field_password'    => 'Password',
     'field_password_hint'=> '(Leave blank to keep unchanged)',
     'field_password_ph' => 'New password',
+    'invite_notice'     => 'An invitation email will be sent to this address with a link to set their password. No password is required now.',
+    'invited_success'   => ':name has been added and an invitation email has been sent.',
 ];

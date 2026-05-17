@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -33,7 +35,6 @@ class UserController extends Controller
         $validated = $request->validate([
             'name'          => ['required', 'string', 'max:255'],
             'email'         => ['required', 'email', 'unique:users,email'],
-            'password'      => ['required', 'string', 'min:8'],
             'unit_id'       => ['nullable', 'exists:units,id'],
             'phone'         => ['nullable', 'string', 'max:50'],
             'staff_number'  => ['nullable', 'string', 'max:100'],
@@ -43,12 +44,16 @@ class UserController extends Controller
             'is_active'     => ['boolean'],
         ]);
 
-        $validated['password']  = Hash::make($validated['password']);
-        $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['password']         = Hash::make(Str::random(32));
+        $validated['is_active']        = $request->boolean('is_active', true);
+        $validated['email_verified_at'] = now();
 
-        User::create($validated);
+        $user = User::create($validated);
 
-        return redirect()->route('users.index')->with('status', 'Mtumiaji ameongezwa.');
+        // Send a "set your password" invitation via the password reset mechanism
+        Password::sendResetLink(['email' => $user->email]);
+
+        return redirect()->route('users.index')->with('status', __('users.invited_success', ['name' => $user->name]));
     }
 
     public function edit(User $user): View

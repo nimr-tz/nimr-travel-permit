@@ -21,4 +21,7 @@ return [
     'rights_reserved' => 'Haki zote zimehifadhiwa.',
     'staff_only_title'=> 'Mfumo huu ni kwa watumishi wa NIMR walioidhinishwa pekee.',
     'staff_only_sub'  => 'Watu wasioidhinishwa hawana ruhusa ya kutumia mfumo huu.',
+    'deactivated'          => 'Akaunti yako imezuiwa. Tafadhali wasiliana na Idara ya Rasilimali Watu.',
+    'email_domain_invalid' => 'Ni barua pepe za :domain pekee zinazoruhusiwa kusajiliwa.',
+    'verify_email_sent'    => 'Usajili umefanikiwa. Tafadhali angalia barua pepe yako na thibitisha akaunti yako kabla ya kuingia.',
 ];

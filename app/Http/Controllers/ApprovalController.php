@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\ApprovalAction;
 use App\Models\TravelRequest;
+use App\Models\User;
 use App\Notifications\TravelRequestApprovedNotification;
 use App\Notifications\TravelRequestRejectedNotification;
 use App\Notifications\TravelRequestReturnedNotification;
+use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ApprovalController extends Controller
 {
@@ -19,7 +22,7 @@ class ApprovalController extends Controller
     {
         $user = $request->user();
 
-        abort_unless((int)$travelRequest->current_approver_id === (int)$user->id, 403);
+        abort_unless((int) $travelRequest->current_approver_id === (int) $user->id, 403);
         abort_unless($travelRequest->status === TravelRequest::STATUS_PENDING, 403);
 
         $validated = $request->validate([
@@ -31,24 +34,32 @@ class ApprovalController extends Controller
             $request->validate(['comment' => ['required', 'string', 'min:10', 'max:2000']]);
         }
 
-        $chain = $travelRequest->approval_chain;
-        $step  = collect($chain)->firstWhere('approver_id', $user->id);
-        $stage = $step['stage'] ?? 'supervisor';
+        DB::transaction(function () use ($user, $travelRequest, $validated) {
+            // Re-fetch with a row lock to prevent concurrent approvals on the same request
+            $locked = TravelRequest::lockForUpdate()->findOrFail($travelRequest->id);
 
-        ApprovalAction::create([
-            'travel_request_id' => $travelRequest->id,
-            'actor_id'          => $user->id,
-            'stage'             => $stage,
-            'decision'          => $validated['decision'],
-            'comment'           => $validated['comment'] ?? null,
-            'acted_at'          => now(),
-        ]);
+            abort_unless((int) $locked->current_approver_id === (int) $user->id, 403);
+            abort_unless($locked->status === TravelRequest::STATUS_PENDING, 403);
 
-        $this->chainService->advance($travelRequest, $validated['decision']);
+            $chain = $locked->approval_chain;
+            $step  = collect($chain)->firstWhere('approver_id', $user->id);
+            $stage = $step['stage'] ?? 'supervisor';
+
+            ApprovalAction::create([
+                'travel_request_id' => $locked->id,
+                'actor_id'          => $user->id,
+                'stage'             => $stage,
+                'decision'          => $validated['decision'],
+                'comment'           => $validated['comment'] ?? null,
+                'acted_at'          => now(),
+            ]);
+
+            $this->chainService->advance($locked, $validated['decision']);
+        });
 
         $travelRequest->refresh();
 
-        $this->sendNotification($travelRequest, $validated['decision']);
+        $this->sendNotifications($travelRequest, $validated['decision']);
 
         $messages = [
             'approved' => 'Umeidhinisha ombi hili.',
@@ -61,22 +72,24 @@ class ApprovalController extends Controller
             ->with('status', $messages[$validated['decision']]);
     }
 
-    private function sendNotification(TravelRequest $travelRequest, string $decision): void
+    private function sendNotifications(TravelRequest $travelRequest, string $decision): void
     {
         try {
             $requester = $travelRequest->requester;
-            if (!$requester) {
-                return;
-            }
 
-            match ($decision) {
-                'approved' => $travelRequest->status === TravelRequest::STATUS_APPROVED
-                    ? $requester->notify(new TravelRequestApprovedNotification($travelRequest))
-                    : null,
-                'rejected' => $requester->notify(new TravelRequestRejectedNotification($travelRequest)),
-                'returned' => $requester->notify(new TravelRequestReturnedNotification($travelRequest)),
-                default    => null,
-            };
+            if ($decision === 'approved') {
+                if ($travelRequest->status === TravelRequest::STATUS_APPROVED) {
+                    $requester?->notify(new TravelRequestApprovedNotification($travelRequest));
+                } elseif ($travelRequest->status === TravelRequest::STATUS_PENDING && $travelRequest->current_approver_id) {
+                    // Notify next approver in the chain
+                    User::find($travelRequest->current_approver_id)
+                        ?->notify(new TravelRequestSubmittedNotification($travelRequest));
+                }
+            } elseif ($decision === 'rejected') {
+                $requester?->notify(new TravelRequestRejectedNotification($travelRequest));
+            } elseif ($decision === 'returned') {
+                $requester?->notify(new TravelRequestReturnedNotification($travelRequest));
+            }
         } catch (\Throwable) {
             // Notification failure must never break the main flow
         }
