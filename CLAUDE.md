@@ -52,16 +52,18 @@ Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`
 
 | Unit Type | Traveller Role | Chain |
 |---|---|---|
-| `research_centre` | `staff`/`manager` (with supervisor) | supervisor → centre_manager → centre_hr |
-| `research_centre` | `staff`/`manager` (no supervisor) | centre_manager → centre_hr |
-| `research_centre` | `centre_manager` | DG → hq_hr |
-| `hq_section` | `head` | director → DG → hq_hr |
-| `hq_section` | `staff`/`manager` | section_head → director → DG → hq_hr |
-| `hq_standalone` | `manager` | DG → hq_hr |
-| `hq_standalone` | `staff` | unit_manager → DG → hq_hr |
-| `hq_directorate` | any | DG → hq_hr |
+| `research_centre` | `staff`/`manager` (with supervisor) | supervisor → centre_manager |
+| `research_centre` | `staff`/`manager` (no supervisor) | centre_manager |
+| `research_centre` | `centre_manager` | DG |
+| `hq_section` | `head` | director → DG |
+| `hq_section` | `staff`/`manager` | section_head → director → DG |
+| `hq_standalone` | `manager` | DG |
+| `hq_standalone` | `staff` | unit_manager → DG |
+| `hq_directorate` | any | DG |
 
-Stages: `supervisor`, `director`, `final`, `hr`.
+Stages: `supervisor`, `director`, `final`. **HR is not an active approver.** DG (or centre_manager for centre staff) is always the final approver.
+
+HR role: receives email copy on submission and on final outcome (approved/rejected). Has access to the HR Reports dashboard (`/hr/reports`) for full visibility across all requests.
 
 `advance(TravelRequest, decision)` moves to next step (`approved`), marks as `rejected`, or marks as `returned` (resets chain/submitted_at for re-edit).
 

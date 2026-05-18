@@ -48,6 +48,22 @@
                 </div>
                 @endif
             </div>
+
+            <div class="field">
+                <label class="label">{{ __('dashboard.profile_phone') }}</label>
+                <input type="tel" name="phone" value="{{ old('phone', $user->phone) }}"
+                    class="input @error('phone') input-error @enderror"
+                    placeholder="+255 7XX XXX XXX" autocomplete="tel">
+                @error('phone')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div class="field">
+                <label class="label">Job Title</label>
+                <input type="text" name="job_title" value="{{ old('job_title', $user->job_title) }}"
+                    class="input @error('job_title') input-error @enderror"
+                    placeholder="e.g. Research Scientist">
+                @error('job_title')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
         </div>
 
         <div class="flex items-center gap-3 pt-1">

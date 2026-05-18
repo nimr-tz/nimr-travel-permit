@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TravelRequest;
-use App\Notifications\TravelRequestApprovedNotification;
-use App\Notifications\TravelRequestRejectedNotification;
-use App\Notifications\TravelRequestReturnedNotification;
+use App\Notifications\TravelRequestHrCopyNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +27,19 @@ class TravelRequestController extends Controller
                 $query->where('unit_id', $user->unit_id);
             }
         } elseif ($user->isDirectorGeneral()) {
-            // no filter — sees all
+            // DG sees: pending requests at their stage + all resolved/returned requests.
+            // They do NOT see drafts or requests still pending at a lower stage.
+            $query->where(function ($q) use ($user) {
+                $q->where(function ($inner) use ($user) {
+                    $inner->where('status', TravelRequest::STATUS_PENDING)
+                          ->where('current_approver_id', $user->id);
+                })->orWhereIn('status', [
+                    TravelRequest::STATUS_APPROVED,
+                    TravelRequest::STATUS_REJECTED,
+                    TravelRequest::STATUS_RETURNED,
+                    TravelRequest::STATUS_CANCELLED,
+                ]);
+            });
         } else {
             $query->where('requester_id', $user->id);
         }
@@ -165,12 +175,30 @@ class TravelRequestController extends Controller
 
         if (!$isDraft) {
             try {
-                $chain = $this->chainService->buildChain($request->user());
+                // If resubmitting a returned request, resume from the approver who
+                // returned it rather than restarting the whole chain from step 1.
+                $wasReturned = $travelRequest->status === TravelRequest::STATUS_RETURNED;
+
+                if ($wasReturned && $travelRequest->approval_chain) {
+                    $chain = $travelRequest->approval_chain;
+                    $returnAction = $travelRequest->approvalActions()
+                        ->where('decision', 'returned')
+                        ->latest('acted_at')
+                        ->first();
+                    $resumeIndex = $returnAction
+                        ? collect($chain)->search(fn($step) => (int) $step['approver_id'] === (int) $returnAction->actor_id)
+                        : false;
+                    $startApprover = $resumeIndex !== false ? $chain[$resumeIndex]['approver_id'] : $chain[0]['approver_id'];
+                } else {
+                    $chain         = $this->chainService->buildChain($request->user());
+                    $startApprover = $chain[0]['approver_id'];
+                }
+
                 $travelRequest->update([
                     ...$validated,
                     'status'              => TravelRequest::STATUS_PENDING,
                     'approval_chain'      => $chain,
-                    'current_approver_id' => $chain[0]['approver_id'],
+                    'current_approver_id' => $startApprover,
                     'submitted_at'        => now(),
                 ]);
                 $this->notifyFirstApprover($travelRequest);
@@ -276,6 +304,21 @@ class TravelRequestController extends Controller
             Log::warning('Failed to notify first approver for request ' . $travelRequest->request_number, [
                 'approver_id' => $travelRequest->current_approver_id,
                 'error'       => $e->getMessage(),
+            ]);
+        }
+
+        // Send a copy to HQ HR for awareness — no action needed from them.
+        try {
+            $hrUnit = \App\Models\Unit::where('code', 'HRMAS')->first();
+            if ($hrUnit) {
+                \App\Models\User::where('unit_id', $hrUnit->id)
+                    ->where('role', 'hr')
+                    ->where('is_active', true)
+                    ->each(fn($hr) => $hr->notify(new TravelRequestHrCopyNotification($travelRequest, 'submitted')));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send HR copy on submission for request ' . $travelRequest->request_number, [
+                'error' => $e->getMessage(),
             ]);
         }
     }

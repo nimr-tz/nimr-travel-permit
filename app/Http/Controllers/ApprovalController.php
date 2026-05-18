@@ -6,6 +6,7 @@ use App\Models\ApprovalAction;
 use App\Models\TravelRequest;
 use App\Models\User;
 use App\Notifications\TravelRequestApprovedNotification;
+use App\Notifications\TravelRequestHrCopyNotification;
 use App\Notifications\TravelRequestRejectedNotification;
 use App\Notifications\TravelRequestReturnedNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
@@ -65,12 +66,22 @@ class ApprovalController extends Controller
         $messages = [
             'approved' => 'Umeidhinisha ombi hili.',
             'rejected' => 'Umekataa ombi hili.',
-            'returned' => 'Ombi limerudishwa kwa mwombaji kwa marekebisho.',
         ];
+
+        if ($validated['decision'] === 'returned') {
+            if ($travelRequest->status === TravelRequest::STATUS_PENDING && $travelRequest->current_approver_id) {
+                $prev = User::find($travelRequest->current_approver_id);
+                $statusMessage = 'Ombi limerudishwa kwa ' . ($prev?->name ?? 'msimamizi') . ' kwa mapitio.';
+            } else {
+                $statusMessage = 'Ombi limerudishwa kwa mwombaji kwa marekebisho.';
+            }
+        } else {
+            $statusMessage = $messages[$validated['decision']];
+        }
 
         return redirect()
             ->route('travel-requests.show', $travelRequest)
-            ->with('status', $messages[$validated['decision']]);
+            ->with('status', $statusMessage);
     }
 
     private function sendNotifications(TravelRequest $travelRequest, string $decision): void
@@ -80,21 +91,47 @@ class ApprovalController extends Controller
 
             if ($decision === 'approved') {
                 if ($travelRequest->status === TravelRequest::STATUS_APPROVED) {
+                    // Fully approved — notify requester and send HR a copy.
                     $requester?->notify(new TravelRequestApprovedNotification($travelRequest));
+                    $this->notifyHr($travelRequest, 'approved');
                 } elseif ($travelRequest->status === TravelRequest::STATUS_PENDING && $travelRequest->current_approver_id) {
-                    // Notify next approver in the chain
+                    // Intermediate approval — notify next approver in the chain.
                     User::find($travelRequest->current_approver_id)
                         ?->notify(new TravelRequestSubmittedNotification($travelRequest));
                 }
             } elseif ($decision === 'rejected') {
                 $requester?->notify(new TravelRequestRejectedNotification($travelRequest));
+                $this->notifyHr($travelRequest, 'rejected');
             } elseif ($decision === 'returned') {
-                $requester?->notify(new TravelRequestReturnedNotification($travelRequest));
+                if ($travelRequest->status === TravelRequest::STATUS_PENDING && $travelRequest->current_approver_id) {
+                    // Returned to the previous approver in the chain — notify them.
+                    User::find($travelRequest->current_approver_id)
+                        ?->notify(new TravelRequestSubmittedNotification($travelRequest));
+                } else {
+                    // Returned all the way to the requester.
+                    $requester?->notify(new TravelRequestReturnedNotification($travelRequest));
+                }
             }
         } catch (\Throwable $e) {
             Log::warning('Failed to send approval notification for request ' . $travelRequest->request_number, [
                 'decision' => $decision,
                 'error'    => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function notifyHr(TravelRequest $travelRequest, string $event): void
+    {
+        try {
+            $hrUnit = \App\Models\Unit::where('code', 'HRMAS')->first();
+            if ($hrUnit) {
+                User::where('unit_id', $hrUnit->id)->where('role', 'hr')->where('is_active', true)
+                    ->each(fn($hr) => $hr->notify(new TravelRequestHrCopyNotification($travelRequest, $event)));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send HR copy notification for request ' . $travelRequest->request_number, [
+                'event' => $event,
+                'error' => $e->getMessage(),
             ]);
         }
     }

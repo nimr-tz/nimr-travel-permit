@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'NIMR Travel Permit') }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('NIMR.png') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&display=swap" rel="stylesheet"/>
     <link href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css" rel="stylesheet"/>
@@ -18,12 +19,8 @@
     <div class="hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col" style="background-color: #05499c;">
 
         {{-- Logo + institute name — top left --}}
-        <div class="px-10 xl:px-12 pt-10 flex items-center gap-5">
-            <img src="{{ asset('NIMR.png') }}" alt="NIMR" class="h-36 w-auto object-contain shrink-0">
-            <div class="w-px self-stretch" style="background-color:rgba(255,255,255,0.25);"></div>
-            <p class="text-white text-base font-bold leading-snug">
-                {{ __('auth.org_name') }}
-            </p>
+        <div class="px-10 xl:px-12 pt-10">
+            <img src="{{ asset('NIMR.png') }}" alt="NIMR" class="h-36 w-auto object-contain">
         </div>
 
         {{-- System name — centred between logo and footer --}}

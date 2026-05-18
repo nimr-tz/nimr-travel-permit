@@ -9,7 +9,7 @@
         </div>
     </x-slot>
 
-    <div class="p-6 max-w-3xl mx-auto">
+    <div class="p-6 lg:p-8">
         <form method="POST" action="{{ route('users.update', $user) }}" class="space-y-5">
             @csrf
             @method('PATCH')

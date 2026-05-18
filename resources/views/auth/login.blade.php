@@ -93,4 +93,13 @@
         </div>
     </div>
 
+    @if (Route::has('register'))
+    <p class="mt-5 text-center text-sm text-slate-500">
+        {{ __('auth.no_account') }}
+        <a href="{{ route('register') }}" class="font-medium hover:underline" style="color:#05499c;">
+            {{ __('auth.create_account') }}
+        </a>
+    </p>
+    @endif
+
 </x-guest-layout>

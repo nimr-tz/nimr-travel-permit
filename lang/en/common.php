@@ -54,10 +54,13 @@ return [
     'role_hr'               => 'Human Resources',
 
     // Approval stages
+    'stage_submitted'    => 'Submitted',
+    'stage_resubmitted'  => 'Resubmitted',
     'stage_supervisor' => 'Supervisor',
     'stage_director'   => 'Director',
     'stage_final'      => 'Final Approval',
     'stage_hr'         => 'Human Resources',
+    'stage_cancelled'  => 'Withdrawn',
 
     // Unit types
     'unit_hq_standalone'  => 'HQ — Independent Unit',

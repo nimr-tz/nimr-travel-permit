@@ -24,4 +24,14 @@ return [
     'deactivated'          => 'Your account has been deactivated. Please contact HR.',
     'email_domain_invalid' => 'Only :domain email addresses are allowed to register.',
     'verify_email_sent'    => 'Registration successful. Please check your email and verify your account before signing in.',
+    'no_account'           => "Don't have an account?",
+    'create_account'       => 'Create one',
+
+    // Verify email
+    'verify_title'         => 'Verify your email',
+    'verify_sub'           => 'One more step before you can sign in',
+    'verify_body'          => 'Thanks for signing up! Before getting started, please verify your email address by clicking the link we just sent you. If you did not receive the email, you can request another.',
+    'verify_link_sent'     => 'A new verification link has been sent to your email address.',
+    'verify_resend'        => 'Resend Verification Email',
+    'verify_logout'        => 'Log Out',
 ];

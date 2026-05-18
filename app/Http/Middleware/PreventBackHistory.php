@@ -6,16 +6,14 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsureIsAdmin
+class PreventBackHistory
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        $response = $next($request);
 
-        if (!$user || !$user->isHr()) {
-            abort(403, 'Huna ruhusa ya kufikia sehemu hii.');
-        }
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 
-        return $next($request);
+        return $response;
     }
 }

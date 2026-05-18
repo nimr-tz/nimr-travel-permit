@@ -7,7 +7,7 @@
     </x-slot>
 
     <div class="p-6" x-data="formWizard({{ $errors->any() ? 1 : 0 }})">
-        <div class="max-w-3xl mx-auto">
+        <div>
 
             {{-- ── Step indicator ──────────────────────────────────────── --}}
             @php
@@ -89,11 +89,11 @@
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-amber-50">
                             <div class="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-sm shrink-0">A</div>
                             <div>
-                                <h3 class="text-sm font-bold text-slate-900">{{ __('travel.section_a_title') }}</h3>
-                                <p class="text-xs text-slate-500 mt-0.5">{{ __('travel.section_a_read') }}</p>
+                                <h3 class="text-base font-bold text-slate-900">{{ __('travel.section_a_title') }}</h3>
+                                <p class="text-sm text-slate-500 mt-0.5">{{ __('travel.section_a_read') }}</p>
                             </div>
                         </div>
-                        <div class="p-6 space-y-3 text-sm text-slate-700 leading-relaxed">
+                        <div class="p-6 space-y-4 text-base text-slate-700 leading-relaxed">
                             @foreach ([
                                 __('travel.section_a_i'),
                                 __('travel.section_a_ii'),
@@ -112,7 +112,7 @@
                         <div class="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 mt-0.5">
                             <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         </div>
-                        <p class="text-sm text-indigo-800">
+                        <p class="text-base text-indigo-800">
                             {!! __('travel.section_a_unit_note', ['unit' => '<strong>' . (auth()->user()->unit?->name ?? '—') . '</strong>']) !!}
                         </p>
                     </div>
@@ -123,28 +123,34 @@
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">B</div>
-                            <h3 class="text-sm font-bold text-slate-900">{{ __('travel.section_b_title') }}</h3>
+                            <h3 class="text-base font-bold text-slate-900">{{ __('travel.section_b_title') }}</h3>
                         </div>
                         <div class="p-6 space-y-5">
                             @php
                                 $flds = [
-                                    ['(i)',   __('travel.b_name'),        'b_applicant_name', 'text',  old('b_applicant_name', $user->name), true,  ''],
-                                    ['(ii)',  __('travel.b_phone'),       'b_phone',          'tel',   old('b_phone', $user->phone),          false, '+255 7XX XXX XXX'],
-                                    ['(iii)', __('travel.b_email'),       'b_email',          'email', old('b_email', $user->email),           false, ''],
-                                    ['(iv)',  __('travel.b_position'),    'b_position',       'text',  old('b_position', $user->job_title),    false, ''],
-                                    ['(v)',   __('travel.b_destination'), 'b_destination',    'text',  old('b_destination'),                   true,  __('travel.b_destination_ph')],
+                                    ['(i)',   __('travel.b_name'),        'b_applicant_name', 'text',  old('b_applicant_name', $user->name), true,  '', !empty($user->name)],
+                                    ['(ii)',  __('travel.b_phone'),       'b_phone',          'tel',   old('b_phone', $user->phone),          false, '+255 7XX XXX XXX', !empty($user->phone)],
+                                    ['(iii)', __('travel.b_email'),       'b_email',          'email', old('b_email', $user->email),           false, '', !empty($user->email)],
+                                    ['(iv)',  __('travel.b_position'),    'b_position',       'text',  old('b_position', $user->job_title),    false, '', !empty($user->job_title)],
+                                    ['(v)',   __('travel.b_destination'), 'b_destination',    'text',  old('b_destination'),                   true,  __('travel.b_destination_ph'), false],
                                 ];
                             @endphp
-                            @foreach ($flds as [$num, $label, $name, $type, $val, $req, $ph])
+                            @foreach ($flds as [$num, $label, $name, $type, $val, $req, $ph, $locked])
                             <div class="field">
-                                <label class="label">
-                                    <span class="text-slate-400 mr-1.5">{{ $num }}</span>
-                                    {{ $label }}
-                                    @if($req) <span class="text-red-500 ml-0.5">*</span> @endif
+                                <label class="label flex items-center gap-1.5">
+                                    <span class="text-slate-400">{{ $num }}</span>
+                                    <span>{{ $label }}@if($req) <span class="text-red-500 ml-0.5">*</span> @endif</span>
+                                    @if($locked)
+                                    <span class="inline-flex items-center gap-1 ml-1 text-xs font-medium text-slate-400 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                        from profile
+                                    </span>
+                                    @endif
                                 </label>
                                 <input type="{{ $type }}" name="{{ $name }}" value="{{ $val }}"
-                                    class="input @error($name) input-error @enderror"
+                                    class="input @error($name) input-error @enderror {{ $locked ? 'bg-slate-50 text-slate-500 cursor-not-allowed border-slate-200' : '' }}"
                                     {{ $req ? 'required' : '' }}
+                                    {{ $locked ? 'readonly' : '' }}
                                     @if($ph) placeholder="{{ $ph }}" @endif>
                             </div>
                             @endforeach
@@ -171,10 +177,10 @@
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">C</div>
-                            <h3 class="text-sm font-bold text-slate-900">{{ __('travel.section_c_title') }}</h3>
+                            <h3 class="text-base font-bold text-slate-900">{{ __('travel.section_c_title') }}</h3>
                         </div>
                         <div class="p-6">
-                            <p class="text-sm text-slate-500 mb-4 leading-relaxed">{{ __('travel.c_desc') }}</p>
+                            <p class="text-base text-slate-500 mb-4 leading-relaxed">{{ __('travel.c_desc') }}</p>
                             <div class="field">
                                 <label class="label">{{ __('travel.c_label') }} <span class="text-red-500">*</span></label>
                                 <textarea name="c_travel_source" rows="8" class="input resize-none leading-relaxed"
@@ -189,10 +195,10 @@
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">D</div>
-                            <h3 class="text-sm font-bold text-slate-900">{{ __('travel.section_d_title') }}</h3>
+                            <h3 class="text-base font-bold text-slate-900">{{ __('travel.section_d_title') }}</h3>
                         </div>
                         <div class="p-6 space-y-6">
-                            <h4 class="text-sm font-semibold text-slate-700">{{ __('travel.d_benefits_sub') }}</h4>
+                            <h4 class="text-base font-semibold text-slate-700">{{ __('travel.d_benefits_sub') }}</h4>
                             <div class="field">
                                 <label class="label">{{ __('travel.d_institution') }}</label>
                                 <textarea name="d_benefit_to_institution" rows="5" class="input resize-none leading-relaxed"
@@ -217,7 +223,7 @@
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">E</div>
-                            <h3 class="text-sm font-bold text-slate-900">{{ __('travel.section_e_title') }}</h3>
+                            <h3 class="text-base font-bold text-slate-900">{{ __('travel.section_e_title') }}</h3>
                         </div>
                         <div class="p-6 space-y-6">
                             <div class="field">
@@ -231,14 +237,14 @@
                                 <div class="space-y-3">
                                     @foreach (['a', 'b', 'c', 'd'] as $letter)
                                     <div class="flex items-center gap-3">
-                                        <span class="text-sm text-slate-400 w-8 shrink-0">({{ $letter }})</span>
+                                        <span class="text-base text-slate-400 w-8 shrink-0">({{ $letter }})</span>
                                         <input type="text" name="e_allowance_{{ $letter }}" value="{{ old('e_allowance_' . $letter) }}"
                                             class="input" placeholder="...">
                                     </div>
                                     @endforeach
                                 </div>
                                 <div class="flex items-center gap-3 mt-3">
-                                    <span class="text-sm text-slate-500 shrink-0">{{ __('travel.e_budget_line') }}</span>
+                                    <span class="text-base text-slate-500 shrink-0">{{ __('travel.e_budget_line') }}</span>
                                     <input type="text" name="e_budget_line" value="{{ old('e_budget_line') }}"
                                         class="input" placeholder="...">
                                 </div>
@@ -249,7 +255,7 @@
                                 <div class="space-y-3">
                                     @foreach (['i', 'ii', 'iii'] as $num)
                                     <div class="flex items-center gap-3">
-                                        <span class="text-sm text-slate-400 w-8 shrink-0">({{ $num }})</span>
+                                        <span class="text-base text-slate-400 w-8 shrink-0">({{ $num }})</span>
                                         <input type="text" name="e_donor_cost_{{ $num }}" value="{{ old('e_donor_cost_' . $num) }}"
                                             class="input" placeholder="...">
                                     </div>
@@ -262,7 +268,7 @@
                                 <div class="space-y-3">
                                     @foreach (['i', 'ii', 'iii'] as $num)
                                     <div class="flex items-center gap-3">
-                                        <span class="text-sm text-slate-400 w-8 shrink-0">({{ $num }})</span>
+                                        <span class="text-base text-slate-400 w-8 shrink-0">({{ $num }})</span>
                                         <input type="text" name="e_govt_cost_{{ $num }}" value="{{ old('e_govt_cost_' . $num) }}"
                                             class="input" placeholder="...">
                                     </div>
@@ -284,10 +290,10 @@
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">F</div>
-                            <h3 class="text-sm font-bold text-slate-900">{{ __('travel.section_f_title') }}</h3>
+                            <h3 class="text-base font-bold text-slate-900">{{ __('travel.section_f_title') }}</h3>
                         </div>
                         <div class="p-6">
-                            <p class="text-sm text-slate-500 mb-4 leading-relaxed">{{ __('travel.f_desc') }}</p>
+                            <p class="text-base text-slate-500 mb-4 leading-relaxed">{{ __('travel.f_desc') }}</p>
                             <div class="field">
                                 <label class="label">{{ __('travel.f_label') }}</label>
                                 <textarea name="f_previous_travel_impact" rows="10" class="input resize-none leading-relaxed"
@@ -302,7 +308,7 @@
                     <div class="card overflow-hidden mb-5">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">G</div>
-                            <h3 class="text-sm font-bold text-slate-900">{{ __('travel.section_g_title') }}</h3>
+                            <h3 class="text-base font-bold text-slate-900">{{ __('travel.section_g_title') }}</h3>
                         </div>
                         <div class="p-6 space-y-5">
                             <div class="grid grid-cols-2 gap-4">
@@ -351,7 +357,7 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             {{ __('travel.checklist_title') }}
                         </h4>
-                        <ul class="space-y-1.5 text-sm text-emerald-700">
+                        <ul class="space-y-1.5 text-base text-emerald-700">
                             @foreach ([__('travel.checklist_1'), __('travel.checklist_2'), __('travel.checklist_3')] as $item)
                             <li class="flex items-center gap-2">
                                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>

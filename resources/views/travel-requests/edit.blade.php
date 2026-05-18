@@ -3,14 +3,13 @@
         <div class="page-header">
             <div>
                 <h1 class="page-title">{{ __('travel.edit_request') }}</h1>
-                <p class="page-sub">{{ $travelRequest->request_number }}</p>
             </div>
             <a href="{{ route('travel-requests.show', $travelRequest) }}" class="btn-ghost btn-sm">{{ __('users.back') }}</a>
         </div>
     </x-slot>
 
     <div class="p-6" x-data="formWizard({{ $errors->any() ? 1 : 0 }})">
-        <div class="max-w-3xl mx-auto">
+        <div>
 
             {{-- Returned notice --}}
             @if ($travelRequest->status === \App\Models\TravelRequest::STATUS_RETURNED)
@@ -126,21 +125,29 @@
                             <h3 class="text-sm font-bold text-slate-900">{{ __('travel.section_b_title') }}</h3>
                         </div>
                         <div class="p-6 space-y-5">
+                            @php $editUser = auth()->user(); @endphp
                             @foreach ([
-                                ['(i)',   __('travel.b_name'),        'b_applicant_name', 'text',  old('b_applicant_name', $tr->b_applicant_name), true,  ''],
-                                ['(ii)',  __('travel.b_phone'),       'b_phone',          'tel',   old('b_phone', $tr->b_phone),                   false, '+255 7XX XXX XXX'],
-                                ['(iii)', __('travel.b_email'),       'b_email',          'email', old('b_email', $tr->b_email),                   false, ''],
-                                ['(iv)',  __('travel.b_position'),    'b_position',       'text',  old('b_position', $tr->b_position),             false, ''],
-                                ['(v)',   __('travel.b_destination'), 'b_destination',    'text',  old('b_destination', $tr->b_destination),       true,  __('travel.b_destination_ph')],
-                            ] as [$num, $label, $name, $type, $val, $req, $ph])
+                                ['(i)',   __('travel.b_name'),        'b_applicant_name', 'text',  old('b_applicant_name', $editUser->name),       true,  '',                           !empty($editUser->name)],
+                                ['(ii)',  __('travel.b_phone'),       'b_phone',          'tel',   old('b_phone', $editUser->phone),               false, '+255 7XX XXX XXX',           !empty($editUser->phone)],
+                                ['(iii)', __('travel.b_email'),       'b_email',          'email', old('b_email', $editUser->email),               false, '',                           !empty($editUser->email)],
+                                ['(iv)',  __('travel.b_position'),    'b_position',       'text',  old('b_position', $editUser->job_title),         false, '',                           !empty($editUser->job_title)],
+                                ['(v)',   __('travel.b_destination'), 'b_destination',    'text',  old('b_destination', $tr->b_destination),       true,  __('travel.b_destination_ph'), false],
+                            ] as [$num, $label, $name, $type, $val, $req, $ph, $locked])
                             <div class="field">
-                                <label class="label">
+                                <label class="label flex items-center gap-2">
                                     <span class="text-slate-400 mr-1.5">{{ $num }}</span>{{ $label }}
                                     @if($req)<span class="text-red-500 ml-0.5">*</span>@endif
+                                    @if($locked)
+                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-400 border border-slate-200 ml-auto">
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                        from profile
+                                    </span>
+                                    @endif
                                 </label>
                                 <input type="{{ $type }}" name="{{ $name }}" value="{{ $val }}"
-                                    class="input @error($name) input-error @enderror"
+                                    class="input @error($name) input-error @enderror {{ $locked ? 'bg-slate-50 text-slate-500 cursor-not-allowed border-slate-200' : '' }}"
                                     {{ $req ? 'required' : '' }}
+                                    {{ $locked ? 'readonly' : '' }}
                                     @if($ph)placeholder="{{ $ph }}"@endif>
                             </div>
                             @endforeach

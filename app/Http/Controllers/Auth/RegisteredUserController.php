@@ -54,7 +54,7 @@ class RegisteredUserController extends Controller
                     }
                 },
             ],
-            'staff_number' => ['nullable', 'string', 'max:100'],
+            'phone'        => ['nullable', 'string', 'max:30'],
             'job_title'    => ['nullable', 'string', 'max:255'],
             'organizational_level' => ['required', 'in:headquarters,research_centre'],
             'unit_id'      => ['required', 'exists:units,id'],
@@ -66,7 +66,7 @@ class RegisteredUserController extends Controller
         $user = User::create([
             'name'         => $request->name,
             'email'        => $request->email,
-            'staff_number' => $request->staff_number,
+            'phone'        => $request->phone,
             'job_title'    => $request->job_title,
             'unit_id'      => $unit->id,
             'password'     => Hash::make($request->password),

@@ -12,7 +12,7 @@
         </div>
     </x-slot>
 
-    <div class="p-6 max-w-7xl mx-auto space-y-5">
+    <div class="p-6 lg:p-8 space-y-5">
 
         @if (session('status'))
         <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"

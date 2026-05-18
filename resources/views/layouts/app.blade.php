@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@isset($pageTitle){{ $pageTitle }} · @endisset{{ config('app.name', 'NIMR Travel Permit') }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('NIMR.png') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet"/>
     <link href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css" rel="stylesheet"/>
@@ -54,6 +55,9 @@
 
                 if ($user->isHr() || $user->isDirectorGeneral()) {
                     $navItems[] = ['route' => 'travel-requests.index', 'label' => __('nav.all_requests'), 'icon' => 'document-list', 'badge' => null, 'pattern' => 'travel-requests.*'];
+                    if ($user->isHr()) {
+                        $navItems[] = ['route' => 'hr.reports.index', 'label' => __('nav.hr_reports'), 'icon' => 'chart-bar', 'badge' => null, 'pattern' => 'hr.reports.*'];
+                    }
                     if ($user->isDirectorGeneral()) {
                         $navItems[] = ['route' => 'approvals.index', 'label' => __('nav.approvals'), 'icon' => 'check-circle', 'badge' => $pendingCount ?: null, 'pattern' => 'approvals.*'];
                     }
@@ -82,6 +86,8 @@
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     @elseif ($item['icon'] === 'check-circle')
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    @elseif ($item['icon'] === 'chart-bar')
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                     @endif
                 </span>
                 <span class="flex-1 truncate" x-show="!collapsed">{{ $item['label'] }}</span>
@@ -96,7 +102,7 @@
             @endforeach
 
             {{-- Admin section --}}
-            @if ($user->isDirectorGeneral() || $user->isHr())
+            @if ($user->isHr())
             <div class="pt-4 pb-1">
                 <p x-show="!collapsed" class="px-3 text-[10px] font-semibold text-slate-600 uppercase tracking-widest mb-1">{{ __('nav.administration') }}</p>
             </div>
@@ -137,7 +143,25 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8M4 18h16"/></svg>
             </button>
 
-            <div class="flex-1"></div>
+            {{-- Page title --}}
+            <div class="flex-1 min-w-0 px-2">
+                @php
+                    $topbarUser = auth()->user();
+                    $topbarTitle = match(true) {
+                        request()->routeIs('dashboard')               => __('nav.dashboard'),
+                        request()->routeIs('travel-requests.create')  => __('nav.new_request'),
+                        request()->routeIs('travel-requests.edit')    => __('nav.edit_request'),
+                        request()->routeIs('travel-requests.show')    => __('nav.view_request'),
+                        request()->routeIs('travel-requests.*')       => ($topbarUser->isHr() || $topbarUser->isDirectorGeneral()) ? __('nav.all_requests') : __('nav.my_requests'),
+                        request()->routeIs('approvals.*')             => __('nav.approvals'),
+                        request()->routeIs('hr.reports.*')            => __('nav.hr_reports'),
+                        request()->routeIs('users.*')                 => __('nav.users'),
+                        request()->routeIs('profile.*')               => __('nav.profile'),
+                        default                                       => config('app.name'),
+                    };
+                @endphp
+                <h1 class="text-sm font-semibold text-slate-700 truncate">{{ $topbarTitle }}</h1>
+            </div>
 
             {{-- Right actions --}}
             <div class="flex items-center gap-3 shrink-0">
@@ -171,9 +195,10 @@
                 {{-- User profile dropdown --}}
                 <div class="relative" x-data="{ open: false }">
                     <button @click="open = !open"
-                            class="h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold text-white transition hover:opacity-90"
-                            style="background-color:#05499c;">
-                        {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
+                            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition max-w-[180px]">
+                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        <span class="truncate hidden sm:block">{{ auth()->user()->name }}</span>
+                        <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
 
                     <div x-show="open" @click.outside="open = false" x-cloak

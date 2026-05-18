@@ -14,7 +14,7 @@
         </div>
     </x-slot>
 
-    <div class="p-6 max-w-6xl mx-auto space-y-8">
+    <div class="p-6 lg:p-8 space-y-8">
 
         {{-- ── Pending Action ───────────────────────────────────────────── --}}
         <div>
@@ -61,7 +61,6 @@
                         </div>
                     </div>
                     <div class="text-right shrink-0">
-                        <div class="text-xs font-mono text-slate-400 mb-1">{{ $tr->request_number }}</div>
                         <div class="text-xs font-semibold text-amber-600 group-hover:text-amber-700">{{ __('approvals.view') }}</div>
                     </div>
                 </a>
@@ -88,7 +87,6 @@
                 <table class="w-full">
                     <thead class="table-head">
                         <tr>
-                            <th class="table-th">{{ __('travel.col_number') }}</th>
                             <th class="table-th">{{ __('approvals.applicant') }}</th>
                             <th class="table-th">{{ __('approvals.destination') }}</th>
                             <th class="table-th hidden sm:table-cell">{{ __('approvals.date') }}</th>
@@ -101,7 +99,6 @@
                         @foreach ($history as $tr)
                         @php $myAction = $tr->approvalActions->first(); @endphp
                         <tr class="table-row cursor-pointer group" onclick="window.location='{{ route('travel-requests.show', $tr) }}'">
-                            <td class="table-td font-mono text-xs text-slate-400">{{ $tr->request_number }}</td>
                             <td class="table-td font-medium text-slate-900 text-sm">{{ $tr->b_applicant_name }}</td>
                             <td class="table-td">
                                 <div class="flex items-center gap-1.5">

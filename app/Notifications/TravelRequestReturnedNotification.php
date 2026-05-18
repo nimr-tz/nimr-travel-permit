@@ -12,6 +12,13 @@ class TravelRequestReturnedNotification extends Notification implements ShouldQu
 {
     use Queueable;
 
+    public int $tries = 5;
+
+    public function backoff(): array
+    {
+        return [5, 15, 30, 60, 120];
+    }
+
     public function __construct(public TravelRequest $travelRequest) {}
 
     public function via(object $notifiable): array

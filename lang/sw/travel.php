@@ -103,6 +103,10 @@ return [
     'approval_flow'      => 'Mtiririko wa Idhini',
     'approval_action'    => 'Hatua Yako ya Idhini',
     'read_before_decide' => 'Soma fomu yote kisha fanya uamuzi.',
+    'not_your_turn'      => 'Bado Si Zamu Yako',
+    'awaiting_approver'  => 'Ombi hili linasubiri idhini ya :name kabla ya kufika kwako.',
+    'still_draft'        => 'Ombi Halijasaliwa Bado',
+    'still_draft_hint'   => 'Mwombaji amehifadhi hii kama rasimu. Haijasaliwa kwa idhini.',
     'comments'           => 'Maoni',
     'comments_hint'      => '(Inahitajika kwa kurudisha)',
     'approve_btn'        => 'Idhinisha',
@@ -166,4 +170,6 @@ return [
     'decided_returned'    => 'Imerudishwa',
     'waiting'             => 'Inasubiri...',
     'done_on'             => '· :date',
+    'flow_on_hold'        => 'Imesimamishwa',
+    'flow_not_reached'    => 'Haikufikiwa',
 ];

@@ -103,6 +103,10 @@ return [
     'approval_flow'      => 'Approval Flow',
     'approval_action'    => 'Your Approval Action',
     'read_before_decide' => 'Read the entire form before making a decision.',
+    'not_your_turn'      => 'Not Yet Your Turn',
+    'awaiting_approver'  => 'This request is pending approval from :name before reaching you.',
+    'still_draft'        => 'Request Not Yet Submitted',
+    'still_draft_hint'   => 'The requester has saved this as a draft. It has not been submitted for approval.',
     'comments'           => 'Comments',
     'comments_hint'      => '(Required for return)',
     'approve_btn'        => 'Approve',
@@ -166,4 +170,6 @@ return [
     'decided_returned'    => 'Returned',
     'waiting'             => 'Pending...',
     'done_on'             => '· :date',
+    'flow_on_hold'        => 'On hold',
+    'flow_not_reached'    => 'Not reached',
 ];

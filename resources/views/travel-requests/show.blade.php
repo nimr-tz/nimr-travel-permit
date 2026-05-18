@@ -1,5 +1,5 @@
 <x-app-layout>
-<div class="max-w-7xl mx-auto px-6 py-6" x-data="approvalModal()">
+<div class="px-6 py-6 lg:px-8 lg:py-8" x-data="approvalModal()">
 
     {{-- Flash --}}
     @if (session('status'))
@@ -25,8 +25,8 @@
                         <span class="badge {{ $tr->statusColor() }} text-sm px-3 py-1">{{ $tr->statusLabel() }}</span>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap text-sm mt-1" style="color:rgba(255,255,255,0.7);">
-                        @if ($tr->b_applicant_name)
-                        <span class="font-semibold text-white">{{ $tr->b_applicant_name }}</span>
+                        @if ($tr->requester->name)
+                        <span class="font-semibold text-white">{{ $tr->requester->name }}</span>
                         @endif
                         @if ($tr->b_departure_date)
                         <span style="color:rgba(255,255,255,0.35);">&middot;</span>
@@ -79,6 +79,7 @@
 
             {{-- Approval action form --}}
             @if ($tr->status === \App\Models\TravelRequest::STATUS_PENDING && (int)$tr->current_approver_id === (int)auth()->id())
+            {{-- ▶ It's this user's turn: show the decision card --}}
             <div class="card overflow-hidden" style="border-left: 4px solid #05499c;">
                 <div class="px-5 py-4 border-b border-slate-100 flex items-center gap-3" style="background-color:#05499c0a;">
                     <div class="h-8 w-8 rounded-full flex items-center justify-center shrink-0" style="background-color:#05499c20;">
@@ -91,7 +92,7 @@
                 </div>
                 <form id="approval-form" method="POST" action="{{ route('travel-requests.approve', $tr) }}" class="p-5 space-y-4">
                     @csrf
-                    <input type="hidden" name="decision" x-model="selectedDecision">
+                    <input type="hidden" name="decision" id="approval-decision-input" value="">
 
                     @if ($errors->any())
                     <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs">
@@ -122,6 +123,32 @@
                         </button>
                     </div>
                 </form>
+            </div>
+            @elseif ($tr->status === \App\Models\TravelRequest::STATUS_PENDING && $tr->currentApprover && (int)$tr->current_approver_id !== (int)auth()->id() && auth()->user()->isApprover())
+            {{-- ▶ Pending but it's someone else's turn right now --}}
+            <div class="card overflow-hidden" style="border-left: 4px solid #f59e0b;">
+                <div class="px-5 py-4 flex items-center gap-3" style="background-color:#fef3c70a;">
+                    <div class="h-8 w-8 rounded-full flex items-center justify-center shrink-0" style="background-color:#fef3c7;">
+                        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800">{{ __('travel.not_your_turn') }}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ __('travel.awaiting_approver', ['name' => $tr->currentApprover->name]) }}</p>
+                    </div>
+                </div>
+            </div>
+            @elseif ($tr->status === \App\Models\TravelRequest::STATUS_DRAFT && auth()->user()->isApprover() && $tr->requester_id !== auth()->id())
+            {{-- ▶ Draft — not submitted yet --}}
+            <div class="card overflow-hidden" style="border-left: 4px solid #94a3b8;">
+                <div class="px-5 py-4 flex items-center gap-3">
+                    <div class="h-8 w-8 rounded-full flex items-center justify-center shrink-0 bg-slate-100">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-700">{{ __('travel.still_draft') }}</p>
+                        <p class="text-xs text-slate-400 mt-0.5">{{ __('travel.still_draft_hint') }}</p>
+                    </div>
+                </div>
             </div>
             @endif
 
@@ -162,10 +189,10 @@
                         <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-2 mb-4">B: {{ __('travel.section_b_title') }}</h3>
                         <div class="space-y-3">
                             @foreach ([
-                                ['(i)',   __('travel.b_name'),           $tr->b_applicant_name],
-                                ['(ii)',  __('travel.b_phone'),          $tr->b_phone],
-                                ['(iii)', __('travel.b_email'),          $tr->b_email],
-                                ['(iv)',  __('travel.b_position'),       $tr->b_position],
+                                ['(i)',   __('travel.b_name'),           $tr->requester->name],
+                                ['(ii)',  __('travel.b_phone'),          $tr->requester->phone],
+                                ['(iii)', __('travel.b_email'),          $tr->requester->email],
+                                ['(iv)',  __('travel.b_position'),       $tr->requester->job_title],
                                 ['(v)',   __('travel.b_destination'),    $tr->b_destination],
                                 ['(vi)',  __('travel.b_departure_date'), $tr->b_departure_date?->format('d M Y')],
                                 ['(vii)', __('travel.b_return_date'),    $tr->b_return_date?->format('d M Y')],
@@ -321,81 +348,325 @@
         {{-- ── RIGHT (1/3): approval timeline + info card ─────────────────── --}}
         <div class="space-y-5">
 
-            {{-- Approval flow timeline — colored header --}}
-            @if ($travelRequest->approval_chain)
+            {{-- Approval flow timeline --}}
+            @php
+                $hasChain   = !empty($travelRequest->approval_chain);
+                $hasActions = $travelRequest->approvalActions->count() > 0;
+                $reqStatus  = $travelRequest->status;
+
+                // Index of the first truly terminal action in the chain.
+                // 'rejected' is always terminal.
+                // 'returned' is only terminal while the request is still awaiting resubmission;
+                //  once resubmitted (status back to 'pending') it is historical, not terminal.
+                $terminalIndex = null;
+                if ($hasChain) {
+                    foreach ($travelRequest->approval_chain as $idx => $cs) {
+                        $ca = $travelRequest->approvalActions->where('stage', $cs['stage'])->first();
+                        if ($ca && $ca->decision === 'rejected') {
+                            $terminalIndex = $idx;
+                            break;
+                        }
+                        if ($ca && $ca->decision === 'returned'
+                            && $reqStatus === \App\Models\TravelRequest::STATUS_RETURNED) {
+                            $terminalIndex = $idx;
+                            break;
+                        }
+                    }
+                }
+            @endphp
+            @if ($hasChain || $hasActions)
             <div class="rounded-xl overflow-hidden shadow-sm p-5" style="background-color:#059669;">
                 <h3 class="text-[10px] font-bold uppercase tracking-widest mb-5" style="color:rgba(255,255,255,0.65);">{{ __('travel.approval_flow') }}</h3>
-                <div>
-                    <ol class="relative ml-3 space-y-6" style="border-left: 2px solid rgba(255,255,255,0.25);">
-                        @foreach ($travelRequest->approval_chain as $step)
-                        @php
-                            $approver  = $chainApprovers->get((int)$step['approver_id']);
-                            $action    = $travelRequest->approvalActions->where('stage', $step['stage'])->first();
-                            $isCurrent = (int)$travelRequest->current_approver_id === (int)$step['approver_id']
-                                         && $travelRequest->status === \App\Models\TravelRequest::STATUS_PENDING;
-                            $isDone    = $action !== null;
+                <ol class="relative ml-3 space-y-6" style="border-left: 2px solid rgba(255,255,255,0.25);">
 
-                            if ($isDone) {
-                                $dotBg    = $action->decision === 'approved' ? '#10b981' : ($action->decision === 'returned' ? '#f97316' : '#ef4444');
-                                $ringCls  = $action->decision === 'approved' ? 'ring-emerald-100' : ($action->decision === 'returned' ? 'ring-orange-100' : 'ring-red-100');
-                                $labelCls = $action->decision === 'approved' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : ($action->decision === 'returned' ? 'text-orange-700 bg-orange-50 border-orange-200' : 'text-red-700 bg-red-50 border-red-200');
-                                $decisionLabel = __('travel.decided_' . $action->decision);
-                            } elseif ($isCurrent) {
-                                $dotBg    = '#f59e0b';
-                                $ringCls  = 'ring-amber-100';
-                                $labelCls = 'text-amber-700 bg-amber-50 border-amber-200';
-                                $decisionLabel = __('travel.waiting');
-                            } else {
-                                $dotBg    = '#cbd5e1';
-                                $ringCls  = 'ring-slate-100';
-                                $labelCls = '';
-                                $decisionLabel = '';
-                            }
-                        @endphp
-                        <li class="ml-6">
-                            <span class="absolute -left-[9px] w-4 h-4 rounded-full ring-4 {{ $ringCls }} {{ $isCurrent ? 'animate-pulse' : '' }}"
-                                  style="background-color:{{ $dotBg }};"></span>
-                            <div class="pl-1">
-                                <p class="text-xs font-bold text-white">{{ __('common.stage_' . $step['stage']) }}</p>
-                                <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $approver?->name ?? '—' }}</p>
-                                @if ($approver?->job_title)
-                                <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $approver->job_title }}</p>
+                    {{-- ① Submission node --}}
+                    <li class="ml-6">
+                        <span class="absolute -left-[9px] w-4 h-4 rounded-full ring-4 ring-blue-100" style="background-color:#3b82f6;"></span>
+                        <div class="pl-1">
+                            <p class="text-xs font-bold text-white">{{ __('common.stage_submitted') }}</p>
+                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $tr->requester->name }}</p>
+                            @if ($tr->requester->job_title)
+                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $tr->requester->job_title }}</p>
+                            @endif
+                            @if ($tr->submitted_at)
+                            <span class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border text-blue-700 bg-blue-50 border-blue-200">
+                                {{ $tr->submitted_at->format('d M Y, H:i') }}
+                            </span>
+                            @endif
+                        </div>
+                    </li>
+
+                    @if ($hasChain)
+                    {{-- ② Full chain — all steps always visible --}}
+                    @foreach ($travelRequest->approval_chain as $index => $step)
+                    @php
+                        $approver     = $chainApprovers->get((int)$step['approver_id']);
+
+                        $stageActions = $travelRequest->approvalActions
+                                            ->where('stage', $step['stage'])
+                                            ->sortBy('acted_at')
+                                            ->values();
+                        $action  = $stageActions->last();
+                        $isDone  = $stageActions->isNotEmpty();
+
+                        $isCurrent       = (int)$travelRequest->current_approver_id === (int)$step['approver_id']
+                                           && $reqStatus === \App\Models\TravelRequest::STATUS_PENDING;
+                        $isAfterTerminal = $terminalIndex !== null && $index > $terminalIndex;
+                        $showDivider     = $isAfterTerminal && $index === $terminalIndex + 1;
+
+                        // Split stage actions at the first 'returned' decision.
+                        // This drives the Resubmitted node regardless of whether the approver
+                        // is still waiting or has already decided in the new cycle.
+                        $returnIdx        = $stageActions->search(fn($a) => $a->decision === 'returned');
+                        $preReturnActions = $returnIdx !== false
+                            ? $stageActions->take($returnIdx + 1)->values()
+                            : $stageActions;
+                        $postReturnActions = $returnIdx !== false
+                            ? $stageActions->skip($returnIdx + 1)->values()
+                            : collect();
+
+                        // needsReturnSplit: stage went through at least one return cycle
+                        // (either still pending after resubmission, or already resolved in second cycle)
+                        $isCurrentWithHistory = $isCurrent  && $returnIdx !== false;
+                        $hadReturnCycle       = !$isCurrent && $returnIdx !== false && $postReturnActions->isNotEmpty();
+                        $needsReturnSplit     = $isCurrentWithHistory || $hadReturnCycle;
+
+                        // Badge helper
+                        $badgeCls = fn($d) => match($d) {
+                            'approved' => 'text-emerald-700 bg-emerald-50 border-emerald-200',
+                            'returned' => 'text-orange-700 bg-orange-50 border-orange-200',
+                            'rejected' => 'text-red-700 bg-red-50 border-red-200',
+                            default    => 'text-slate-600 bg-slate-100 border-slate-200',
+                        };
+
+                        // Dot for the FIRST (pre-return) node
+                        if ($needsReturnSplit) {
+                            // Pre-return node always orange (ended with returned)
+                            $dotBg   = '#f97316';
+                            $ringCls = 'ring-orange-100';
+                            $liStyle = '';
+                        } elseif ($isCurrent) {
+                            $dotBg   = '#f59e0b';
+                            $ringCls = 'ring-amber-100';
+                            $liStyle = '';
+                        } elseif ($isDone) {
+                            $dotBg   = match($action->decision) {
+                                'approved' => '#10b981',
+                                'returned' => '#f97316',
+                                'rejected' => '#ef4444',
+                                default    => '#94a3b8',
+                            };
+                            $ringCls = match($action->decision) {
+                                'approved' => 'ring-emerald-100',
+                                'returned' => 'ring-orange-100',
+                                'rejected' => 'ring-red-100',
+                                default    => 'ring-slate-100',
+                            };
+                            $liStyle = '';
+                        } elseif ($isAfterTerminal || $reqStatus === \App\Models\TravelRequest::STATUS_CANCELLED) {
+                            $dotBg   = '#64748b';
+                            $ringCls = 'ring-slate-300';
+                            $liStyle = $reqStatus === \App\Models\TravelRequest::STATUS_RETURNED
+                                ? 'opacity:0.55;'
+                                : 'opacity:0.38;';
+                        } else {
+                            $dotBg   = '#94a3b8';
+                            $ringCls = 'ring-slate-200';
+                            $liStyle = '';
+                        }
+
+                        // Dot for the SECOND (post-return) node when cycle is resolved
+                        $postAction     = $postReturnActions->last();
+                        $postDotBg      = $postAction ? match($postAction->decision) {
+                            'approved' => '#10b981',
+                            'rejected' => '#ef4444',
+                            'returned' => '#f97316',
+                            default    => '#94a3b8',
+                        } : '#94a3b8';
+                        $postRingCls    = $postAction ? match($postAction->decision) {
+                            'approved' => 'ring-emerald-100',
+                            'rejected' => 'ring-red-100',
+                            'returned' => 'ring-orange-100',
+                            default    => 'ring-slate-100',
+                        } : 'ring-slate-100';
+                    @endphp
+
+                    @if ($showDivider)
+                    <li class="ml-6 !mt-3 !mb-0 list-none" style="pointer-events:none;">
+                        <div class="pl-1 flex items-center gap-2">
+                            <div class="flex-1 border-t border-dashed" style="border-color:rgba(255,255,255,0.18);"></div>
+                            <span class="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+                                  style="@if($reqStatus === \App\Models\TravelRequest::STATUS_RETURNED) color:#f97316; background-color:rgba(249,115,22,0.12); @else color:rgba(255,255,255,0.35); background-color:rgba(0,0,0,0.18); @endif">
+                                @if ($reqStatus === \App\Models\TravelRequest::STATUS_RETURNED)
+                                    {{ __('travel.flow_on_hold') }}
+                                @else
+                                    {{ __('travel.flow_not_reached') }}
                                 @endif
-                                @if ($decisionLabel)
-                                <span class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border {{ $labelCls }}">
-                                    {{ $decisionLabel }}
-                                    @if ($isDone) &nbsp;{{ $action->acted_at->format('d M Y') }} @endif
+                            </span>
+                            <div class="flex-1 border-t border-dashed" style="border-color:rgba(255,255,255,0.18);"></div>
+                        </div>
+                    </li>
+                    @endif
+
+                    {{-- Main step node (pre-return actions when split, all actions otherwise) --}}
+                    <li class="ml-6" style="{{ $liStyle }}">
+                        <span class="absolute -left-[9px] w-4 h-4 rounded-full ring-4 {{ $ringCls }} {{ ($isCurrent && !$needsReturnSplit) ? 'animate-pulse' : '' }}"
+                              style="background-color:{{ $dotBg }};"></span>
+                        <div class="pl-1">
+                            <p class="text-xs font-bold text-white">{{ __('common.stage_' . $step['stage']) }}</p>
+                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $approver?->name ?? '—' }}</p>
+                            @if ($approver?->job_title)
+                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $approver->job_title }}</p>
+                            @endif
+                            <div class="mt-1.5 space-y-1">
+                            @foreach ($needsReturnSplit ? $preReturnActions : $stageActions as $sa)
+                            <div>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border {{ $badgeCls($sa->decision) }}">
+                                    {{ __('travel.decided_' . $sa->decision) }}&nbsp;{{ $sa->acted_at->format('d M Y') }}
                                 </span>
-                                @endif
-                                @if ($isDone && $action->comment)
-                                <p class="text-xs mt-1.5 italic rounded-lg p-2" style="color:rgba(255,255,255,0.7); background-color:rgba(0,0,0,0.15);">"{{ Str::limit($action->comment, 100) }}"</p>
+                                @if ($sa->comment)
+                                <p class="text-xs mt-1 italic rounded-lg p-2" style="color:rgba(255,255,255,0.7); background-color:rgba(0,0,0,0.15);">"{{ Str::limit($sa->comment, 100) }}"</p>
                                 @endif
                             </div>
-                        </li>
-                        @endforeach
-                    </ol>
-                </div>
+                            @endforeach
+                            @if ($isCurrent && !$needsReturnSplit)
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border text-amber-700 bg-amber-50 border-amber-200">
+                                {{ __('travel.waiting') }}
+                            </span>
+                            @endif
+                            </div>
+                        </div>
+                    </li>
+
+                    @if ($needsReturnSplit)
+                    {{-- Resubmitted node — always shown when a return cycle exists --}}
+                    <li class="ml-6">
+                        <span class="absolute -left-[9px] w-4 h-4 rounded-full ring-4 ring-blue-100" style="background-color:#3b82f6;"></span>
+                        <div class="pl-1">
+                            <p class="text-xs font-bold text-white">{{ __('common.stage_resubmitted') }}</p>
+                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $tr->requester->name }}</p>
+                            @if ($tr->requester->job_title)
+                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $tr->requester->job_title }}</p>
+                            @endif
+                            @if ($tr->submitted_at)
+                            <span class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border text-blue-700 bg-blue-50 border-blue-200">
+                                {{ $tr->submitted_at->format('d M Y, H:i') }}
+                            </span>
+                            @endif
+                        </div>
+                    </li>
+                    {{-- Second cycle node: waiting (if still pending) or resolved (if acted upon) --}}
+                    @if ($isCurrentWithHistory)
+                    <li class="ml-6">
+                        <span class="absolute -left-[9px] w-4 h-4 rounded-full ring-4 ring-amber-100 animate-pulse" style="background-color:#f59e0b;"></span>
+                        <div class="pl-1">
+                            <p class="text-xs font-bold text-white">{{ __('common.stage_' . $step['stage']) }}</p>
+                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $approver?->name ?? '—' }}</p>
+                            @if ($approver?->job_title)
+                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $approver->job_title }}</p>
+                            @endif
+                            <span class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border text-amber-700 bg-amber-50 border-amber-200">
+                                {{ __('travel.waiting') }}
+                            </span>
+                        </div>
+                    </li>
+                    @elseif ($hadReturnCycle)
+                    <li class="ml-6">
+                        <span class="absolute -left-[9px] w-4 h-4 rounded-full ring-4 {{ $postRingCls }}" style="background-color:{{ $postDotBg }};"></span>
+                        <div class="pl-1">
+                            <p class="text-xs font-bold text-white">{{ __('common.stage_' . $step['stage']) }}</p>
+                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $approver?->name ?? '—' }}</p>
+                            @if ($approver?->job_title)
+                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $approver->job_title }}</p>
+                            @endif
+                            <div class="mt-1.5 space-y-1">
+                            @foreach ($postReturnActions as $sa)
+                            <div>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border {{ $badgeCls($sa->decision) }}">
+                                    {{ __('travel.decided_' . $sa->decision) }}&nbsp;{{ $sa->acted_at->format('d M Y') }}
+                                </span>
+                                @if ($sa->comment)
+                                <p class="text-xs mt-1 italic rounded-lg p-2" style="color:rgba(255,255,255,0.7); background-color:rgba(0,0,0,0.15);">"{{ Str::limit($sa->comment, 100) }}"</p>
+                                @endif
+                            </div>
+                            @endforeach
+                            </div>
+                        </div>
+                    </li>
+                    @endif
+                    @endif
+
+                    @endforeach
+
+                    {{-- ③ Terminal node for cancelled requests --}}
+                    @if ($reqStatus === \App\Models\TravelRequest::STATUS_CANCELLED)
+                    <li class="ml-6">
+                        {{-- Striped/hatched dot to distinguish from rejected (solid red) --}}
+                        <span class="absolute -left-[9px] w-4 h-4 rounded-full ring-4 ring-slate-300 flex items-center justify-center"
+                              style="background-color:#475569;">
+                            <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </span>
+                        <div class="pl-1">
+                            <p class="text-xs font-bold" style="color:rgba(255,255,255,0.6);">{{ __('common.stage_cancelled') }}</p>
+                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.45);">{{ $tr->requester->name }}</p>
+                            <span class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border text-slate-600 bg-slate-100 border-slate-300">
+                                {{ $tr->updated_at->format('d M Y, H:i') }}
+                            </span>
+                        </div>
+                    </li>
+                    @endif
+
+                    @else
+                    {{-- Legacy fallback: chain cleared — render from recorded actions only --}}
+                    @foreach ($travelRequest->approvalActions as $action)
+                    @php
+                        $dotBg    = match($action->decision) { 'approved' => '#10b981', 'returned' => '#f97316', default => '#ef4444' };
+                        $ringCls  = match($action->decision) { 'approved' => 'ring-emerald-100', 'returned' => 'ring-orange-100', default => 'ring-red-100' };
+                        $labelCls = match($action->decision) { 'approved' => 'text-emerald-700 bg-emerald-50 border-emerald-200', 'returned' => 'text-orange-700 bg-orange-50 border-orange-200', default => 'text-red-700 bg-red-50 border-red-200' };
+                    @endphp
+                    <li class="ml-6">
+                        <span class="absolute -left-[9px] w-4 h-4 rounded-full ring-4 {{ $ringCls }}" style="background-color:{{ $dotBg }};"></span>
+                        <div class="pl-1">
+                            <p class="text-xs font-bold text-white">{{ __('common.stage_' . $action->stage) }}</p>
+                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $action->actor?->name ?? '—' }}</p>
+                            @if ($action->actor?->job_title)
+                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $action->actor->job_title }}</p>
+                            @endif
+                            <span class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border {{ $labelCls }}">
+                                {{ __('travel.decided_' . $action->decision) }}&nbsp;{{ $action->acted_at->format('d M Y') }}
+                            </span>
+                            @if ($action->comment)
+                            <p class="text-xs mt-1.5 italic rounded-lg p-2" style="color:rgba(255,255,255,0.7); background-color:rgba(0,0,0,0.15);">"{{ Str::limit($action->comment, 100) }}"</p>
+                            @endif
+                        </div>
+                    </li>
+                    @endforeach
+                    @endif
+
+                </ol>
             </div>
             @endif
 
-            {{-- Info card — plain white --}}
-            <div class="card p-5">
-                <h3 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">{{ __('travel.info_card') }}</h3>
-                <div class="space-y-3">
+            {{-- Info card — blue --}}
+            <div class="rounded-xl overflow-hidden shadow-sm p-5" style="background-color:#05499c;">
+                <h3 class="text-[10px] font-bold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.55);">{{ __('travel.info_card') }}</h3>
+                <div class="space-y-4">
                     @foreach ([
-                        [__('common.applicant'),   $tr->b_applicant_name ?? '—'],
+                        [__('common.applicant'),   $tr->requester->name ?? '—'],
                         [__('common.unit'),        $tr->unit?->name ?? '—'],
                         [__('common.destination'), $tr->b_destination ?? '—'],
                     ] as [$k, $v])
                     <div>
-                        <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">{{ $k }}</p>
-                        <p class="text-sm font-medium text-slate-800 leading-snug">{{ $v }}</p>
+                        <p class="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style="color:rgba(255,255,255,0.5);">{{ $k }}</p>
+                        <p class="text-sm font-semibold text-white leading-snug">{{ $v }}</p>
                     </div>
                     @endforeach
                     @if ($tr->b_departure_date)
                     <div>
-                        <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">{{ __('travel.trip_dates') }}</p>
-                        <p class="text-sm font-medium text-slate-800">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style="color:rgba(255,255,255,0.5);">{{ __('travel.trip_dates') }}</p>
+                        <p class="text-sm font-semibold text-white">
                             {{ $tr->b_departure_date->format('d M Y') }}
                             @if ($tr->b_return_date) &mdash; {{ $tr->b_return_date->format('d M Y') }} @endif
                         </p>
@@ -403,8 +674,8 @@
                     @endif
                     @if ($tr->submitted_at)
                     <div>
-                        <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">{{ __('travel.submitted') }}</p>
-                        <p class="text-sm font-medium text-slate-800">{{ $tr->submitted_at->format('d M Y') }}</p>
+                        <p class="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style="color:rgba(255,255,255,0.5);">{{ __('travel.submitted') }}</p>
+                        <p class="text-sm font-semibold text-white">{{ $tr->submitted_at->format('d M Y') }}</p>
                     </div>
                     @endif
                 </div>
@@ -413,10 +684,8 @@
         </div>
     </div>
 
-</div>
-
-{{-- Confirmation modal --}}
-<div x-show="modalOpen" x-cloak
+    {{-- Confirmation modal --}}
+    <div x-show="modalOpen" x-cloak
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
     x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
     x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
@@ -444,6 +713,8 @@
     @csrf @method('DELETE')
 </form>
 
+</div>{{-- end x-data="approvalModal()" --}}
+
 <script>
     function approvalModal() {
         return {
@@ -454,9 +725,9 @@
             openModal(decision) {
                 this.selectedDecision = decision;
                 const c = {
-                    approved: { title: @json(__('travel.modal_approve_title')), desc: @json(__('travel.modal_approve_desc')), label: @json(__('travel.approve_btn')), btn: 'bg-emerald-600 hover:bg-emerald-700', icon: 'bg-emerald-100 text-emerald-700', path: 'M5 13l4 4L19 7', act: () => document.getElementById('approval-form').submit() },
-                    returned:  { title: @json(__('travel.modal_return_title')), desc: @json(__('travel.modal_return_desc')), label: @json(__('travel.return_btn')), btn: 'bg-amber-500 hover:bg-amber-600', icon: 'bg-amber-100 text-amber-700', path: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', act: () => document.getElementById('approval-form').submit() },
-                    rejected:  { title: @json(__('travel.modal_reject_title')), desc: @json(__('travel.modal_reject_desc')), label: @json(__('travel.reject_btn')), btn: 'bg-red-600 hover:bg-red-700', icon: 'bg-red-100 text-red-700', path: 'M6 18L18 6M6 6l12 12', act: () => document.getElementById('approval-form').submit() },
+                    approved: { title: @json(__('travel.modal_approve_title')), desc: @json(__('travel.modal_approve_desc')), label: @json(__('travel.approve_btn')), btn: 'bg-emerald-600 hover:bg-emerald-700', icon: 'bg-emerald-100 text-emerald-700', path: 'M5 13l4 4L19 7', act: () => { document.getElementById('approval-decision-input').value = 'approved'; document.getElementById('approval-form').submit(); } },
+                    returned:  { title: @json(__('travel.modal_return_title')), desc: @json(__('travel.modal_return_desc')), label: @json(__('travel.return_btn')), btn: 'bg-amber-500 hover:bg-amber-600', icon: 'bg-amber-100 text-amber-700', path: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', act: () => { document.getElementById('approval-decision-input').value = 'returned'; document.getElementById('approval-form').submit(); } },
+                    rejected:  { title: @json(__('travel.modal_reject_title')), desc: @json(__('travel.modal_reject_desc')), label: @json(__('travel.reject_btn')), btn: 'bg-red-600 hover:bg-red-700', icon: 'bg-red-100 text-red-700', path: 'M6 18L18 6M6 6l12 12', act: () => { document.getElementById('approval-decision-input').value = 'rejected'; document.getElementById('approval-form').submit(); } },
                     cancel:    { title: @json(__('travel.modal_cancel_title')), desc: @json(__('travel.modal_cancel_desc')), label: @json(__('travel.cancel_request')), btn: 'bg-red-600 hover:bg-red-700', icon: 'bg-red-100 text-red-700', path: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16', act: () => document.getElementById('cancel-form').submit() },
                 };
                 const cfg = c[decision] || c.rejected;

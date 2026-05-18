@@ -65,7 +65,8 @@ class DatabaseSeeder extends Seeder
             'job_title'    => 'Director General',
             'role'         => 'director_general',
             'staff_number' => 'DG-001',
-            'is_active'    => true,
+            'email_verified_at' => now(),
+            'is_active'         => true,
         ]);
 
         // HQ HR Officer
@@ -77,7 +78,8 @@ class DatabaseSeeder extends Seeder
             'job_title'    => 'Human Resource Officer',
             'role'         => 'hr',
             'staff_number' => 'HR-HQ-001',
-            'is_active'    => true,
+            'email_verified_at' => now(),
+            'is_active'         => true,
         ]);
 
         // One Centre Manager per research centre
@@ -101,7 +103,8 @@ class DatabaseSeeder extends Seeder
                 'job_title'    => 'Centre Manager',
                 'role'         => 'centre_manager',
                 'staff_number' => $staffNo,
-                'is_active'    => true,
+                'email_verified_at' => now(),
+            'is_active'         => true,
             ]);
 
             // HR Officer per centre
@@ -113,7 +116,8 @@ class DatabaseSeeder extends Seeder
                 'job_title'    => 'HR Officer',
                 'role'         => 'hr',
                 'staff_number' => 'HR-' . strtoupper($slug) . '-001',
-                'is_active'    => true,
+                'email_verified_at' => now(),
+            'is_active'         => true,
             ]);
         }
 
@@ -126,7 +130,8 @@ class DatabaseSeeder extends Seeder
             'job_title'    => 'Research Officer',
             'role'         => 'staff',
             'staff_number' => 'MWRC-STAFF-001',
-            'is_active'    => true,
+            'email_verified_at' => now(),
+            'is_active'         => true,
         ]);
 
         // Corporate Services Directorate — Director
@@ -138,7 +143,8 @@ class DatabaseSeeder extends Seeder
             'job_title'    => 'Director of Corporate Services',
             'role'         => 'director',
             'staff_number' => 'CSD-DIR-001',
-            'is_active'    => true,
+            'email_verified_at' => now(),
+            'is_active'         => true,
         ]);
 
         // Finance and Accounts Section — Head + sample staff
@@ -152,7 +158,8 @@ class DatabaseSeeder extends Seeder
             'job_title'    => 'Head of Finance and Accounts',
             'role'         => 'head',
             'staff_number' => 'FAS-HEAD-001',
-            'is_active'    => true,
+            'email_verified_at' => now(),
+            'is_active'         => true,
         ]);
 
         User::create([
@@ -163,7 +170,8 @@ class DatabaseSeeder extends Seeder
             'job_title'    => 'Accounts Officer',
             'role'         => 'staff',
             'staff_number' => 'HQ-STAFF-001',
-            'is_active'    => true,
+            'email_verified_at' => now(),
+            'is_active'         => true,
         ]);
     }
 }

@@ -37,12 +37,27 @@ class DashboardController extends Controller
                 ->latest()->get();
         }
 
-        // HR and DG see all
+        // HR and DG see an org-wide view — but DG only sees what is relevant to them.
         $allRequests = collect();
         if ($user->isHr() || $user->isDirectorGeneral()) {
             $query = TravelRequest::with(['requester', 'unit', 'currentApprover']);
             if ($user->isHr() && $user->unit?->type === 'research_centre') {
                 $query->where('unit_id', $user->unit_id);
+            }
+            if ($user->isDirectorGeneral()) {
+                // Show DG: pending requests at their stage + all resolved/returned requests.
+                // Exclude drafts and requests still pending at a lower stage.
+                $query->where(function ($q) use ($user) {
+                    $q->where(function ($inner) use ($user) {
+                        $inner->where('status', TravelRequest::STATUS_PENDING)
+                              ->where('current_approver_id', $user->id);
+                    })->orWhereIn('status', [
+                        TravelRequest::STATUS_APPROVED,
+                        TravelRequest::STATUS_REJECTED,
+                        TravelRequest::STATUS_RETURNED,
+                        TravelRequest::STATUS_CANCELLED,
+                    ]);
+                });
             }
             $allRequests = $query->latest()->get();
         }

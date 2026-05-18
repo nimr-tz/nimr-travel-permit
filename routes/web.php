@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\ApprovalsController;
+use App\Http\Controllers\HrReportsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
@@ -21,7 +22,7 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', \App\Http\Middleware\PreventBackHistory::class])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::patch('/dashboard/supervisor', [DashboardController::class, 'updateSupervisor'])->name('dashboard.supervisor.update');
     Route::get('/approvals', ApprovalsController::class)->name('approvals.index');
@@ -35,6 +36,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/travel-requests/{travelRequest}/approve', [ApprovalController::class, 'store'])->name('travel-requests.approve');
     Route::get('/travel-requests/{travelRequest}/print',   [TravelRequestController::class, 'print'])->name('travel-requests.print');
+
+    Route::get('/hr/reports', [HrReportsController::class, 'index'])->name('hr.reports.index');
 
     Route::middleware(\App\Http\Middleware\EnsureIsAdmin::class)->group(function () {
         Route::get('/users',              [UserController::class, 'index'])->name('users.index');

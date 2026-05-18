@@ -54,10 +54,13 @@ return [
     'role_hr'               => 'Rasilimali Watu',
 
     // Approval stages
+    'stage_submitted'    => 'Iliwasilishwa',
+    'stage_resubmitted'  => 'Iliwasilishwa Tena',
     'stage_supervisor' => 'Msimamizi',
     'stage_director'   => 'Mkurugenzi',
     'stage_final'      => 'Idhini ya Mwisho',
     'stage_hr'         => 'Rasilimali Watu',
+    'stage_cancelled'  => 'Iliondolewa',
 
     // Unit types
     'unit_hq_standalone'  => 'HQ — Kitengo Huru',

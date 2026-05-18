@@ -72,9 +72,9 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <x-input-label for="staff_number" value="Staff Number" />
-                            <x-text-input id="staff_number" class="block mt-1 w-full" type="text" name="staff_number" x-model="formData.staff_number" />
-                            <x-input-error :messages="$errors->get('staff_number')" class="mt-2" />
+                            <x-input-label for="phone" value="Phone Number" />
+                            <x-text-input id="phone" class="block mt-1 w-full" type="tel" name="phone" x-model="formData.phone" placeholder="+255 7XX XXX XXX" />
+                            <x-input-error :messages="$errors->get('phone')" class="mt-2" />
                         </div>
                         <div>
                             <x-input-label for="job_title" value="Job Title" />
@@ -178,7 +178,7 @@
                 formData: {
                     name: @json(old('name', '')),
                     email: @json(old('email', '')),
-                    staff_number: @json(old('staff_number', '')),
+                    phone: @json(old('phone', '')),
                     job_title: @json(old('job_title', '')),
                     password: '',
                     password_confirmation: '',
