@@ -145,7 +145,7 @@
                     </div>
 
                     <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                        Your selected unit is used to route travel approvals. You can still ask HR to correct your profile later if your posting changes.
+                        Your selected unit is used to route travel approvals. You can still ask a System Administrator to correct your profile later if your posting changes.
                     </div>
                 </div>
             </div>

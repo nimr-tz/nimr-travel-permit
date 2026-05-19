@@ -178,6 +178,7 @@
 {{-- Print / Back controls --}}
 <div class="print-controls">
     <a href="{{ route('travel-requests.show', $travelRequest) }}" class="btn-back">← {{ __('common.back') }}</a>
+    <a href="{{ route('travel-requests.pdf', $travelRequest) }}" class="btn-print" style="background:#0f8a4b;text-decoration:none;">⬇ Download PDF</a>
     <button class="btn-print" onclick="window.print()">{{ __('common.print') }}</button>
 </div>
 

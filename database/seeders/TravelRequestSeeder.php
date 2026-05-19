@@ -76,7 +76,7 @@ class TravelRequestSeeder extends Seeder
         $this->ensureAdditionalUsers();
 
         // Step 2: collect all eligible requesters (everyone except DG and HR)
-        $requesters = User::whereNotIn('role', ['director_general', 'hr'])
+        $requesters = User::whereNotIn('role', ['director_general', 'hr', 'system_admin'])
             ->where('is_active', true)
             ->with('unit')
             ->get();
@@ -347,7 +347,6 @@ class TravelRequestSeeder extends Seeder
                     'unit_id'      => $unit->id,
                     'job_title'    => 'Research Officer',
                     'role'         => 'staff',
-                    'staff_number' => strtoupper($code) . '-STF-' . str_pad($staffIndex++, 3, '0', STR_PAD_LEFT),
                     'email_verified_at' => now(),
                     'is_active'         => true,
                 ]);
@@ -361,7 +360,6 @@ class TravelRequestSeeder extends Seeder
                 'unit_id'      => $unit->id,
                 'job_title'    => 'Senior Research Scientist',
                 'role'         => 'manager',
-                'staff_number' => strtoupper($code) . '-MGR-001',
                 'email_verified_at' => now(),
                 'is_active'         => true,
             ]);
@@ -381,7 +379,6 @@ class TravelRequestSeeder extends Seeder
                 'unit_id'      => $unit->id,
                 'job_title'    => 'Unit Manager',
                 'role'         => 'manager',
-                'staff_number' => strtoupper($code) . '-MGR-001',
                 'email_verified_at' => now(),
                 'is_active'         => true,
             ]);
@@ -393,7 +390,6 @@ class TravelRequestSeeder extends Seeder
                 'unit_id'      => $unit->id,
                 'job_title'    => $title,
                 'role'         => 'staff',
-                'staff_number' => strtoupper($code) . '-STF-001',
                 'email_verified_at' => now(),
                 'is_active'         => true,
             ]);
@@ -409,7 +405,6 @@ class TravelRequestSeeder extends Seeder
                 'unit_id'      => $rcpd->id,
                 'job_title'    => 'Director of Research Coordination',
                 'role'         => 'director',
-                'staff_number' => 'RCPD-DIR-001',
                 'email_verified_at' => now(),
                 'is_active'         => true,
             ]);
@@ -425,7 +420,6 @@ class TravelRequestSeeder extends Seeder
                     'unit_id'      => $section->id,
                     'job_title'    => 'Head of Section',
                     'role'         => 'head',
-                    'staff_number' => strtoupper($sCode) . '-HEAD-001',
                     'email_verified_at' => now(),
                     'is_active'         => true,
                 ]);
@@ -436,7 +430,6 @@ class TravelRequestSeeder extends Seeder
                     'unit_id'      => $section->id,
                     'job_title'    => 'Research Officer',
                     'role'         => 'staff',
-                    'staff_number' => strtoupper($sCode) . '-STF-001',
                     'email_verified_at' => now(),
                     'is_active'         => true,
                 ]);
@@ -452,7 +445,6 @@ class TravelRequestSeeder extends Seeder
                 'unit_id'      => $rirad->id,
                 'job_title'    => 'Director of Research Information',
                 'role'         => 'director',
-                'staff_number' => 'RIRAD-DIR-001',
                 'email_verified_at' => now(),
                 'is_active'         => true,
             ]);
@@ -468,7 +460,6 @@ class TravelRequestSeeder extends Seeder
                     'unit_id'      => $section->id,
                     'job_title'    => 'Head of Section',
                     'role'         => 'head',
-                    'staff_number' => strtoupper($sCode) . '-HEAD-001',
                     'email_verified_at' => now(),
                     'is_active'         => true,
                 ]);
@@ -479,7 +470,6 @@ class TravelRequestSeeder extends Seeder
                     'unit_id'      => $section->id,
                     'job_title'    => 'Research Officer',
                     'role'         => 'staff',
-                    'staff_number' => strtoupper($sCode) . '-STF-001',
                     'email_verified_at' => now(),
                     'is_active'         => true,
                 ]);
@@ -496,7 +486,6 @@ class TravelRequestSeeder extends Seeder
                 'unit_id'      => $pmes->id,
                 'job_title'    => 'Head of Planning',
                 'role'         => 'head',
-                'staff_number' => 'PMES-HEAD-001',
                 'email_verified_at' => now(),
                 'is_active'         => true,
             ]);
@@ -507,7 +496,6 @@ class TravelRequestSeeder extends Seeder
                 'unit_id'      => $pmes->id,
                 'job_title'    => 'Planning Officer',
                 'role'         => 'staff',
-                'staff_number' => 'PMES-STF-001',
                 'email_verified_at' => now(),
                 'is_active'         => true,
             ]);

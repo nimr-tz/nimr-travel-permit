@@ -47,5 +47,6 @@ class UserFactory extends Factory
     public function centreManager(): static { return $this->state(['role' => 'centre_manager']); }
     public function directorGeneral(): static { return $this->state(['role' => 'director_general']); }
     public function hr(): static            { return $this->state(['role' => 'hr']); }
+    public function systemAdmin(): static   { return $this->state(['role' => 'system_admin']); }
     public function inactive(): static      { return $this->state(['is_active' => false]); }
 }

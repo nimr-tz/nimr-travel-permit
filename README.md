@@ -9,7 +9,7 @@ A web-based travel permit management system for the **National Institute for Med
 - Support for all unit types: HQ standalone, HQ directorate, HQ section, and research centres
 - Approve, return for revision, or reject at each stage
 - Queued email notifications to approvers and requesters
-- Admin user management (HR / Director General only)
+- System Administrator user management, including centre-scoped administrators
 - Bilingual interface (English / Swahili)
 - Printable permit output
 
@@ -52,7 +52,8 @@ npm run build           # Production asset build
 | `director` | Directorate director — approves requests from managers/heads |
 | `centre_manager` | Research centre manager — approves centre requests |
 | `director_general` | DG — final authority for most chains |
-| `hr` | HR — final step in all chains; admin access |
+| `hr` | HR - receives request copies for records |
+| `system_admin` | Manages user identity, unit placement, and role assignment |
 
 ## Approval Chain
 

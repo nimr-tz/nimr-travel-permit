@@ -39,7 +39,7 @@ return [
     'section_a_vi'       => 'Fomu ikishajazwa na kibali kutolewa, nakala irudishwe Ofisi ya Rasilimali Watu na Utawala.',
     'section_a_vii'      => 'Safari za dharura zitatumia utaratibu wa dharura.',
     'section_a_viii'     => 'Fomu hii itajazwa nakala mbili (2).',
-    'section_a_unit_note'=> 'Unaomba kupitia kitengo: :unit. Kama taarifa hizi si sahihi, wasiliana na HR kabla ya kuendelea.',
+    'section_a_unit_note'=> 'Unaomba kupitia kitengo: :unit. Kama taarifa hizi si sahihi, wasiliana na Msimamizi wa Mfumo kabla ya kuendelea.',
 
     // Section B
     'section_b_title'    => 'Taarifa za Mtumishi Anayesafiri',

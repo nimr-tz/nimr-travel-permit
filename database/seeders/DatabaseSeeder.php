@@ -64,7 +64,6 @@ class DatabaseSeeder extends Seeder
             'unit_id'      => $dgo->id,
             'job_title'    => 'Director General',
             'role'         => 'director_general',
-            'staff_number' => 'DG-001',
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);
@@ -77,23 +76,34 @@ class DatabaseSeeder extends Seeder
             'unit_id'      => $hrUnit->id,
             'job_title'    => 'Human Resource Officer',
             'role'         => 'hr',
-            'staff_number' => 'HR-HQ-001',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
+
+        // HQ System Administrator - manages user identity and role assignment.
+        User::create([
+            'name'         => 'HQ System Administrator',
+            'email'        => 'sysadmin.hq@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $dgo->id,
+            'job_title'    => 'System Administrator',
+            'role'         => 'system_admin',
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);
 
         // One Centre Manager per research centre
         $centres = [
-            [$amani,     'CM-ARC-001',  'amani'],
-            [$dodoma,    'CM-DRC-001',  'dodoma'],
-            [$mabibo,    'CM-MTMC-001', 'mabibo'],
-            [$mbeya,     'CM-MBRC-001', 'mbeya'],
-            [$muhimbili, 'CM-MRC-001',  'muhimbili'],
-            [$mwanza,    'CM-MWRC-001', 'mwanza'],
-            [$tanga,     'CM-TRC-001',  'tanga'],
+            [$amani,     'amani'],
+            [$dodoma,    'dodoma'],
+            [$mabibo,    'mabibo'],
+            [$mbeya,     'mbeya'],
+            [$muhimbili, 'muhimbili'],
+            [$mwanza,    'mwanza'],
+            [$tanga,     'tanga'],
         ];
 
-        foreach ($centres as [$unit, $staffNo, $slug]) {
+        foreach ($centres as [$unit, $slug]) {
             // Centre Manager
             User::create([
                 'name'         => $unit->name . ' Manager',
@@ -102,7 +112,6 @@ class DatabaseSeeder extends Seeder
                 'unit_id'      => $unit->id,
                 'job_title'    => 'Centre Manager',
                 'role'         => 'centre_manager',
-                'staff_number' => $staffNo,
                 'email_verified_at' => now(),
             'is_active'         => true,
             ]);
@@ -115,9 +124,20 @@ class DatabaseSeeder extends Seeder
                 'unit_id'      => $unit->id,
                 'job_title'    => 'HR Officer',
                 'role'         => 'hr',
-                'staff_number' => 'HR-' . strtoupper($slug) . '-001',
                 'email_verified_at' => now(),
             'is_active'         => true,
+            ]);
+
+            // Centre System Administrator - can identify/manage users in this centre.
+            User::create([
+                'name'         => $unit->name . ' System Administrator',
+                'email'        => "sysadmin.{$slug}@nimr.or.tz",
+                'password'     => Hash::make('password'),
+                'unit_id'      => $unit->id,
+                'job_title'    => 'System Administrator',
+                'role'         => 'system_admin',
+                'email_verified_at' => now(),
+                'is_active'         => true,
             ]);
         }
 
@@ -129,7 +149,6 @@ class DatabaseSeeder extends Seeder
             'unit_id'      => $mwanza->id,
             'job_title'    => 'Research Officer',
             'role'         => 'staff',
-            'staff_number' => 'MWRC-STAFF-001',
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);
@@ -142,7 +161,6 @@ class DatabaseSeeder extends Seeder
             'unit_id'      => $csd->id,
             'job_title'    => 'Director of Corporate Services',
             'role'         => 'director',
-            'staff_number' => 'CSD-DIR-001',
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);
@@ -157,7 +175,6 @@ class DatabaseSeeder extends Seeder
             'unit_id'      => $fas->id,
             'job_title'    => 'Head of Finance and Accounts',
             'role'         => 'head',
-            'staff_number' => 'FAS-HEAD-001',
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);
@@ -169,7 +186,6 @@ class DatabaseSeeder extends Seeder
             'unit_id'      => $fas->id,
             'job_title'    => 'Accounts Officer',
             'role'         => 'staff',
-            'staff_number' => 'HQ-STAFF-001',
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);

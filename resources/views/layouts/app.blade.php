@@ -102,7 +102,7 @@
             @endforeach
 
             {{-- Admin section --}}
-            @if ($user->isHr())
+            @if ($user->isSystemAdmin())
             <div class="pt-4 pb-1">
                 <p x-show="!collapsed" class="px-3 text-[10px] font-semibold text-slate-600 uppercase tracking-widest mb-1">{{ __('nav.administration') }}</p>
             </div>
@@ -164,27 +164,40 @@
             </div>
 
             {{-- Right actions --}}
-            <div class="flex items-center gap-3 shrink-0">
+            @php
+                $headerUser = auth()->user();
+                $headerRoleColors = [
+                    'staff'            => ['#f1f5f9','#475569'],
+                    'head'             => ['#eff6ff','#1d4ed8'],
+                    'manager'          => ['#f5f3ff','#6d28d9'],
+                    'director'         => ['#eef2ff','#4338ca'],
+                    'centre_manager'   => ['#ecfeff','#0891b2'],
+                    'director_general' => ['#fffbeb','#b45309'],
+                    'hr'               => ['#f0fdf4','#15803d'],
+                    'system_admin'     => ['#0f172a','#ffffff'],
+                ];
+                $hrc = $headerRoleColors[$headerUser->role] ?? $headerRoleColors['staff'];
+            @endphp
+            <div class="flex items-center gap-2 shrink-0">
 
-                {{-- Language toggle --}}
-                <div class="flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden text-xs font-semibold shadow-sm">
+                {{-- Language toggle — segmented control --}}
+                <div class="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-slate-100 p-0.5">
                     <a href="{{ route('locale.switch', 'sw') }}" title="Kiswahili"
-                       class="flex items-center gap-1.5 px-3 py-1.5 transition {{ app()->getLocale() === 'sw' ? 'text-white' : 'text-slate-500 hover:bg-slate-50' }}"
-                       style="{{ app()->getLocale() === 'sw' ? 'background-color:#16a34a;' : '' }}">
-                        <span class="fi fi-tz fis rounded-sm" style="font-size:14px;"></span>
-                        <span>SW</span>
+                       class="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition"
+                       style="{{ app()->getLocale() === 'sw' ? 'background:#0f8a4b;color:#ffffff;' : 'color:#64748b;' }}">
+                        <span class="fi fi-tz fis rounded-sm" style="font-size:11px;"></span>
+                        SW
                     </a>
-                    <div class="w-px h-5 bg-slate-200"></div>
                     <a href="{{ route('locale.switch', 'en') }}" title="English"
-                       class="flex items-center gap-1.5 px-3 py-1.5 transition {{ app()->getLocale() === 'en' ? 'text-white' : 'text-slate-500 hover:bg-slate-50' }}"
-                       style="{{ app()->getLocale() === 'en' ? 'background-color:#16a34a;' : '' }}">
-                        <span class="fi fi-gb fis rounded-sm" style="font-size:14px;"></span>
-                        <span>EN</span>
+                       class="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition"
+                       style="{{ app()->getLocale() === 'en' ? 'background:#0f8a4b;color:#ffffff;' : 'color:#64748b;' }}">
+                        <span class="fi fi-gb fis rounded-sm" style="font-size:11px;"></span>
+                        EN
                     </a>
                 </div>
 
                 {{-- Notification bell (pending approvals) --}}
-                @if (auth()->user()->isApprover() && isset($pendingCount) && $pendingCount > 0)
+                @if ($headerUser->isApprover() && isset($pendingCount) && $pendingCount > 0)
                 <a href="{{ route('approvals.index') }}"
                    class="relative p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
@@ -195,17 +208,25 @@
                 {{-- User profile dropdown --}}
                 <div class="relative" x-data="{ open: false }">
                     <button @click="open = !open"
-                            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition max-w-[180px]">
-                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                        <span class="truncate hidden sm:block">{{ auth()->user()->name }}</span>
-                        <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            class="group flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm transition hover:border-slate-300">
+                        <span class="hidden sm:block max-w-[150px] truncate text-sm font-semibold text-slate-700">{{ $headerUser->name }}</span>
+                        <svg class="h-3.5 w-3.5 shrink-0 text-slate-400 transition group-hover:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
                     </button>
 
                     <div x-show="open" @click.outside="open = false" x-cloak
-                         class="absolute right-0 mt-1.5 w-52 rounded-xl bg-white border border-slate-200 shadow-lg overflow-hidden z-50">
+                         class="absolute right-0 mt-1.5 w-56 rounded-xl bg-white border border-slate-200 shadow-lg overflow-hidden z-50">
+                        {{-- Dropdown header: name + role badge + email --}}
                         <div class="px-4 py-3 border-b border-slate-100">
-                            <p class="text-sm font-semibold text-slate-800 truncate">{{ auth()->user()->name }}</p>
-                            <p class="text-xs text-slate-400 truncate">{{ auth()->user()->email }}</p>
+                            <div class="flex items-center justify-between gap-2 mb-1">
+                                <p class="text-sm font-bold text-slate-800 truncate">{{ $headerUser->name }}</p>
+                                <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold"
+                                      style="background:{{ $hrc[0] }};color:{{ $hrc[1] }};">
+                                    {{ __('common.role_' . $headerUser->role) }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400 truncate">{{ $headerUser->email }}</p>
                         </div>
                         <a href="{{ route('profile.edit') }}"
                            class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition">

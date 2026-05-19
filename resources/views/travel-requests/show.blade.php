@@ -12,6 +12,14 @@
     </div>
     @endif
 
+    {{-- Overlap warning --}}
+    @if (session('overlap_warning'))
+    <div class="flex items-start gap-3 p-4 mb-5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+        <svg class="w-5 h-5 shrink-0 mt-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        <span class="flex-1"><strong>Overlapping dates:</strong> Request <strong>{{ session('overlap_warning') }}</strong> covers the same travel period. Please review your requests to avoid conflicts.</span>
+    </div>
+    @endif
+
     {{-- ══ PREMIUM PAGE HEADER ════════════════════════════════════════════ --}}
     @php $tr = $travelRequest; @endphp
     <div class="rounded-xl overflow-hidden mb-6 shadow-sm" style="background-color:#05499c;">
@@ -51,6 +59,18 @@
 
                 {{-- Action buttons --}}
                 <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                    <a href="{{ route('travel-requests.pdf', $tr) }}"
+                       class="btn btn-sm text-white font-semibold transition hover:opacity-90"
+                       style="background:#0f8a4b;">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        PDF
+                    </a>
+                    <a href="{{ route('travel-requests.print', $tr) }}"
+                       class="btn btn-sm bg-white font-semibold transition hover:bg-slate-100"
+                       style="color:#374151;" target="_blank">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Print
+                    </a>
                     @if ($tr->isEditable() && $tr->requester_id === auth()->id())
                     <a href="{{ route('travel-requests.edit', $tr) }}"
                        class="btn btn-sm bg-white font-semibold transition hover:bg-slate-100"

@@ -1,8 +1,9 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Daily reminder at 08:00 — notify approvers about requests pending ≥ 3 days
+Schedule::command('approvals:remind --days=3')
+    ->dailyAt('08:00')
+    ->withoutOverlapping()
+    ->runInBackground();

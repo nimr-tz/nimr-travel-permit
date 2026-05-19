@@ -91,26 +91,6 @@
         default => null,
     };
 
-    /* ── Pipeline counts ──────────────────────────────────────────── */
-    $pendingAll = $viewStatsBase->where('status', 'pending');
-    $pipeline   = [
-        ['label' => 'Draft',         'count' => $viewStatsBase->where('status', 'draft')->count(),   'color' => 'slate',   'hint' => '—'],
-        ['label' => 'Supervisor',    'count' => $pendingAll->filter(fn($r) => in_array($r->currentApprover?->role, ['head', 'manager']))->count(), 'color' => 'amber', 'hint' => 'Waiting'],
-        ['label' => 'Centre Mgr.',   'count' => $pendingAll->filter(fn($r) => $r->currentApprover?->role === 'centre_manager')->count(),           'color' => 'amber', 'hint' => 'Waiting'],
-        ['label' => 'Director',      'count' => $pendingAll->filter(fn($r) => $r->currentApprover?->role === 'director')->count(),                 'color' => 'amber', 'hint' => 'Waiting'],
-        ['label' => 'Director Gen.', 'count' => $pendingAll->filter(fn($r) => $r->currentApprover?->role === 'director_general')->count(),         'color' => 'amber', 'hint' => 'Waiting'],
-        ['label' => 'Approved',      'count' => $viewStatsBase->where('status', 'approved')->count(), 'color' => 'emerald', 'hint' => 'Permit issued'],
-        ['label' => 'Returned',      'count' => $returnedCount,                                        'color' => 'orange',  'hint' => 'Back to staff'],
-        ['label' => 'Rejected',      'count' => $viewStatsBase->where('status', 'rejected')->count(), 'color' => 'red',     'hint' => '—'],
-    ];
-    $pipeColors = [
-        'slate'   => ['bg' => '#f1f5f9', 'num' => '#475569', 'hint' => '#94a3b8'],
-        'amber'   => ['bg' => '#fef3c7', 'num' => '#92400e', 'hint' => '#a16207'],
-        'emerald' => ['bg' => '#d1fae5', 'num' => '#065f46', 'hint' => '#16a34a'],
-        'orange'  => ['bg' => '#ffedd5', 'num' => '#9a3412', 'hint' => '#c2410c'],
-        'red'     => ['bg' => '#fee2e2', 'num' => '#991b1b', 'hint' => '#dc2626'],
-    ];
-
     /* ── Requests list + modal data ───────────────────────────────── */
     $listRequests = ($user->isHr() || $user->isDirectorGeneral()) ? $allRequests : $myRequests;
 
@@ -301,25 +281,23 @@
                         <p class="text-[10.5px] font-bold tracking-[0.22em] uppercase mb-2" style="color:#a5cdff;">
                             Days to departure
                         </p>
+                        @if ($daysTo > 0)
                         <div class="flex items-baseline gap-2">
                             <span class="font-bold text-white leading-none"
-                                  style="font-size:56px;letter-spacing:-0.04em;">
-                                @if ($daysTo > 0)
-                                    {{ str_pad($daysTo, 2, '0', STR_PAD_LEFT) }}
-                                @elseif ($daysTo === 0)
-                                    00
-                                @else
-                                    —
-                                @endif
-                            </span>
-                            @if ($daysOnRoad && $daysTo > 0)
+                                  style="font-size:56px;letter-spacing:-0.04em;">{{ str_pad($daysTo, 2, '0', STR_PAD_LEFT) }}</span>
                             <span class="text-sm" style="color:#cfe1ff;">
-                                days · {{ $daysOnRoad }} days on the road
+                                days{{ $daysOnRoad ? ' · ' . $daysOnRoad . ' days on the road' : '' }}
                             </span>
-                            @elseif ($daysTo <= 0 && $daysTo !== null)
-                            <span class="text-sm" style="color:#cfe1ff;">Trip in progress or past</span>
-                            @endif
                         </div>
+                        @elseif ($daysTo === 0)
+                        <div class="flex items-baseline gap-2">
+                            <span class="font-bold text-white leading-none"
+                                  style="font-size:56px;letter-spacing:-0.04em;">00</span>
+                            <span class="text-sm" style="color:#cfe1ff;">Departing today</span>
+                        </div>
+                        @else
+                        <p class="text-sm font-semibold" style="color:#cfe1ff;">Trip in progress or past</p>
+                        @endif
                     </div>
                     @endif
 
@@ -529,40 +507,6 @@
     @endif
 
     {{-- ================================================================== --}}
-    {{-- APPROVAL PIPELINE                                                   --}}
-    {{-- ================================================================== --}}
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-[11px] font-bold uppercase tracking-[0.16em]" style="color:#64748b;">
-                Approval Pipeline
-            </h3>
-            @if ($user->unit)
-            <span class="text-[11px]" style="color:#94a3b8;">{{ $user->unit->name }}</span>
-            @endif
-        </div>
-
-        <div class="grid gap-2" style="grid-template-columns:repeat(8,1fr);">
-            @foreach ($pipeline as $col)
-            @php $c = $pipeColors[$col['color']] ?? $pipeColors['slate']; @endphp
-            <div class="rounded-xl p-3 flex flex-col" style="background:{{ $c['bg'] }};min-height:90px;">
-                <div class="font-bold leading-none mb-1.5"
-                     style="font-size:26px;color:{{ $c['num'] }};">
-                    {{ $col['count'] }}
-                </div>
-                <div class="text-[10.5px] font-semibold leading-tight"
-                     style="color:{{ $c['num'] }};">
-                    {{ $col['label'] }}
-                </div>
-                <div class="mt-auto pt-2 text-[9px] font-bold uppercase tracking-wider"
-                     style="color:{{ $c['hint'] }};">
-                    {{ $col['hint'] }}
-                </div>
-            </div>
-            @endforeach
-        </div>
-    </div>
-
-    {{-- ================================================================== --}}
     {{-- BOTTOM TWO-COL                                                      --}}
     {{-- ================================================================== --}}
     <div class="grid grid-cols-1 lg:grid-cols-[1.5fr,1fr] gap-5">
@@ -675,7 +619,7 @@
             <div class="bg-white rounded-2xl border border-slate-200">
                 <div class="px-5 py-4 border-b border-slate-100 rounded-t-2xl">
                     <h3 class="text-[11px] font-bold uppercase tracking-[0.16em]" style="color:#64748b;">
-                        Your Supervisor
+                        {{ __('dashboard.my_supervisor') }}
                     </h3>
                 </div>
 
@@ -696,7 +640,7 @@
                     </div>
                     <div class="rounded-lg px-3 py-2.5 text-[11.5px] leading-relaxed"
                          style="background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;">
-                        Reviews requests before forwarding. Change applies to your next submission.
+                        {{ __('dashboard.supervisor_review_hint') }}
                     </div>
                     @else
                     <div class="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
@@ -704,9 +648,18 @@
                             <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                         </div>
                         <div>
-                            <p class="text-sm font-semibold text-slate-700">No supervisor assigned</p>
-                            <p class="text-xs text-slate-400 mt-0.5">Select one below to set your approval chain.</p>
+                            <p class="text-sm font-semibold text-slate-700">{{ __('dashboard.supervisor_not_assigned') }}</p>
+                            <p class="text-xs text-slate-400 mt-0.5">{{ __('dashboard.supervisor_not_assigned_hint') }}</p>
                         </div>
+                    </div>
+                    @endif
+
+                    {{-- No candidates: chain goes straight to DG --}}
+                    @if ($supervisorCandidates->isEmpty() && !$supervisor)
+                    <div class="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                        <p class="text-[10.5px] font-bold uppercase tracking-widest text-slate-400 mb-1">Direct approver</p>
+                        <p class="text-sm font-semibold text-slate-700">Director General</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Your requests go directly to the Director General for approval.</p>
                     </div>
                     @endif
 
@@ -715,7 +668,7 @@
                     <form method="POST" action="{{ route('dashboard.supervisor.update') }}" class="space-y-2.5">
                         @csrf @method('PATCH')
                         <label class="block text-[10.5px] font-bold uppercase tracking-widest" style="color:#64748b;">
-                            Change supervisor
+                            {{ __('dashboard.supervisor_change') }}
                         </label>
 
                         @php
@@ -760,7 +713,7 @@
                                 <button type="button"
                                         @click="select({ id: null, name: '', title: '' }); selectedId = null; search = ''"
                                         class="w-full text-left px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 border-b border-slate-100 italic">
-                                    Clear supervisor
+                                    {{ __('dashboard.supervisor_clear') }}
                                 </button>
                                 <template x-for="c in filtered" :key="c.id">
                                     <button type="button"
@@ -777,7 +730,7 @@
                                     </button>
                                 </template>
                                 <div x-show="filtered.length === 0"
-                                     class="px-3 py-3 text-sm text-slate-400 text-center">No results</div>
+                                     class="px-3 py-3 text-sm text-slate-400 text-center">{{ __('dashboard.no_results') }}</div>
                             </div>
                         </div>
 
@@ -788,7 +741,7 @@
                         <button type="submit"
                                 class="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition hover:opacity-90"
                                 style="background:#16a34a;">
-                            Save supervisor
+                            {{ __('dashboard.supervisor_save') }}
                         </button>
                     </form>
                     @endif
@@ -821,13 +774,7 @@
                     </p>
 
                     <div class="mt-4 grid grid-cols-2 gap-2">
-                        <div class="rounded-xl p-3" style="background:#f8fafc;">
-                            <p class="text-[9.5px] font-bold uppercase tracking-wider mb-1" style="color:#94a3b8;">Staff No.</p>
-                            <p class="text-[12.5px] font-medium truncate" style="color:#0f172a;">
-                                {{ $user->staff_number ?: '—' }}
-                            </p>
-                        </div>
-                        <div class="rounded-xl p-3" style="background:#f8fafc;">
+                        <div class="rounded-xl p-3 col-span-2" style="background:#f8fafc;">
                             <p class="text-[9.5px] font-bold uppercase tracking-wider mb-1" style="color:#94a3b8;">Role</p>
                             <p class="text-[12.5px] font-medium truncate" style="color:#0f172a;">
                                 {{ __('common.role_' . $user->role) }}

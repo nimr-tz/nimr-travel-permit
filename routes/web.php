@@ -36,8 +36,10 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\PreventBackHistory::
 
     Route::post('/travel-requests/{travelRequest}/approve', [ApprovalController::class, 'store'])->name('travel-requests.approve');
     Route::get('/travel-requests/{travelRequest}/print',   [TravelRequestController::class, 'print'])->name('travel-requests.print');
+    Route::get('/travel-requests/{travelRequest}/pdf',     [TravelRequestController::class, 'pdf'])->name('travel-requests.pdf');
 
-    Route::get('/hr/reports', [HrReportsController::class, 'index'])->name('hr.reports.index');
+    Route::get('/hr/reports',        [HrReportsController::class, 'index'])->name('hr.reports.index');
+    Route::get('/hr/reports/export', [HrReportsController::class, 'export'])->name('hr.reports.export');
 
     Route::middleware(\App\Http\Middleware\EnsureIsAdmin::class)->group(function () {
         Route::get('/users',              [UserController::class, 'index'])->name('users.index');

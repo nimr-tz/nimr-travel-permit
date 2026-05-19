@@ -39,7 +39,7 @@ return [
     'section_a_vi'       => 'Once the form is completed and a permit issued, a copy shall be returned to the Human Resources and Administration Office.',
     'section_a_vii'      => 'Emergency travel will follow emergency procedures.',
     'section_a_viii'     => 'This form shall be completed in duplicate (2 copies).',
-    'section_a_unit_note'=> 'You are applying through unit: :unit. If this information is incorrect, contact HR before proceeding.',
+    'section_a_unit_note'=> 'You are applying through unit: :unit. If this information is incorrect, contact a System Administrator before proceeding.',
 
     // Section B
     'section_b_title'    => 'Travelling Employee Information',

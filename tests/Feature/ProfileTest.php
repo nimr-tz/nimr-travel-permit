@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -29,7 +31,8 @@ class ProfileTest extends TestCase
             ->actingAs($user)
             ->patch('/profile', [
                 'name' => 'Test User',
-                'email' => 'test@example.com',
+                'phone' => '+255 700 000 000',
+                'job_title' => 'Research Officer',
             ]);
 
         $response
@@ -39,26 +42,47 @@ class ProfileTest extends TestCase
         $user->refresh();
 
         $this->assertSame('Test User', $user->name);
-        $this->assertSame('test@example.com', $user->email);
-        $this->assertNull($user->email_verified_at);
+        $this->assertSame('+255 700 000 000', $user->phone);
+        $this->assertSame('Research Officer', $user->job_title);
+        $this->assertNotNull($user->email_verified_at);
     }
 
-    public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
+    public function test_verified_email_address_cannot_be_changed_from_profile(): void
     {
         $user = User::factory()->create();
+        $originalEmail = $user->email;
 
         $response = $this
             ->actingAs($user)
             ->patch('/profile', [
                 'name' => 'Test User',
-                'email' => $user->email,
+                'email' => 'new@example.com',
+            ]);
+
+        $response->assertSessionHasErrors('email');
+
+        $this->assertSame($originalEmail, $user->refresh()->email);
+    }
+
+    public function test_user_can_upload_profile_avatar(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile', [
+                'name' => $user->name,
+                'avatar' => UploadedFile::fake()->image('avatar.jpg', 256, 256),
             ]);
 
         $response
             ->assertSessionHasNoErrors()
             ->assertRedirect('/profile');
 
-        $this->assertNotNull($user->refresh()->email_verified_at);
+        $this->assertNotNull($user->refresh()->avatar_path);
+        Storage::disk('public')->assertExists($user->avatar_path);
     }
 
     public function test_user_can_delete_their_account(): void

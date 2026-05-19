@@ -12,7 +12,7 @@ class EnsureIsAdmin
     {
         $user = $request->user();
 
-        if (!$user || !$user->isHr()) {
+        if (!$user || !$user->isSystemAdmin()) {
             abort(403, 'Huna ruhusa ya kufikia sehemu hii.');
         }
 

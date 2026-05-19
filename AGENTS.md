@@ -42,9 +42,9 @@ The core domain is a multi-step travel permit approval workflow based on the off
 
 ### Roles
 
-Seven roles on `users.role`: `staff`, `head`, `manager`, `director`, `centre_manager`, `director_general`, `hr`.
+Eight roles on `users.role`: `staff`, `head`, `manager`, `director`, `centre_manager`, `director_general`, `hr`, `system_admin`.
 
-Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`, `isApprover()`.
+Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`, `isSystemAdmin()`, `isGlobalSystemAdmin()`, `isCentreSystemAdmin()`, `isApprover()`.
 
 ### Approval Chain Service
 
@@ -52,22 +52,25 @@ Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`
 
 | Unit Type | Traveller Role | Chain |
 |---|---|---|
-| `research_centre` | `staff`/`manager` (with supervisor) | supervisor → centre_manager → centre_hr |
-| `research_centre` | `staff`/`manager` (no supervisor) | centre_manager → centre_hr |
-| `research_centre` | `centre_manager` | DG → hq_hr |
-| `hq_section` | `head` | director → DG → hq_hr |
-| `hq_section` | `staff`/`manager` | section_head → director → DG → hq_hr |
-| `hq_standalone` | `manager` | DG → hq_hr |
-| `hq_standalone` | `staff` | unit_manager → DG → hq_hr |
-| `hq_directorate` | any | DG → hq_hr |
+| `research_centre` | `staff`/`manager` (with supervisor) | supervisor → centre_manager |
+| `research_centre` | `staff`/`manager` (no supervisor) | centre_manager |
+| `research_centre` | `centre_manager` | DG |
+| `hq_section` | `head` | director → DG |
+| `hq_section` | `staff`/`manager` | section_head → director → DG |
+| `hq_standalone` | `manager` | DG |
+| `hq_standalone` | `staff` | unit_manager → DG |
+| `hq_directorate` | any | DG |
 
-Stages: `supervisor`, `director`, `final`, `hr`.
+Stages: `supervisor`, `director`, `final`.
+
+HR is not an active approver. HR receives email copies for visibility/records; final approval is always the Centre Manager for centre staff/manager requests, or the Director General for HQ and Centre Manager requests.
 
 `advance(TravelRequest, decision)` moves to next step (`approved`), marks as `rejected`, or marks as `returned` (resets chain/submitted_at for re-edit).
 
 ### Authorization
 
-- `EnsureIsAdmin` middleware guards `/users` routes — only `hr` and `director_general`.
+- `EnsureIsAdmin` middleware guards `/users` routes — only `system_admin`.
+- HQ/global system admins can manage all users and assign all roles. Centre system admins can manage non-admin users in their own research centre only.
 - `ApprovalController` checks `current_approver_id === auth()->id()`.
 - `TravelRequestController` edit/update checks `requester_id === auth()->id()` and `isEditable()`.
 - Download checks requester, current approver, acted-on history, or HR/DG.
@@ -80,7 +83,7 @@ Stages: `supervisor`, `director`, `final`, `hr`.
 | `ApprovalController` | approve/reject/return decisions + email notifications |
 | `ApprovalsController` | Pending and historical approval queue for an approver |
 | `DashboardController` | Aggregated stats; personalized approval queue |
-| `UserController` | Admin CRUD for users (HR/DG only via EnsureIsAdmin) |
+| `UserController` | System-admin CRUD for user identity, unit placement, and role assignment |
 
 ### Notifications (Queued Mail)
 

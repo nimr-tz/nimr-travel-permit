@@ -55,7 +55,7 @@ class LoginRequest extends FormRequest
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => trans('auth.deactivated', [], app()->getLocale()) ?: 'Your account has been deactivated. Please contact HR.',
+                'email' => trans('auth.deactivated', [], app()->getLocale()) ?: 'Your account has been deactivated. Please contact a System Administrator.',
             ]);
         }
 

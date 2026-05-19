@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\TravelRequest;
+use App\Notifications\Concerns\BuildsTravelRequestMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class TravelRequestRejectedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, BuildsTravelRequestMail;
 
     public int $tries = 5;
 
@@ -28,21 +29,20 @@ class TravelRequestRejectedNotification extends Notification implements ShouldQu
 
     public function toMail(object $notifiable): MailMessage
     {
-        $tr      = $this->travelRequest;
-        $url     = route('travel-requests.show', $tr);
+        $tr = $this->travelRequest;
         $lastAction = $tr->approvalActions->last();
 
-        return (new MailMessage)
-            ->subject("Ombi la Safari Limekataliwa — {$tr->request_number}")
-            ->greeting("Habari {$notifiable->name},")
-            ->line("Ombi lako la ruhusa ya kusafiri **LIMEKATALIWA**.")
-            ->line("**Nambari:** {$tr->request_number}")
-            ->line("**Marudio:** {$tr->b_destination}")
-            ->when($lastAction?->comment, fn($m) =>
-                $m->line("**Sababu:** {$lastAction->comment}")
-            )
-            ->action('Angalia Ombi', $url)
-            ->line('Unaweza kuwasiliana na Idara ya Rasilimali Watu kwa maelezo zaidi.')
-            ->salutation('NIMR — Mfumo wa Ruhusa za Safari');
+        return $this->travelRequestMail(
+            notifiable: $notifiable,
+            travelRequest: $tr,
+            subject: "Travel request rejected - {$tr->request_number}",
+            headline: 'Your travel request was not approved',
+            intro: 'An approver has rejected this travel permit request. Review the request record and comments for the reason.',
+            actionText: 'View request',
+            actionUrl: route('travel-requests.show', $tr),
+            tone: 'red',
+            comment: $lastAction?->comment,
+            footnote: 'For clarification, contact the approver or HR using the official internal channels.',
+        );
     }
 }

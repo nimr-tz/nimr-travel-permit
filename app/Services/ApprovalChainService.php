@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\TravelRequest;
+use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use RuntimeException;
@@ -15,14 +16,16 @@ class ApprovalChainService
      * Returns an array of steps, each being:
      *   ['stage' => string, 'approver_id' => int]
      *
-     * Stages: supervisor | director | final | hr
+     * Stages: supervisor | director | final
+     *
+     * HR receives notification copies only and does not approve requests.
      */
     public function buildChain(User $traveller): array
     {
         $unit = $traveller->unit;
 
         if (!$unit) {
-            throw new RuntimeException("User [{$traveller->id}] has no unit assigned.");
+            throw new RuntimeException("You are not assigned to an organisational unit. Please contact your system administrator before submitting a travel request.");
         }
 
         return match (true) {
@@ -67,6 +70,7 @@ class ApprovalChainService
                 $request->update([
                     'status'              => TravelRequest::STATUS_RETURNED,
                     'current_approver_id' => null,
+                    'approval_chain'      => null,
                     'submitted_at'        => null,
                 ]);
             }
@@ -98,6 +102,32 @@ class ApprovalChainService
         }
     }
 
+    public function hrCopyRecipients(TravelRequest $request): Collection
+    {
+        $request->loadMissing(['requester', 'unit']);
+
+        if (
+            $request->unit?->type === 'research_centre'
+            && $request->requester?->role !== 'centre_manager'
+        ) {
+            return User::where('unit_id', $request->unit_id)
+                ->where('role', 'hr')
+                ->where('is_active', true)
+                ->get();
+        }
+
+        $hqHrUnitId = Unit::where('code', 'HRMAS')->value('id');
+
+        if (!$hqHrUnitId) {
+            return collect();
+        }
+
+        return User::where('unit_id', $hqHrUnitId)
+            ->where('role', 'hr')
+            ->where('is_active', true)
+            ->get();
+    }
+
     // ------------------------------------------------------------------
     // Chain builders per unit type
     // ------------------------------------------------------------------
@@ -105,7 +135,7 @@ class ApprovalChainService
     private function chainForCentre(User $traveller): array
     {
         $unit          = $traveller->unit;
-        $centreManager = $this->findInUnit($unit->id, 'centre_manager');
+        $centreManager = $this->findInUnit($unit->id, 'centre_manager', "{$unit->name} does not have an active Centre Manager assigned. Contact your system administrator.");
         $dg            = $this->findDirectorGeneral();
 
         return match ($traveller->role) {
@@ -117,7 +147,7 @@ class ApprovalChainService
 
             // Staff with supervisor → supervisor → centre_manager
             // Staff without supervisor → centre_manager
-            'staff', 'manager' => $traveller->supervisor_id
+            'staff', 'manager', 'system_admin' => $traveller->supervisor_id
                 ? [
                     ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
                     ['stage' => 'final',      'approver_id' => $centreManager->id],
@@ -133,25 +163,27 @@ class ApprovalChainService
     private function chainForHqSection(User $traveller): array
     {
         $unit   = $traveller->unit;
-        $parent = $unit->parent; // the Directorate
+        $parent = $unit->parent;
         $dg     = $this->findDirectorGeneral();
+
+        if (!$parent) {
+            throw new RuntimeException("The section \"{$unit->name}\" has no parent Directorate configured. Contact your system administrator.");
+        }
 
         return match ($traveller->role) {
 
-            // Head of Section → Director → DG
             'head' => [
-                ['stage' => 'director', 'approver_id' => $this->findInUnit($parent->id, 'director')->id],
+                ['stage' => 'director', 'approver_id' => $this->findInUnit($parent->id, 'director', "The Directorate \"{$parent->name}\" has no active Director assigned. Contact your system administrator.")->id],
                 ['stage' => 'final',    'approver_id' => $dg->id],
             ],
 
-            // Staff → Head of Section → Director → DG
-            'staff', 'manager' => [
-                ['stage' => 'supervisor', 'approver_id' => $this->findInUnit($unit->id, 'head')->id],
-                ['stage' => 'director',   'approver_id' => $this->findInUnit($parent->id, 'director')->id],
+            'staff', 'manager', 'system_admin' => [
+                ['stage' => 'supervisor', 'approver_id' => $this->findInUnit($unit->id, 'head', "The section \"{$unit->name}\" has no active Head of Section assigned. Contact your system administrator.")->id],
+                ['stage' => 'director',   'approver_id' => $this->findInUnit($parent->id, 'director', "The Directorate \"{$parent->name}\" has no active Director assigned. Contact your system administrator.")->id],
                 ['stage' => 'final',      'approver_id' => $dg->id],
             ],
 
-            default => throw new RuntimeException("Unhandled role [{$traveller->role}] for hq_section."),
+            default => throw new RuntimeException("Your role cannot submit travel requests through this unit. Contact your system administrator."),
         };
     }
 
@@ -162,18 +194,16 @@ class ApprovalChainService
 
         return match ($traveller->role) {
 
-            // Manager → DG
             'manager' => [
                 ['stage' => 'final', 'approver_id' => $dg->id],
             ],
 
-            // Staff → unit manager → DG
-            'staff' => [
-                ['stage' => 'supervisor', 'approver_id' => $this->findInUnit($unit->id, 'manager')->id],
+            'staff', 'system_admin' => [
+                ['stage' => 'supervisor', 'approver_id' => $this->findInUnit($unit->id, 'manager', "The unit \"{$unit->name}\" has no active Manager assigned. Contact your system administrator.")->id],
                 ['stage' => 'final',      'approver_id' => $dg->id],
             ],
 
-            default => throw new RuntimeException("Unhandled role [{$traveller->role}] for hq_standalone."),
+            default => throw new RuntimeException("Your role cannot submit travel requests through this unit. Contact your system administrator."),
         };
     }
 
@@ -191,7 +221,7 @@ class ApprovalChainService
     // Finders
     // ------------------------------------------------------------------
 
-    private function findInUnit(int $unitId, string $role): User
+    private function findInUnit(int $unitId, string $role, string $message = ''): User
     {
         $user = User::where('unit_id', $unitId)
                     ->where('role', $role)
@@ -199,7 +229,7 @@ class ApprovalChainService
                     ->first();
 
         if (!$user) {
-            throw new RuntimeException("No active user with role [{$role}] found in unit [{$unitId}].");
+            throw new RuntimeException($message ?: "No active {$role} found in the required unit. Contact your system administrator.");
         }
 
         return $user;
@@ -210,20 +240,10 @@ class ApprovalChainService
         $dg = User::where('role', 'director_general')->where('is_active', true)->first();
 
         if (!$dg) {
-            throw new RuntimeException("No active Director General found.");
+            throw new RuntimeException("No active Director General is configured in the system. Contact your system administrator.");
         }
 
         return $dg;
     }
 
-    private function findHqHr(): User
-    {
-        $hrUnit = \App\Models\Unit::where('code', 'HRMAS')->first();
-
-        if (!$hrUnit) {
-            throw new RuntimeException("HQ HR unit (HRMAS) not found.");
-        }
-
-        return $this->findInUnit($hrUnit->id, 'hr');
-    }
 }

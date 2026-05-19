@@ -111,6 +111,7 @@ class ApprovalController extends Controller
                     // Returned all the way to the requester.
                     $requester?->notify(new TravelRequestReturnedNotification($travelRequest));
                 }
+                $this->notifyHr($travelRequest, 'returned');
             }
         } catch (\Throwable $e) {
             Log::warning('Failed to send approval notification for request ' . $travelRequest->request_number, [
@@ -123,11 +124,9 @@ class ApprovalController extends Controller
     private function notifyHr(TravelRequest $travelRequest, string $event): void
     {
         try {
-            $hrUnit = \App\Models\Unit::where('code', 'HRMAS')->first();
-            if ($hrUnit) {
-                User::where('unit_id', $hrUnit->id)->where('role', 'hr')->where('is_active', true)
-                    ->each(fn($hr) => $hr->notify(new TravelRequestHrCopyNotification($travelRequest, $event)));
-            }
+            $this->chainService
+                ->hrCopyRecipients($travelRequest)
+                ->each(fn($hr) => $hr->notify(new TravelRequestHrCopyNotification($travelRequest, $event)));
         } catch (\Throwable $e) {
             Log::warning('Failed to send HR copy notification for request ' . $travelRequest->request_number, [
                 'event' => $event,

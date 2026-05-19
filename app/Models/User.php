@@ -19,8 +19,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'unit_id',
         'phone',
-        'staff_number',
         'job_title',
+        'avatar_path',
         'role',
         'supervisor_id',
         'is_active',
@@ -65,6 +65,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(ApprovalAction::class, 'actor_id');
     }
 
+    public function getActivityLabel(): string
+    {
+        return "{$this->name} ({$this->email})";
+    }
+
     public function isDirectorGeneral(): bool
     {
         return $this->role === 'director_general';
@@ -80,8 +85,23 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->role === 'hr';
     }
 
+    public function isSystemAdmin(): bool
+    {
+        return $this->role === 'system_admin';
+    }
+
+    public function isGlobalSystemAdmin(): bool
+    {
+        return $this->isSystemAdmin() && !$this->unit?->isResearchCentre();
+    }
+
+    public function isCentreSystemAdmin(): bool
+    {
+        return $this->isSystemAdmin() && $this->unit?->isResearchCentre();
+    }
+
     public function isApprover(): bool
     {
-        return !$this->isHr() && $this->role !== 'staff';
+        return !$this->isHr() && !$this->isSystemAdmin() && $this->role !== 'staff';
     }
 }

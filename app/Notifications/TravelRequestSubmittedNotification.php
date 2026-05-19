@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\TravelRequest;
+use App\Notifications\Concerns\BuildsTravelRequestMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class TravelRequestSubmittedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, BuildsTravelRequestMail;
 
     public int $tries = 5;
 
@@ -28,19 +29,16 @@ class TravelRequestSubmittedNotification extends Notification implements ShouldQ
 
     public function toMail(object $notifiable): MailMessage
     {
-        $tr  = $this->travelRequest;
-        $url = route('travel-requests.show', $tr);
+        $tr = $this->travelRequest;
 
-        return (new MailMessage)
-            ->subject("Ombi Jipya la Safari Linasubiri Idhini Yako — {$tr->request_number}")
-            ->greeting("Habari {$notifiable->name},")
-            ->line("Ombi jipya la ruhusa ya kusafiri limewasilishwa na linahitaji idhini yako.")
-            ->line("**Mwombaji:** {$tr->b_applicant_name}")
-            ->line("**Nambari:** {$tr->request_number}")
-            ->line("**Marudio:** {$tr->b_destination}")
-            ->line("**Tarehe ya Kuondoka:** " . $tr->b_departure_date?->format('d M Y'))
-            ->action('Angalia Ombi', $url)
-            ->line('Tafadhali shughulikia ombi hili mapema iwezekanavyo.')
-            ->salutation('NIMR — Mfumo wa Ruhusa za Safari');
+        return $this->travelRequestMail(
+            notifiable: $notifiable,
+            travelRequest: $tr,
+            subject: "Travel request awaiting your approval - {$tr->request_number}",
+            headline: 'A travel request needs your review',
+            intro: 'A staff travel permit has reached your approval desk. Please review the details and record your decision in the system.',
+            actionText: 'Review request',
+            actionUrl: route('travel-requests.show', $tr),
+        );
     }
 }

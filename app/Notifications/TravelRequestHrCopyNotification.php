@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\TravelRequest;
+use App\Notifications\Concerns\BuildsTravelRequestMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class TravelRequestHrCopyNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, BuildsTravelRequestMail;
 
     public int $tries = 5;
 
@@ -21,7 +22,7 @@ class TravelRequestHrCopyNotification extends Notification implements ShouldQueu
 
     public function __construct(
         public TravelRequest $travelRequest,
-        public string $event = 'submitted' // 'submitted' | 'approved' | 'rejected' | 'returned'
+        public string $event = 'submitted'
     ) {}
 
     public function via(object $notifiable): array
@@ -31,35 +32,49 @@ class TravelRequestHrCopyNotification extends Notification implements ShouldQueu
 
     public function toMail(object $notifiable): MailMessage
     {
-        $tr  = $this->travelRequest;
-        $url = route('travel-requests.show', $tr);
+        $tr = $this->travelRequest;
+        $event = $this->eventCopy()[$this->event] ?? $this->eventCopy()['submitted'];
 
-        $subjects = [
-            'submitted' => "Nakala — Ombi Jipya la Safari: {$tr->request_number}",
-            'approved'  => "Nakala — Ombi Limeidhinishwa: {$tr->request_number}",
-            'rejected'  => "Nakala — Ombi Limekataliwa: {$tr->request_number}",
-            'returned'  => "Nakala — Ombi Limerudishwa: {$tr->request_number}",
+        return $this->travelRequestMail(
+            notifiable: $notifiable,
+            travelRequest: $tr,
+            subject: "{$event['subject']} - {$tr->request_number}",
+            headline: $event['headline'],
+            intro: $event['intro'],
+            actionText: 'Open request record',
+            actionUrl: route('travel-requests.show', $tr),
+            tone: $event['tone'],
+            footnote: 'This is an HR records copy only. No approval action is required from HR.',
+        );
+    }
+
+    private function eventCopy(): array
+    {
+        return [
+            'submitted' => [
+                'subject' => 'HR copy: travel request submitted',
+                'headline' => 'Travel request submitted',
+                'intro' => 'A travel permit has been submitted and routed to the assigned approver. This copy is for HR visibility and records.',
+                'tone' => 'blue',
+            ],
+            'approved' => [
+                'subject' => 'HR copy: travel request approved',
+                'headline' => 'Travel request approved',
+                'intro' => 'The assigned approval chain has completed this travel permit. This copy is for HR records.',
+                'tone' => 'green',
+            ],
+            'rejected' => [
+                'subject' => 'HR copy: travel request rejected',
+                'headline' => 'Travel request rejected',
+                'intro' => 'An approver has rejected this travel permit. This copy is for HR records.',
+                'tone' => 'red',
+            ],
+            'returned' => [
+                'subject' => 'HR copy: travel request returned',
+                'headline' => 'Travel request returned for revision',
+                'intro' => 'An approver has returned this travel permit for correction. This copy is for HR visibility.',
+                'tone' => 'amber',
+            ],
         ];
-
-        $intros = [
-            'submitted' => 'Ombi jipya la ruhusa ya kusafiri limewasilishwa. Nakala hii ni kwa kumbukumbu ya Idara ya Rasilimali Watu.',
-            'approved'  => 'Ombi la ruhusa ya kusafiri **LIMEIDHINISHWA** na wasimamizi wote. Nakala hii ni kwa kumbukumbu yako.',
-            'rejected'  => 'Ombi la ruhusa ya kusafiri **LIMEKATALIWA**. Nakala hii ni kwa kumbukumbu yako.',
-            'returned'  => 'Ombi la ruhusa ya kusafiri limerudishwa kwa marekebisho. Nakala hii ni kwa kumbukumbu yako.',
-        ];
-
-        return (new MailMessage)
-            ->subject($subjects[$this->event] ?? $subjects['submitted'])
-            ->greeting("Habari {$notifiable->name},")
-            ->line($intros[$this->event] ?? $intros['submitted'])
-            ->line("**Mwombaji:** {$tr->b_applicant_name}")
-            ->line("**Nambari ya Ombi:** {$tr->request_number}")
-            ->line("**Kitengo:** " . ($tr->unit?->name ?? '—'))
-            ->line("**Marudio:** {$tr->b_destination}")
-            ->line("**Tarehe ya Kuondoka:** " . $tr->b_departure_date?->format('d M Y'))
-            ->line("**Tarehe ya Kurudi:** " . $tr->b_return_date?->format('d M Y'))
-            ->action('Angalia Ombi', $url)
-            ->line('Barua pepe hii ni nakala ya taarifa tu. Hakuna hatua inayohitajika kutoka kwa Idara ya Rasilimali Watu.')
-            ->salutation('NIMR — Mfumo wa Ruhusa za Safari');
     }
 }

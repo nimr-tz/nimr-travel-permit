@@ -110,7 +110,7 @@
                             </svg>
                         </div>
                         <h3 class="font-medium text-gray-900 dark:text-gray-100 text-sm mb-1">Structured Approvals</h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-sm">Each request follows the official NIMR approval chain — supervisor, director, DG, and HR.</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">Each request follows the official NIMR approval chain, with HR copied for records only.</p>
                     </div>
                     <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
                         <div class="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center mb-3">

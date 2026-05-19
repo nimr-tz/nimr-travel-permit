@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\TravelRequest;
+use App\Notifications\Concerns\BuildsTravelRequestMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class TravelRequestReturnedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, BuildsTravelRequestMail;
 
     public int $tries = 5;
 
@@ -28,21 +29,19 @@ class TravelRequestReturnedNotification extends Notification implements ShouldQu
 
     public function toMail(object $notifiable): MailMessage
     {
-        $tr         = $this->travelRequest;
-        $url        = route('travel-requests.edit', $tr);
+        $tr = $this->travelRequest;
         $lastAction = $tr->approvalActions->last();
 
-        return (new MailMessage)
-            ->subject("Ombi la Safari Linahitaji Marekebisho — {$tr->request_number}")
-            ->greeting("Habari {$notifiable->name},")
-            ->line("Ombi lako la ruhusa ya kusafiri **LIMERUDISHWA** kwa marekebisho.")
-            ->line("**Nambari:** {$tr->request_number}")
-            ->line("**Marudio:** {$tr->b_destination}")
-            ->when($lastAction?->comment, fn($m) =>
-                $m->line("**Maelezo ya Marekebisho Yanayohitajika:** {$lastAction->comment}")
-            )
-            ->action('Hariri na Wasilisha Tena', $url)
-            ->line('Tafadhali fanya marekebisho yanayotakiwa na uwasilishe ombi upya.')
-            ->salutation('NIMR — Mfumo wa Ruhusa za Safari');
+        return $this->travelRequestMail(
+            notifiable: $notifiable,
+            travelRequest: $tr,
+            subject: "Travel request returned for revision - {$tr->request_number}",
+            headline: 'Your request needs revision',
+            intro: 'An approver has returned this travel permit for correction. Update the request and resubmit it when ready.',
+            actionText: 'Edit and resubmit',
+            actionUrl: route('travel-requests.edit', $tr),
+            tone: 'amber',
+            comment: $lastAction?->comment,
+        );
     }
 }

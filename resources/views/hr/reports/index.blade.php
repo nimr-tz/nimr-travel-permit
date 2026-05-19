@@ -90,10 +90,16 @@
 
     {{-- Results table --}}
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
             <p class="text-sm text-slate-600">
                 {{ __('common.showing', ['from' => $requests->firstItem() ?? 0, 'to' => $requests->lastItem() ?? 0, 'total' => $requests->total()]) }}
             </p>
+            <a href="{{ route('hr.reports.export', request()->query()) }}"
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition hover:opacity-90 shrink-0"
+               style="background-color:#0f8a4b;">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Export CSV
+            </a>
         </div>
 
         @if ($requests->isEmpty())

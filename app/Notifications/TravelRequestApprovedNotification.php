@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\TravelRequest;
+use App\Notifications\Concerns\BuildsTravelRequestMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class TravelRequestApprovedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, BuildsTravelRequestMail;
 
     public int $tries = 5;
 
@@ -28,19 +29,18 @@ class TravelRequestApprovedNotification extends Notification implements ShouldQu
 
     public function toMail(object $notifiable): MailMessage
     {
-        $tr  = $this->travelRequest;
-        $url = route('travel-requests.show', $tr);
+        $tr = $this->travelRequest;
 
-        return (new MailMessage)
-            ->subject("Ombi la Safari Limeidhinishwa — {$tr->request_number}")
-            ->greeting("Habari {$notifiable->name},")
-            ->line("Ombi lako la ruhusa ya kusafiri **LIMEIDHINISHWA** na wataalam wote.")
-            ->line("**Nambari:** {$tr->request_number}")
-            ->line("**Marudio:** {$tr->b_destination}")
-            ->line("**Tarehe ya Kuondoka:** " . $tr->b_departure_date?->format('d M Y'))
-            ->line("**Tarehe ya Kurudi:** " . $tr->b_return_date?->format('d M Y'))
-            ->action('Angalia na Chapisha Fomu', $url)
-            ->line('Unaweza sasa kupakua nakala ya fomu iliyoidhinishwa kwa safari yako.')
-            ->salutation('NIMR — Mfumo wa Ruhusa za Safari');
+        return $this->travelRequestMail(
+            notifiable: $notifiable,
+            travelRequest: $tr,
+            subject: "Travel request approved - {$tr->request_number}",
+            headline: 'Your travel permit has been approved',
+            intro: 'The final approver has approved your internal travel permit. You can now view or print the approved request.',
+            actionText: 'View approved permit',
+            actionUrl: route('travel-requests.show', $tr),
+            tone: 'green',
+            footnote: 'Please keep a copy of the approved permit for travel and administrative records.',
+        );
     }
 }

@@ -22,7 +22,7 @@ class ApprovalWorkflowTest extends TestCase
     {
         parent::setUp();
 
-        // Every chain eventually reaches DG → HQ HR
+        // HR receives copies only; it is not an approval step.
         $this->dg = User::factory()->directorGeneral()->create(['unit_id' => null]);
 
         $this->hrmasUnit = Unit::factory()->hqStandalone()->create(['code' => 'HRMAS']);
@@ -79,11 +79,6 @@ class ApprovalWorkflowTest extends TestCase
         // Centre Manager approves
         $this->approve($centreManager, $tr);
         $tr->refresh();
-        $this->assertEquals($centreHr->id, $tr->current_approver_id);
-
-        // Centre HR acknowledges
-        $this->approve($centreHr, $tr);
-        $tr->refresh();
         $this->assertEquals(TravelRequest::STATUS_APPROVED, $tr->status);
         $this->assertNull($tr->current_approver_id);
     }
@@ -100,10 +95,6 @@ class ApprovalWorkflowTest extends TestCase
         $this->assertEquals($centreManager->id, $tr->current_approver_id);
 
         $this->approve($centreManager, $tr);
-        $tr->refresh();
-        $this->assertEquals($centreHr->id, $tr->current_approver_id);
-
-        $this->approve($centreHr, $tr);
         $tr->refresh();
         $this->assertEquals(TravelRequest::STATUS_APPROVED, $tr->status);
     }
@@ -179,7 +170,6 @@ class ApprovalWorkflowTest extends TestCase
 
         // Chain completes normally
         $this->approve($centreManager, $tr);
-        $this->approve($centreHr, $tr->fresh());
         $this->assertEquals(TravelRequest::STATUS_APPROVED, $tr->fresh()->status);
     }
 
@@ -268,10 +258,7 @@ class ApprovalWorkflowTest extends TestCase
 
         $this->approve($this->dg, $tr);
         $tr->refresh();
-        $this->assertEquals($this->hqHr->id, $tr->current_approver_id);
-
-        $this->approve($this->hqHr, $tr);
-        $tr->refresh();
         $this->assertEquals(TravelRequest::STATUS_APPROVED, $tr->status);
+        $this->assertNull($tr->current_approver_id);
     }
 }

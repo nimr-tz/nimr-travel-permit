@@ -42,7 +42,7 @@ The core domain is a multi-step travel permit approval workflow based on the off
 
 ### Roles
 
-Seven roles on `users.role`: `staff`, `head`, `manager`, `director`, `centre_manager`, `director_general`, `hr`.
+Eight roles on `users.role`: `staff`, `head`, `manager`, `director`, `centre_manager`, `director_general`, `hr`, `system_admin`.
 
 Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`, `isApprover()`.
 
@@ -63,13 +63,14 @@ Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`
 
 Stages: `supervisor`, `director`, `final`. **HR is not an active approver.** DG (or centre_manager for centre staff) is always the final approver.
 
-HR role: receives email copy on submission and on final outcome (approved/rejected). Has access to the HR Reports dashboard (`/hr/reports`) for full visibility across all requests.
+HR role: receives email copy on submission and request outcomes (approved/rejected/returned). Has access to the HR Reports dashboard (`/hr/reports`) for full visibility across all requests.
 
 `advance(TravelRequest, decision)` moves to next step (`approved`), marks as `rejected`, or marks as `returned` (resets chain/submitted_at for re-edit).
 
 ### Authorization
 
-- `EnsureIsAdmin` middleware guards `/users` routes — only `hr` and `director_general`.
+- `EnsureIsAdmin` middleware guards `/users` routes — only `system_admin`.
+- HQ/global system admins can manage all users and assign all roles. Centre system admins can manage non-admin users in their own research centre only.
 - `ApprovalController` checks `current_approver_id === auth()->id()`.
 - `TravelRequestController` edit/update checks `requester_id === auth()->id()` and `isEditable()`.
 - Download checks requester, current approver, acted-on history, or HR/DG.
@@ -82,7 +83,7 @@ HR role: receives email copy on submission and on final outcome (approved/reject
 | `ApprovalController` | approve/reject/return decisions + email notifications |
 | `ApprovalsController` | Pending and historical approval queue for an approver |
 | `DashboardController` | Aggregated stats; personalized approval queue |
-| `UserController` | Admin CRUD for users (HR/DG only via EnsureIsAdmin) |
+| `UserController` | System-admin CRUD for user identity, unit placement, and role assignment |
 
 ### Notifications (Queued Mail)
 

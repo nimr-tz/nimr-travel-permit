@@ -129,8 +129,17 @@ class TravelRequestController extends Controller
             $this->notifyFirstApprover($travelRequest);
         }
 
-        $message = $isDraft ? 'Ombi limehifadhiwa kama rasimu.' : 'Ombi limewasilishwa kwa mafanikio.';
-        return redirect()->route('travel-requests.show', $travelRequest)->with('status', $message);
+        $message  = $isDraft ? 'Ombi limehifadhiwa kama rasimu.' : 'Ombi limewasilishwa kwa mafanikio.';
+        $redirect = redirect()->route('travel-requests.show', $travelRequest)->with('status', $message);
+
+        if (!$isDraft) {
+            $overlap = $this->findOverlappingRequest($user->id, $validated['b_departure_date'], $validated['b_return_date'], $travelRequest->id);
+            if ($overlap) {
+                $redirect->with('overlap_warning', $overlap->request_number);
+            }
+        }
+
+        return $redirect;
     }
 
     public function show(TravelRequest $travelRequest): View
@@ -212,8 +221,17 @@ class TravelRequestController extends Controller
             ]);
         }
 
-        $message = $isDraft ? 'Rasimu imesasishwa.' : 'Ombi limewasilishwa kwa mafanikio.';
-        return redirect()->route('travel-requests.show', $travelRequest)->with('status', $message);
+        $message  = $isDraft ? 'Rasimu imesasishwa.' : 'Ombi limewasilishwa kwa mafanikio.';
+        $redirect = redirect()->route('travel-requests.show', $travelRequest)->with('status', $message);
+
+        if (!$isDraft) {
+            $overlap = $this->findOverlappingRequest($request->user()->id, $validated['b_departure_date'], $validated['b_return_date'], $travelRequest->id);
+            if ($overlap) {
+                $redirect->with('overlap_warning', $overlap->request_number);
+            }
+        }
+
+        return $redirect;
     }
 
     public function cancel(Request $request, TravelRequest $travelRequest): RedirectResponse
@@ -244,6 +262,19 @@ class TravelRequestController extends Controller
         $this->authorize('view', $travelRequest);
         $travelRequest->load(['requester', 'unit', 'currentApprover', 'approvalActions.actor']);
         return view('travel-requests.print', compact('travelRequest'));
+    }
+
+    public function pdf(TravelRequest $travelRequest)
+    {
+        $this->authorize('view', $travelRequest);
+        $travelRequest->load(['requester', 'unit', 'currentApprover', 'approvalActions.actor']);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('travel-requests.pdf', compact('travelRequest'))
+            ->setPaper('a4', 'portrait');
+
+        $filename = $travelRequest->request_number . '.pdf';
+
+        return $pdf->download($filename);
     }
 
     protected function validateForm(Request $request, bool $withFile = true): array
@@ -286,6 +317,16 @@ class TravelRequestController extends Controller
         return $request->validate($rules);
     }
 
+    private function findOverlappingRequest(int $userId, string $departure, string $return, int $excludeId): ?TravelRequest
+    {
+        return TravelRequest::where('requester_id', $userId)
+            ->where('id', '!=', $excludeId)
+            ->whereIn('status', [TravelRequest::STATUS_DRAFT, TravelRequest::STATUS_PENDING, TravelRequest::STATUS_APPROVED, TravelRequest::STATUS_RETURNED])
+            ->where('b_departure_date', '<=', $return)
+            ->where('b_return_date', '>=', $departure)
+            ->first();
+    }
+
     protected function nextRequestNumber(): string
     {
         $year = now()->year;
@@ -307,15 +348,11 @@ class TravelRequestController extends Controller
             ]);
         }
 
-        // Send a copy to HQ HR for awareness — no action needed from them.
+        // Send HR an awareness copy; HR does not approve the request.
         try {
-            $hrUnit = \App\Models\Unit::where('code', 'HRMAS')->first();
-            if ($hrUnit) {
-                \App\Models\User::where('unit_id', $hrUnit->id)
-                    ->where('role', 'hr')
-                    ->where('is_active', true)
-                    ->each(fn($hr) => $hr->notify(new TravelRequestHrCopyNotification($travelRequest, 'submitted')));
-            }
+            $this->chainService
+                ->hrCopyRecipients($travelRequest)
+                ->each(fn($hr) => $hr->notify(new TravelRequestHrCopyNotification($travelRequest, 'submitted')));
         } catch (\Throwable $e) {
             Log::warning('Failed to send HR copy on submission for request ' . $travelRequest->request_number, [
                 'error' => $e->getMessage(),
