@@ -7,6 +7,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() !== 'sqlite') {
+            return;
+        }
+
         // SQLite does not support ALTER COLUMN — recreate with the correct CHECK constraint.
         DB::statement('PRAGMA foreign_keys = OFF;');
 
@@ -66,6 +70,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() !== 'sqlite') {
+            return;
+        }
+
         DB::statement('PRAGMA foreign_keys = OFF;');
 
         DB::statement('
