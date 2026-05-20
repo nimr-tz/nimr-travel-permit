@@ -1,0 +1,170 @@
+name: Build, Deploy, and Notify
+
+on:
+  push:
+    branches: ["master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/mdudaj/nimr-travel-permit
+  GITOPS_FILE: clusters/msmt-02/research/nimr-travel-permit/kustomization.yaml
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=master
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-gitops:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    outputs:
+      image_updated: ${{ steps.gitops.outputs.image_updated }}
+      image_tag: ${{ steps.gitops.outputs.image_tag }}
+    steps:
+      - name: Generate platform-gitops app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PLATFORM_GITOPS_APP_ID }}
+          private-key: ${{ secrets.PLATFORM_GITOPS_APP_PRIVATE_KEY }}
+          owner: nimr-tz
+          repositories: platform-gitops
+
+      - name: Checkout platform-gitops
+        uses: actions/checkout@v4
+        with:
+          repository: nimr-tz/platform-gitops
+          ref: main
+          token: ${{ steps.app-token.outputs.token }}
+          path: platform-gitops
+
+      - name: Update image tag
+        run: |
+          set -euo pipefail
+          TAG="sha-${GITHUB_SHA::7}"
+          FILE="platform-gitops/${GITOPS_FILE}"
+          awk -v tag="${TAG}" '
+            /^[[:space:]]*newTag:[[:space:]]*/ { sub(/newTag:[[:space:]]*.*/, "newTag: " tag) }
+            { print }
+          ' "${FILE}" > "${FILE}.tmp"
+          mv "${FILE}.tmp" "${FILE}"
+
+      - name: Commit and push
+        id: gitops
+        run: |
+          set -euo pipefail
+          TAG="sha-${GITHUB_SHA::7}"
+          cd platform-gitops
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${GITOPS_FILE}"
+          if git diff --cached --quiet; then
+            echo "image_updated=false" >> "$GITHUB_OUTPUT"
+            echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "nimr-travel-permit: deploy image ${TAG}"
+          git push origin HEAD:main || {
+            git fetch origin main
+            if git show "origin/main:${GITOPS_FILE}" | grep -Eq "^[[:space:]]*newTag:[[:space:]]*${TAG}$"; then
+              echo "image_updated=true" >> "$GITHUB_OUTPUT"
+              echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            git pull --rebase origin main
+            git push origin HEAD:main
+          }
+          echo "image_updated=true" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build, update-gitops]
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Collect change summary
+        id: changes
+        run: |
+          set -euo pipefail
+          echo "title=$(git log -1 --pretty=%s)" >> "$GITHUB_OUTPUT"
+          {
+            echo "files<<EOF"
+            git show --name-only --pretty="" "${GITHUB_SHA}" | sed '/^$/d' | head -n 20
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Prepare email body
+        id: body
+        run: |
+          {
+            echo "body<<EOF"
+            echo "Repository: ${{ github.repository }}"
+            echo "Branch: ${{ github.ref_name }}"
+            echo "Commit: ${{ github.sha }}"
+            echo "Change title: ${{ steps.changes.outputs.title }}"
+            echo "Build job: ${{ needs.build.result }}"
+            echo "GitOps update job: ${{ needs.update-gitops.result }}"
+            echo "Image tag: ${{ needs.update-gitops.outputs.image_tag }}"
+            echo "Changed files:"
+            echo "${{ steps.changes.outputs.files }}"
+            echo "Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Email redeploy result
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          secure: true
+          ignore_cert: false
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          envelope_from: ${{ secrets.SMTP_USERNAME }}
+          subject: "Travel Permit redeploy ${{ needs.build.result == 'success' && needs.update-gitops.result == 'success' && 'SUCCESS' || 'FAILED' }} - run #${{ github.run_number }}"
+          to: john.a.mduda@gmail.com, mchainajr@gmail.com, frank.rukoroba@nimr.or.tz
+          from: ${{ secrets.SMTP_USERNAME }}
+          reply_to: ${{ secrets.SMTP_FROM }}
+          body: ${{ steps.body.outputs.body }}

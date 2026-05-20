@@ -115,4 +115,14 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    'error_alerts' => [
+        'enabled' => env('CRITICAL_ERROR_ALERTS_ENABLED', false),
+        'mailer' => env('CRITICAL_ERROR_ALERT_MAILER', env('MAIL_MAILER', 'log')),
+        'to' => array_values(array_filter(array_map(
+            static fn (string $recipient) => trim($recipient),
+            explode(',', (string) env('CRITICAL_ERROR_ALERT_RECIPIENTS', ''))
+        ))),
+        'dedupe_minutes' => (int) env('CRITICAL_ERROR_ALERT_DEDUPE_MINUTES', 15),
+    ],
+
 ];
