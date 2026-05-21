@@ -114,39 +114,43 @@
                         <x-input-error :messages="$errors->get('organizational_level')" class="mt-2" />
                     </div>
 
-                    <div x-show="formData.organizational_level === 'headquarters'" x-transition>
-                        <x-input-label for="hq_unit_id" value="Headquarters Unit" />
-                        <select id="hq_unit_id" x-model="formData.unit_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">Select your HQ unit</option>
-                            @if ($hqStandaloneUnits->isNotEmpty())
-                                <optgroup label="Standalone Units">
-                                    @foreach ($hqStandaloneUnits as $unit)
-                                        <option value="{{ $unit->id }}">{{ $unit->name }}</option>
-                                    @endforeach
-                                </optgroup>
-                            @endif
-                            @foreach ($hqDirectorates as $directorate)
-                                <optgroup label="{{ $directorate->name }}">
-                                    <option value="{{ $directorate->id }}">{{ $directorate->name }}</option>
-                                    @foreach ($directorate->children as $section)
-                                        <option value="{{ $section->id }}">{{ $section->name }}</option>
-                                    @endforeach
-                                </optgroup>
-                            @endforeach
-                        </select>
-                        <x-input-error :messages="$errors->get('unit_id')" class="mt-2" />
-                    </div>
+                    <template x-if="formData.organizational_level === 'headquarters'">
+                        <div>
+                            <x-input-label for="hq_unit_id" value="Headquarters Unit" />
+                            <select id="hq_unit_id" x-model="formData.unit_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" size="1">
+                                <option value="">Select your HQ unit</option>
+                                @if ($hqStandaloneUnits->isNotEmpty())
+                                    <optgroup label="Standalone Units">
+                                        @foreach ($hqStandaloneUnits as $unit)
+                                            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+                                @foreach ($hqDirectorates as $directorate)
+                                    <optgroup label="{{ $directorate->name }}">
+                                        <option value="{{ $directorate->id }}">{{ $directorate->name }}</option>
+                                        @foreach ($directorate->children as $section)
+                                            <option value="{{ $section->id }}">{{ $section->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('unit_id')" class="mt-2" />
+                        </div>
+                    </template>
 
-                    <div x-show="formData.organizational_level === 'research_centre'" x-transition>
-                        <x-input-label for="centre_unit_id" value="Research Centre" />
-                        <select id="centre_unit_id" x-model="formData.unit_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">Select your centre</option>
-                            @foreach ($researchCentres as $centre)
-                                <option value="{{ $centre->id }}">{{ $centre->name }}</option>
-                            @endforeach
-                        </select>
-                        <x-input-error :messages="$errors->get('unit_id')" class="mt-2" />
-                    </div>
+                    <template x-if="formData.organizational_level === 'research_centre'">
+                        <div>
+                            <x-input-label for="centre_unit_id" value="Research Centre" />
+                            <select id="centre_unit_id" x-model="formData.unit_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" size="1">
+                                <option value="">Select your centre</option>
+                                @foreach ($researchCentres as $centre)
+                                    <option value="{{ $centre->id }}">{{ $centre->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('unit_id')" class="mt-2" />
+                        </div>
+                    </template>
                 </div>
             </div>
 
