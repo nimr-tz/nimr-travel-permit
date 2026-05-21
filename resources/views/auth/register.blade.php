@@ -43,7 +43,7 @@
             <input type="hidden" name="organizational_level" x-model="formData.organizational_level">
             <input type="hidden" name="unit_id" x-model="formData.unit_id">
 
-            <div class="min-h-[350px]">
+            <div class="pb-2">
                 <div x-show="currentStep === 0" x-cloak class="space-y-4">
                     <div>
                         <x-input-label for="name" value="Full Name" />
@@ -145,7 +145,7 @@
                     </div>
 
                     <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                        Your selected unit is used to route travel approvals. You can still ask a System Administrator to correct your profile later if your posting changes.
+                        Kitengo ulichochagua kinatumika kupeleka maombi ya safari kwa waidhinishaji. Unaweza kuomba Msimamizi wa Mfumo kubadilisha kitengo chako baadaye iwapo utahamishiwa.
                     </div>
                 </div>
             </div>
