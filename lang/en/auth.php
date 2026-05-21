@@ -26,6 +26,7 @@ return [
     'verify_email_sent'    => 'Registration successful. Please check your email and verify your account before signing in.',
     'no_account'           => "Don't have an account?",
     'create_account'       => 'Create one',
+    'register_unit_hint'   => 'Your selected unit is used to route travel approvals. You can ask a System Administrator to correct your unit later if your posting changes.',
 
     // Verify email
     'verify_title'         => 'Verify your email',

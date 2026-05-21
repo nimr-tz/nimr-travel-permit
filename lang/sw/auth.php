@@ -26,6 +26,7 @@ return [
     'verify_email_sent'    => 'Usajili umefanikiwa. Tafadhali angalia barua pepe yako na thibitisha akaunti yako kabla ya kuingia.',
     'no_account'           => 'Huna akaunti?',
     'create_account'       => 'Fungua akaunti',
+    'register_unit_hint'   => 'Kitengo ulichochagua kinatumika kupanga mtiririko wa idhini za safari. Unaweza kuomba Msimamizi wa Mfumo kukusaidia kurekebisha kitengo chako baadaye ikiwa utahamishiwa.',
 
     // Verify email
     'verify_title'         => 'Thibitisha barua pepe yako',

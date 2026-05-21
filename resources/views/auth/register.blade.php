@@ -100,6 +100,10 @@
                 </div>
 
                 <div x-show="currentStep === 2" x-cloak class="space-y-4">
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                        {{ __('auth.register_unit_hint') }}
+                    </div>
+
                     <div>
                         <x-input-label for="organizational_level" value="Where do you work?" />
                         <select id="organizational_level" x-model="formData.organizational_level" @change="clearUnit()" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -142,10 +146,6 @@
                             @endforeach
                         </select>
                         <x-input-error :messages="$errors->get('unit_id')" class="mt-2" />
-                    </div>
-
-                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                        Kitengo ulichochagua kinatumika kupeleka maombi ya safari kwa waidhinishaji. Unaweza kuomba Msimamizi wa Mfumo kubadilisha kitengo chako baadaye iwapo utahamishiwa.
                     </div>
                 </div>
             </div>
