@@ -68,18 +68,24 @@ class DashboardController extends Controller
 
         $statsBase = $user->isHr() || $user->isDirectorGeneral() ? $allRequests : $myRequests->merge($approvalRequests);
 
+        $supervisorCandidates = $this->supervisorCandidatesFor($user);
+        // Staff at a research centre must set a supervisor before submitting.
+        $supervisorRequired = $user->unit?->type === 'research_centre'
+            && $user->role === 'staff';
+
         return view('dashboard', [
-            'user'             => $user,
-            'myRequests'       => $myRequests,
-            'approvalRequests' => $approvalRequests,
-            'allRequests'      => $allRequests,
-            'needsMyAction'    => $needsMyAction,
-            'supervisor'       => $user->supervisor,
-            'supervisorCandidates' => $this->supervisorCandidatesFor($user),
-            'totalRequests'    => $statsBase->count(),
-            'pendingCount'     => $statsBase->where('status', 'pending')->count(),
-            'approvedCount'    => $statsBase->where('status', 'approved')->count(),
-            'rejectedCount'    => $statsBase->where('status', 'rejected')->count(),
+            'user'                 => $user,
+            'myRequests'           => $myRequests,
+            'approvalRequests'     => $approvalRequests,
+            'allRequests'          => $allRequests,
+            'needsMyAction'        => $needsMyAction,
+            'supervisor'           => $user->supervisor,
+            'supervisorCandidates' => $supervisorCandidates,
+            'supervisorRequired'   => $supervisorRequired,
+            'totalRequests'        => $statsBase->count(),
+            'pendingCount'         => $statsBase->where('status', 'pending')->count(),
+            'approvedCount'        => $statsBase->where('status', 'approved')->count(),
+            'rejectedCount'        => $statsBase->where('status', 'rejected')->count(),
         ]);
     }
 
@@ -122,11 +128,23 @@ class DashboardController extends Controller
             return new Collection();
         }
 
+        // Research centre staff can pick any active colleague in their centre
+        // except the centre manager (who is the final approver), DG, and HR.
+        if ($user->unit->type === 'research_centre') {
+            return User::query()
+                ->where('unit_id', $user->unit_id)
+                ->where('id', '!=', $user->id)
+                ->where('is_active', true)
+                ->whereNotIn('role', ['centre_manager', 'director_general', 'hr'])
+                ->orderBy('name')
+                ->get();
+        }
+
         $roles = match ($user->unit->type) {
-            'research_centre', 'hq_standalone' => ['manager'],
-            'hq_section' => ['head', 'manager'],
+            'hq_standalone'  => ['manager'],
+            'hq_section'     => ['head', 'manager'],
             'hq_directorate' => ['director'],
-            default => [],
+            default          => [],
         };
 
         if ($roles === []) {

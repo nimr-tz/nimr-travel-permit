@@ -145,16 +145,15 @@ class ApprovalChainService
                 ['stage' => 'final', 'approver_id' => $dg->id],
             ],
 
-            // Staff with supervisor → supervisor → centre_manager
-            // Staff without supervisor → centre_manager
+            // Staff must have a supervisor set; go supervisor → centre_manager.
             'staff', 'manager', 'system_admin' => $traveller->supervisor_id
                 ? [
                     ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
                     ['stage' => 'final',      'approver_id' => $centreManager->id],
                 ]
-                : [
-                    ['stage' => 'final', 'approver_id' => $centreManager->id],
-                ],
+                : throw new RuntimeException(
+                    "You have not selected a supervisor. Please set your supervisor on the Dashboard before submitting a travel request."
+                ),
 
             default => throw new RuntimeException("Unhandled role [{$traveller->role}] for research centre."),
         };

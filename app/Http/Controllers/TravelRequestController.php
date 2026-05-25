@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TravelRequest;
+use App\Models\User;
 use App\Notifications\TravelRequestHrCopyNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
@@ -90,6 +91,11 @@ class TravelRequestController extends Controller
         $user    = $request->user();
         $isDraft = $request->input('action') === 'draft';
 
+        if (!$isDraft && $this->missingSupervisor($user)) {
+            return redirect()->route('dashboard')
+                ->with('status', __('dashboard.supervisor_required_to_submit'));
+        }
+
         $chain             = null;
         $currentApproverId = null;
         $status            = TravelRequest::STATUS_DRAFT;
@@ -170,6 +176,11 @@ class TravelRequestController extends Controller
 
         $validated = $this->validateForm($request, withFile: true);
         $isDraft   = $request->input('action') === 'draft';
+
+        if (!$isDraft && $this->missingSupervisor($request->user())) {
+            return redirect()->route('dashboard')
+                ->with('status', __('dashboard.supervisor_required_to_submit'));
+        }
 
         // Handle file replacement
         if ($request->hasFile('g_handover_document')) {
@@ -315,6 +326,14 @@ class TravelRequestController extends Controller
         }
 
         return $request->validate($rules);
+    }
+
+    private function missingSupervisor(User $user): bool
+    {
+        $user->loadMissing('unit');
+        return $user->unit?->type === 'research_centre'
+            && $user->role === 'staff'
+            && !$user->supervisor_id;
     }
 
     private function findOverlappingRequest(int $userId, string $departure, string $return, int $excludeId): ?TravelRequest

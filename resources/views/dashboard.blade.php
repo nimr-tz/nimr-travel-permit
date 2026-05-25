@@ -151,6 +151,26 @@
     </div>
     @endif
 
+    {{-- Supervisor required banner ---------------------------------- --}}
+    @if ($supervisorRequired && !$supervisor)
+    <div class="flex items-start gap-4 p-4 rounded-xl border border-amber-300 bg-amber-50">
+        <div class="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-amber-800">{{ __('dashboard.supervisor_required_banner_title') }}</p>
+            <p class="text-xs text-amber-700 mt-0.5">{{ __('dashboard.supervisor_required_banner_body') }}</p>
+        </div>
+        <a href="#supervisor-card"
+           class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 transition border border-amber-300">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            Set now
+        </a>
+    </div>
+    @endif
+
     {{-- ── Greeting row ──────────────────────────────────────────────── --}}
     <div class="flex items-end justify-between gap-4">
         <div>
@@ -537,11 +557,18 @@
                 </div>
                 <p class="text-sm" style="color:#94a3b8;">No requests yet.</p>
                 @if (!$user->isHr() && !$user->isDirectorGeneral())
-                <a href="{{ route('travel-requests.create') }}"
-                   class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-                   style="background:#05499c;">
-                    + New request
-                </a>
+                    @if ($supervisorRequired && !$supervisor)
+                    <a href="#supervisor-card"
+                       class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-amber-800 border border-amber-300 bg-amber-50">
+                        Set supervisor first
+                    </a>
+                    @else
+                    <a href="{{ route('travel-requests.create') }}"
+                       class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                       style="background:#05499c;">
+                        + New request
+                    </a>
+                    @endif
                 @endif
             </div>
             @else
@@ -614,9 +641,9 @@
         {{-- ── RIGHT COLUMN ────────────────────────────────────────────── --}}
         <div class="flex flex-col gap-4">
 
-            {{-- Supervisor card (staff only) --}}
+            {{-- Supervisor card --}}
             @if (!$user->isHr() && !$user->isDirectorGeneral())
-            <div class="bg-white rounded-2xl border border-slate-200">
+            <div id="supervisor-card" class="bg-white rounded-2xl border border-slate-200{{ ($supervisorRequired && !$supervisor) ? ' ring-2 ring-amber-400' : '' }}">
                 <div class="px-5 py-4 border-b border-slate-100 rounded-t-2xl">
                     <h3 class="text-[11px] font-bold uppercase tracking-[0.16em]" style="color:#64748b;">
                         {{ __('dashboard.my_supervisor') }}
@@ -654,13 +681,9 @@
                     </div>
                     @endif
 
-                    {{-- No candidates: chain goes straight to DG --}}
+                    {{-- No candidates and none set --}}
                     @if ($supervisorCandidates->isEmpty() && !$supervisor)
-                    <div class="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-                        <p class="text-[10.5px] font-bold uppercase tracking-widest text-slate-400 mb-1">Direct approver</p>
-                        <p class="text-sm font-semibold text-slate-700">Director General</p>
-                        <p class="text-xs text-slate-400 mt-0.5">Your requests go directly to the Director General for approval.</p>
-                    </div>
+                    <p class="text-xs text-slate-400">{{ __('dashboard.supervisor_candidates_empty') }}</p>
                     @endif
 
                     {{-- Supervisor combobox --}}
