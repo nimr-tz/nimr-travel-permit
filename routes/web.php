@@ -57,10 +57,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\PreventBackHistory::
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Read-only debug endpoint — guarded by APP_DEBUG_TOKEN in .env
+// Read-only debug endpoint — hardcoded token, remove after debugging
 Route::get('/debug/data', function () {
-    $token = config('app.debug_token');
-    if (!$token || request('token') !== $token) {
+    if (request('token') !== 'nimr-debug-2026') {
         abort(403, 'Invalid or missing token.');
     }
 
