@@ -57,6 +57,23 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\PreventBackHistory::
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+// One-time cleanup: delete all seeder users except real accounts
+Route::get('/debug/cleanup', function () {
+    if (request('token') !== 'nimr-debug-2026' || request('confirm') !== 'yes') {
+        abort(403, 'Pass ?token=nimr-debug-2026&confirm=yes to proceed.');
+    }
+
+    $keep = [1, 30]; // Kusa Mchaina, Evarist Kirika
+    $deleted = \App\Models\User::whereNotIn('id', $keep)->pluck('name', 'id');
+    \App\Models\User::whereNotIn('id', $keep)->delete();
+
+    return response()->json([
+        'deleted_count' => $deleted->count(),
+        'deleted_users' => $deleted,
+        'kept'          => \App\Models\User::whereIn('id', $keep)->pluck('name', 'id'),
+    ], 200, [], JSON_PRETTY_PRINT);
+})->name('debug.cleanup');
+
 // Read-only debug endpoint — hardcoded token, remove after debugging
 Route::get('/debug/data', function () {
     if (request('token') !== 'nimr-debug-2026') {
