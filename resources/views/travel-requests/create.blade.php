@@ -7,7 +7,7 @@
     </x-slot>
 
     <div class="p-6" x-data="formWizard({{ $errors->any() ? 1 : 0 }})">
-        <div>
+        <div class="max-w-3xl mx-auto">
 
             {{-- ── Step indicator ──────────────────────────────────────── --}}
             @php
