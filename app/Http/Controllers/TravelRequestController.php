@@ -331,8 +331,8 @@ class TravelRequestController extends Controller
     private function missingSupervisor(User $user): bool
     {
         $user->loadMissing('unit');
-        return $user->unit?->type === 'research_centre'
-            && $user->role === 'staff'
+        return $user->role === 'staff'
+            && $user->unit_id !== null
             && !$user->supervisor_id;
     }
 

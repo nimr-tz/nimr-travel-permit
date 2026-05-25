@@ -169,18 +169,24 @@ class ApprovalChainService
             throw new RuntimeException("The section \"{$unit->name}\" has no parent Directorate configured. Contact your system administrator.");
         }
 
+        $directorId = $this->findInUnit($parent->id, 'director', "The Directorate \"{$parent->name}\" has no active Director assigned. Contact your system administrator.")->id;
+
         return match ($traveller->role) {
 
             'head' => [
-                ['stage' => 'director', 'approver_id' => $this->findInUnit($parent->id, 'director', "The Directorate \"{$parent->name}\" has no active Director assigned. Contact your system administrator.")->id],
+                ['stage' => 'director', 'approver_id' => $directorId],
                 ['stage' => 'final',    'approver_id' => $dg->id],
             ],
 
-            'staff', 'manager', 'system_admin' => [
-                ['stage' => 'supervisor', 'approver_id' => $this->findInUnit($unit->id, 'head', "The section \"{$unit->name}\" has no active Head of Section assigned. Contact your system administrator.")->id],
-                ['stage' => 'director',   'approver_id' => $this->findInUnit($parent->id, 'director', "The Directorate \"{$parent->name}\" has no active Director assigned. Contact your system administrator.")->id],
-                ['stage' => 'final',      'approver_id' => $dg->id],
-            ],
+            'staff', 'manager', 'system_admin' => $traveller->supervisor_id
+                ? [
+                    ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
+                    ['stage' => 'director',   'approver_id' => $directorId],
+                    ['stage' => 'final',      'approver_id' => $dg->id],
+                ]
+                : throw new RuntimeException(
+                    "You have not selected a supervisor. Please set your supervisor on the Dashboard before submitting a travel request."
+                ),
 
             default => throw new RuntimeException("Your role cannot submit travel requests through this unit. Contact your system administrator."),
         };
@@ -197,10 +203,14 @@ class ApprovalChainService
                 ['stage' => 'final', 'approver_id' => $dg->id],
             ],
 
-            'staff', 'system_admin' => [
-                ['stage' => 'supervisor', 'approver_id' => $this->findInUnit($unit->id, 'manager', "The unit \"{$unit->name}\" has no active Manager assigned. Contact your system administrator.")->id],
-                ['stage' => 'final',      'approver_id' => $dg->id],
-            ],
+            'staff', 'system_admin' => $traveller->supervisor_id
+                ? [
+                    ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
+                    ['stage' => 'final',      'approver_id' => $dg->id],
+                ]
+                : throw new RuntimeException(
+                    "You have not selected a supervisor. Please set your supervisor on the Dashboard before submitting a travel request."
+                ),
 
             default => throw new RuntimeException("Your role cannot submit travel requests through this unit. Contact your system administrator."),
         };

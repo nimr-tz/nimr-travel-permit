@@ -69,9 +69,8 @@ class DashboardController extends Controller
         $statsBase = $user->isHr() || $user->isDirectorGeneral() ? $allRequests : $myRequests->merge($approvalRequests);
 
         $supervisorCandidates = $this->supervisorCandidatesFor($user);
-        // Staff at a research centre must set a supervisor before submitting.
-        $supervisorRequired = $user->unit?->type === 'research_centre'
-            && $user->role === 'staff';
+        // All staff must set a supervisor before submitting.
+        $supervisorRequired = $user->role === 'staff' && $user->unit_id !== null;
 
         return view('dashboard', [
             'user'                 => $user,
@@ -128,34 +127,15 @@ class DashboardController extends Controller
             return new Collection();
         }
 
-        // Research centre staff can pick any active colleague in their centre
-        // except the centre manager (who is the final approver), DG, and HR.
-        if ($user->unit->type === 'research_centre') {
-            return User::query()
-                ->where('unit_id', $user->unit_id)
-                ->where('id', '!=', $user->id)
-                ->where('is_active', true)
-                ->whereNotIn('role', ['centre_manager', 'director_general', 'hr'])
-                ->orderBy('name')
-                ->get();
-        }
-
-        $roles = match ($user->unit->type) {
-            'hq_standalone'  => ['manager'],
-            'hq_section'     => ['head', 'manager'],
-            'hq_directorate' => ['director'],
-            default          => [],
-        };
-
-        if ($roles === []) {
-            return new Collection();
-        }
+        // Any active colleague in the same unit can be a supervisor,
+        // excluding roles that are final approvers or non-travel roles.
+        $excludedRoles = ['centre_manager', 'director_general', 'hr'];
 
         return User::query()
             ->where('unit_id', $user->unit_id)
             ->where('id', '!=', $user->id)
             ->where('is_active', true)
-            ->whereIn('role', $roles)
+            ->whereNotIn('role', $excludedRoles)
             ->orderBy('name')
             ->get();
     }
