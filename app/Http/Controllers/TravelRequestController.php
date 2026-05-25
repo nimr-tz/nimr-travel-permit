@@ -81,7 +81,8 @@ class TravelRequestController extends Controller
     public function create(): View
     {
         $user = auth()->user();
-        return view('travel-requests.create', compact('user'));
+        $handoverUsers = $this->handoverUserList();
+        return view('travel-requests.create', compact('user', 'handoverUsers'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -167,7 +168,8 @@ class TravelRequestController extends Controller
     {
         $this->authorize('update', $travelRequest);
         $user = auth()->user();
-        return view('travel-requests.edit', compact('travelRequest', 'user'));
+        $handoverUsers = $this->handoverUserList();
+        return view('travel-requests.edit', compact('travelRequest', 'user', 'handoverUsers'));
     }
 
     public function update(Request $request, TravelRequest $travelRequest): RedirectResponse
@@ -322,10 +324,22 @@ class TravelRequestController extends Controller
         ];
 
         if ($withFile) {
-            $rules['g_handover_document'] = ['nullable', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:5120'];
+            $rules['g_handover_document'] = ['nullable', 'file', 'mimes:pdf', 'max:5120'];
         }
 
         return $request->validate($rules);
+    }
+
+    private function handoverUserList(): \Illuminate\Support\Collection
+    {
+        return User::where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(fn($u) => [
+                'id'    => $u->id,
+                'name'  => $u->name,
+                'title' => $u->job_title ?? '',
+            ]);
     }
 
     private function missingSupervisor(User $user): bool

@@ -296,44 +296,87 @@
                             <h3 class="text-sm font-bold text-slate-900">{{ __('travel.section_g_title') }}</h3>
                         </div>
                         <div class="p-6 space-y-5">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="field">
-                                    <label class="label">{{ __('travel.g_officer_name') }}</label>
-                                    <input type="text" name="g_handover_officer_name"
-                                        value="{{ old('g_handover_officer_name', $tr->g_handover_officer_name) }}"
-                                        class="input">
+                            <div class="field relative"
+                                 x-data="{
+                                     open: false,
+                                     search: '{{ old('g_handover_officer_name', $tr->g_handover_officer_name) }}',
+                                     selectedName: '{{ old('g_handover_officer_name', $tr->g_handover_officer_name) }}',
+                                     selectedTitle: '{{ old('g_handover_officer_title', $tr->g_handover_officer_title) }}',
+                                     users: {{ Js::from($handoverUsers) }},
+                                     get filtered() {
+                                         if (!this.search) return this.users;
+                                         const q = this.search.toLowerCase();
+                                         return this.users.filter(u => u.name.toLowerCase().includes(q) || u.title.toLowerCase().includes(q));
+                                     },
+                                     select(u) { this.selectedName = u.name; this.selectedTitle = u.title; this.search = u.name; this.open = false; }
+                                 }"
+                                 @click.outside="open = false">
+                                <label class="label">{{ __('travel.g_officer_name') }}</label>
+                                <input type="hidden" name="g_handover_officer_name" :value="selectedName">
+                                <input type="hidden" name="g_handover_officer_title" :value="selectedTitle">
+                                <div class="relative">
+                                    <input type="text" x-model="search"
+                                           @focus="open = true" @input="open = true; selectedName = ''; selectedTitle = ''"
+                                           class="input pr-9" placeholder="Search by name or title…" autocomplete="off">
+                                    <button type="button" @click="open = !open"
+                                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </button>
                                 </div>
-                                <div class="field">
-                                    <label class="label">{{ __('travel.g_officer_title') }}</label>
-                                    <input type="text" name="g_handover_officer_title"
-                                        value="{{ old('g_handover_officer_title', $tr->g_handover_officer_title) }}"
-                                        class="input">
+                                <div x-show="open" x-cloak
+                                     class="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                                    <template x-for="u in filtered" :key="u.id">
+                                        <button type="button" @click="select(u)"
+                                                class="w-full text-left px-3 py-2.5 hover:bg-indigo-50 flex flex-col gap-0.5">
+                                            <span class="text-sm font-medium text-slate-800" x-text="u.name"></span>
+                                            <span class="text-xs text-slate-400" x-text="u.title"></span>
+                                        </button>
+                                    </template>
+                                    <div x-show="filtered.length === 0" class="px-3 py-3 text-sm text-slate-400 text-center">No results</div>
                                 </div>
+                                <p x-show="selectedTitle" x-cloak class="text-xs text-slate-400 mt-1" x-text="'Title: ' + selectedTitle"></p>
                             </div>
 
-                            <div x-data="{ fileName: '', dragOver: false }" class="field">
+                            {{-- File upload — PDF only --}}
+                            <div x-data="{ fileName: '', dragOver: false, fileError: '' }" class="field">
                                 <label class="label">
-                                    {{ __('travel.g_upload') }}
+                                    {{ __('travel.g_upload') }} <span class="font-normal text-slate-400">PDF only, max 5 MB</span>
                                     @if ($tr->g_handover_document)
                                     <span class="font-normal text-emerald-600 ml-1">{{ __('travel.g_existing_file') }}</span>
                                     @endif
                                 </label>
                                 <label
-                                    :class="dragOver ? 'border-indigo-400 bg-indigo-50' : (fileName ? 'border-emerald-400 bg-emerald-50' : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40')"
+                                    :class="dragOver ? 'border-indigo-400 bg-indigo-50' : (fileName ? 'border-emerald-400 bg-emerald-50' : (fileError ? 'border-red-400 bg-red-50' : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40'))"
                                     class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-xl cursor-pointer transition-all"
                                     @dragover.prevent="dragOver = true"
                                     @dragleave="dragOver = false"
-                                    @drop.prevent="dragOver = false; fileName = $event.dataTransfer.files[0]?.name ?? ''">
-                                    <div x-show="!fileName" class="flex flex-col items-center gap-2 text-slate-400">
+                                    @drop.prevent="
+                                        dragOver = false;
+                                        const f = $event.dataTransfer.files[0];
+                                        if (f && f.type !== 'application/pdf') { fileError = 'Only PDF files are accepted.'; fileName = ''; }
+                                        else { fileError = ''; fileName = f?.name ?? ''; }
+                                    ">
+                                    <div x-show="!fileName && !fileError" class="flex flex-col items-center gap-2 text-slate-400">
                                         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                                         <span class="text-sm">{{ __('travel.g_click_drag') }}</span>
                                     </div>
+                                    <div x-show="fileError" class="flex items-center gap-2 text-red-600">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span class="text-sm font-medium" x-text="fileError"></span>
+                                    </div>
                                     <div x-show="fileName" class="flex items-center gap-3 text-emerald-700">
                                         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                        <span class="text-sm font-medium" x-text="fileName"></span>
+                                        <div class="flex flex-col items-center gap-0.5">
+                                            <span class="text-sm font-medium" x-text="fileName"></span>
+                                            <p class="text-xs text-emerald-600">{{ __('travel.g_file_selected') }}</p>
+                                        </div>
                                     </div>
-                                    <input type="file" name="g_handover_document" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" class="hidden"
-                                        @change="fileName = $event.target.files[0]?.name ?? ''">
+                                    <input type="file" name="g_handover_document" accept=".pdf" class="hidden"
+                                        @change="
+                                            const f = $event.target.files[0];
+                                            if (f && f.type !== 'application/pdf') { fileError = 'Only PDF files are accepted.'; fileName = ''; $event.target.value = ''; }
+                                            else { fileError = ''; fileName = f?.name ?? ''; }
+                                        ">
                                 </label>
                             </div>
                         </div>
