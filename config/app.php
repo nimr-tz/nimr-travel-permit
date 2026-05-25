@@ -124,5 +124,6 @@ return [
     ],
 
     'allowed_email_domain' => env('ALLOWED_EMAIL_DOMAIN', 'nimr.or.tz'),
+    'debug_token'          => env('APP_DEBUG_TOKEN'),
 
 ];

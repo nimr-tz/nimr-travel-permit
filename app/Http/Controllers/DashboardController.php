@@ -127,12 +127,22 @@ class DashboardController extends Controller
             return new Collection();
         }
 
-        // Any active colleague in the same unit can be a supervisor,
-        // excluding roles that are final approvers or non-travel roles.
         $excludedRoles = ['centre_manager', 'director_general', 'hr'];
 
+        // Research centre staff pick from their own centre only.
+        if ($user->unit->type === 'research_centre') {
+            return User::query()
+                ->where('unit_id', $user->unit_id)
+                ->where('id', '!=', $user->id)
+                ->where('is_active', true)
+                ->whereNotIn('role', $excludedRoles)
+                ->orderBy('name')
+                ->get();
+        }
+
+        // HQ staff can pick any active HQ colleague as their supervisor.
         return User::query()
-            ->where('unit_id', $user->unit_id)
+            ->whereHas('unit', fn($q) => $q->whereIn('type', ['hq_standalone', 'hq_section', 'hq_directorate']))
             ->where('id', '!=', $user->id)
             ->where('is_active', true)
             ->whereNotIn('role', $excludedRoles)

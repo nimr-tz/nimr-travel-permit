@@ -57,4 +57,39 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\PreventBackHistory::
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+// Read-only debug endpoint — guarded by APP_DEBUG_TOKEN in .env
+Route::get('/debug/data', function () {
+    $token = config('app.debug_token');
+    if (!$token || request('token') !== $token) {
+        abort(403, 'Invalid or missing token.');
+    }
+
+    $units = \App\Models\Unit::orderBy('type')->orderBy('name')->get()
+        ->map(fn($u) => [
+            'id'        => $u->id,
+            'name'      => $u->name,
+            'type'      => $u->type,
+            'parent_id' => $u->parent_id,
+            'is_active' => $u->is_active,
+        ]);
+
+    $users = \App\Models\User::with('unit')->orderBy('name')->get()
+        ->map(fn($u) => [
+            'id'            => $u->id,
+            'name'          => $u->name,
+            'email'         => $u->email,
+            'role'          => $u->role,
+            'is_active'     => $u->is_active,
+            'unit_id'       => $u->unit_id,
+            'unit_name'     => $u->unit?->name,
+            'unit_type'     => $u->unit?->type,
+            'supervisor_id' => $u->supervisor_id,
+        ]);
+
+    return response()->json([
+        'units' => $units,
+        'users' => $users,
+    ], 200, [], JSON_PRETTY_PRINT);
+})->name('debug.data');
+
 require __DIR__ . '/auth.php';
