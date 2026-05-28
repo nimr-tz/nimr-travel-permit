@@ -38,6 +38,7 @@
                     ['label' => 'E', 'title' => __('travel.step_e')],
                     ['label' => 'F', 'title' => __('travel.step_f')],
                     ['label' => 'G', 'title' => __('travel.step_g')],
+                    ['label' => 'H', 'title' => __('travel.step_review')],
                 ];
                 $tr = $travelRequest;
             @endphp
@@ -91,12 +92,12 @@
             </div>
             @endif
 
-            <form method="POST" action="{{ route('travel-requests.update', $travelRequest) }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ route('travel-requests.update', $travelRequest) }}" enctype="multipart/form-data" x-ref="form" @submit="if ($event.submitter?.value === 'submit' && !validateAll()) $event.preventDefault()">
                 @csrf
                 @method('PATCH')
 
                 {{-- Step 0 --}}
-                <div x-show="currentStep === 0" x-cloak>
+                <div x-show="currentStep === 0" x-cloak data-step="0">
                     <div class="card overflow-hidden mb-5">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-amber-50">
                             <div class="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-sm shrink-0">A</div>
@@ -118,7 +119,7 @@
                 </div>
 
                 {{-- Step 1 --}}
-                <div x-show="currentStep === 1" x-cloak>
+                <div x-show="currentStep === 1" x-cloak data-step="1">
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">B</div>
@@ -162,6 +163,7 @@
                                     <label class="label"><span class="text-slate-400 mr-1.5">(vii)</span> {{ __('travel.b_return_date') }} <span class="text-red-500">*</span></label>
                                     <input type="date" name="b_return_date"
                                         value="{{ old('b_return_date', $tr->b_return_date?->format('Y-m-d')) }}"
+                                        :min="$refs.form?.elements['b_departure_date']?.value || '{{ now()->addDays(1)->format('Y-m-d') }}'"
                                         class="input @error('b_return_date') input-error @enderror" required>
                                 </div>
                             </div>
@@ -170,7 +172,7 @@
                 </div>
 
                 {{-- Step 2 --}}
-                <div x-show="currentStep === 2" x-cloak>
+                <div x-show="currentStep === 2" x-cloak data-step="2">
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">C</div>
@@ -186,7 +188,7 @@
                 </div>
 
                 {{-- Step 3 --}}
-                <div x-show="currentStep === 3" x-cloak>
+                <div x-show="currentStep === 3" x-cloak data-step="3">
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">D</div>
@@ -210,7 +212,7 @@
                 </div>
 
                 {{-- Step 4 --}}
-                <div x-show="currentStep === 4" x-cloak>
+                <div x-show="currentStep === 4" x-cloak data-step="4">
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">E</div>
@@ -273,7 +275,7 @@
                 </div>
 
                 {{-- Step 5 --}}
-                <div x-show="currentStep === 5" x-cloak>
+                <div x-show="currentStep === 5" x-cloak data-step="5">
                     <div class="card overflow-hidden">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">F</div>
@@ -281,7 +283,7 @@
                         </div>
                         <div class="p-6">
                             <div class="field">
-                                <label class="label">{{ __('travel.f_label') }}</label>
+                                <label class="sr-only">{{ __('travel.f_label') }}</label>
                                 <textarea name="f_previous_travel_impact" rows="10" class="input resize-none leading-relaxed">{{ old('f_previous_travel_impact', $tr->f_previous_travel_impact) }}</textarea>
                             </div>
                         </div>
@@ -289,7 +291,7 @@
                 </div>
 
                 {{-- Step 6 --}}
-                <div x-show="currentStep === 6" x-cloak>
+                <div x-show="currentStep === 6" x-cloak data-step="6">
                     <div class="card overflow-hidden mb-5">
                         <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">G</div>
@@ -383,6 +385,46 @@
                     </div>
                 </div>
 
+                {{-- Review --}}
+                <div x-show="currentStep === 7" x-cloak data-step="7">
+                    <div class="card overflow-hidden">
+                        <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-emerald-50">
+                            <div class="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm shrink-0">H</div>
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">{{ __('travel.review_title') }}</h3>
+                                <p class="text-sm text-slate-500 mt-0.5">{{ __('travel.review_hint') }}</p>
+                            </div>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="grid sm:grid-cols-2 gap-4 text-sm">
+                                <div><p class="label">{{ __('travel.b_name') }}</p><p class="font-semibold text-slate-800" x-text="field('b_applicant_name')"></p></div>
+                                <div><p class="label">{{ __('travel.b_destination') }}</p><p class="font-semibold text-slate-800" x-text="field('b_destination')"></p></div>
+                                <div><p class="label">{{ __('travel.b_departure_date') }}</p><p class="font-semibold text-slate-800" x-text="field('b_departure_date')"></p></div>
+                                <div><p class="label">{{ __('travel.b_return_date') }}</p><p class="font-semibold text-slate-800" x-text="field('b_return_date')"></p></div>
+                                <div><p class="label">{{ __('travel.g_officer_name') }}</p><p class="font-semibold text-slate-800" x-text="field('g_handover_officer_name')"></p></div>
+                                <div><p class="label">{{ __('travel.g_upload') }}</p><p class="font-semibold text-slate-800" x-text="fileField('g_handover_document', @js($tr->g_handover_document ? __('travel.g_existing_file') : '—'))"></p></div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('travel.section_c_title') }}</p>
+                                    <p class="text-sm text-slate-700 whitespace-pre-line" x-text="field('c_travel_source')"></p>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('travel.section_d_title') }}</p>
+                                    <p class="text-sm text-slate-700 whitespace-pre-line" x-text="field('d_benefit_to_institution')"></p>
+                                    <p class="text-sm text-slate-700 whitespace-pre-line mt-2" x-text="field('d_benefit_to_nation')"></p>
+                                    <p class="text-sm text-slate-700 whitespace-pre-line mt-2" x-text="field('d_consequences_if_rejected')"></p>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">{{ __('travel.section_f_title') }}</p>
+                                    <p class="text-sm text-slate-700 whitespace-pre-line" x-text="field('f_previous_travel_impact')"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Navigation --}}
                 <div class="flex items-center justify-between mt-6 pt-5 border-t border-slate-200">
                     <button type="button" @click="prev()" x-show="currentStep > 0" class="btn-ghost">
@@ -391,15 +433,15 @@
                     </button>
                     <div x-show="currentStep === 0"></div>
                     <div class="flex items-center gap-3">
-                        <button type="submit" name="action" value="draft" x-show="currentStep > 0" class="btn-secondary btn-sm">
+                        <button type="submit" name="action" value="draft" x-show="currentStep > 0 && currentStep < 7" class="btn-secondary btn-sm" formnovalidate>
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
                             {{ __('travel.save_draft') }}
                         </button>
-                        <button type="button" @click="next()" x-show="currentStep < 6" class="btn-primary">
-                            <span x-text="currentStep === 0 ? @json(__('travel.understood_next')) : @json(__('travel.next'))"></span>
+                        <button type="button" @click="next()" x-show="currentStep < 7" class="btn-primary">
+                            <span x-text='currentStep === 0 ? @json(__('travel.understood_next')) : @json(__('travel.next'))'></span>
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </button>
-                        <button type="submit" name="action" value="submit" x-show="currentStep === 6" class="btn-success">
+                        <button type="submit" name="action" value="submit" x-show="currentStep === 7" class="btn-success">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             {{ __('travel.resubmit') }}
                         </button>
@@ -415,9 +457,63 @@
             return {
                 currentStep: initialStep,
                 stepTitles: @json(array_column($steps, 'title')),
-                next() { if (this.currentStep < 6) { this.currentStep++; window.scrollTo({ top: 0, behavior: 'smooth' }); } },
+                next() { if (!this.validateStep(this.currentStep)) return; if (this.currentStep < 7) { this.currentStep++; window.scrollTo({ top: 0, behavior: 'smooth' }); } },
                 prev() { if (this.currentStep > 0) { this.currentStep--; window.scrollTo({ top: 0, behavior: 'smooth' }); } },
                 goTo(step) { if (step <= this.currentStep) { this.currentStep = step; window.scrollTo({ top: 0, behavior: 'smooth' }); } },
+                field(name) {
+                    const control = this.$refs.form?.elements[name];
+                    return control?.value?.trim() || '—';
+                },
+                fileField(name, existing = '—') {
+                    const control = this.$refs.form?.elements[name];
+                    return control?.files?.[0]?.name || existing;
+                },
+                validateAll() {
+                    for (let step = 0; step <= 6; step++) {
+                        if (!this.validateStep(step)) {
+                            this.currentStep = step;
+                            this.$nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                validateStep(step) {
+                    const form = this.$refs.form;
+                    if (!form) return true;
+
+                    form.querySelectorAll('input, textarea, select').forEach((control) => control.setCustomValidity(''));
+
+                    if (step === 1) {
+                        const departure = form.elements['b_departure_date'];
+                        const returning = form.elements['b_return_date'];
+                        const tomorrow = new Date();
+                        tomorrow.setHours(0, 0, 0, 0);
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+
+                        if (departure?.value) {
+                            const departureDate = new Date(departure.value + 'T00:00:00');
+                            if (departureDate < tomorrow) {
+                                departure.setCustomValidity('Departure date must be in the future.');
+                            }
+                        }
+
+                        if (departure?.value && returning?.value && returning.value < departure.value) {
+                            returning.setCustomValidity('Return date must be on or after the departure date.');
+                        }
+                    }
+
+                    const controls = [...form.querySelectorAll(`[data-step="${step}"] input, [data-step="${step}"] textarea, [data-step="${step}"] select`)]
+                        .filter((control) => control.type !== 'hidden' && !control.disabled);
+
+                    const invalid = controls.find((control) => !control.checkValidity());
+                    if (invalid) {
+                        invalid.reportValidity();
+                        return false;
+                    }
+
+                    return true;
+                },
             };
         }
     </script>

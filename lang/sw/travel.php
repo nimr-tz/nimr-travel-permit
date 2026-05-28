@@ -19,6 +19,7 @@ return [
     'step_e'    => 'Gharama',
     'step_f'    => 'Athari',
     'step_g'    => 'Handover',
+    'step_review' => 'Hakiki',
     'step_x_of_y' => 'Hatua :x ya :y',
 
     // Navigation
@@ -27,6 +28,8 @@ return [
     'save_draft'        => 'Hifadhi Rasimu',
     'submit_request'    => 'Wasilisha Ombi',
     'resubmit'          => 'Wasilisha Tena',
+    'review_title'      => 'Hakiki Fomu Yako',
+    'review_hint'       => 'Angalia taarifa zako kabla ya kuwasilisha ombi.',
 
     // Section A
     'section_a_title'    => 'Utangulizi — Masharti ya Fomu',

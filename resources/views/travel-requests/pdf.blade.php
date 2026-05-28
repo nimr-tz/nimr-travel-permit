@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <style>
+@page { size: A4 portrait; margin: 15mm 16mm 16mm 16mm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; }
 body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; background: #fff; }
 
 /* Header */
@@ -13,7 +15,7 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
 .form-title { font-size: 10pt; font-weight: bold; text-transform: uppercase; }
 
 /* Sections */
-.section { margin-bottom: 12px; }
+.section { margin-bottom: 12px; page-break-inside: avoid; }
 .section-heading { font-weight: bold; text-transform: uppercase; font-size: 9.5pt; border-bottom: 1.5px solid #000; padding-bottom: 2px; margin-bottom: 7px; }
 
 /* Field rows using table layout */
@@ -38,7 +40,7 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
 .sig-line-wide { width: 180px; }
 
 /* Approval box */
-.approval-box { border: 1px solid #000; padding: 7px 9px; margin-bottom: 9px; }
+.approval-box { border: 1px solid #000; padding: 7px 9px; margin-bottom: 9px; page-break-inside: avoid; }
 .approval-decision { font-weight: bold; font-size: 11pt; }
 
 /* Status colours */

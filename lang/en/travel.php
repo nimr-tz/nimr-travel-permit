@@ -19,6 +19,7 @@ return [
     'step_e'    => 'Costs',
     'step_f'    => 'Impact',
     'step_g'    => 'Handover',
+    'step_review' => 'Review',
     'step_x_of_y' => 'Step :x of :y',
 
     // Navigation
@@ -27,6 +28,8 @@ return [
     'save_draft'        => 'Save Draft',
     'submit_request'    => 'Submit Request',
     'resubmit'          => 'Resubmit',
+    'review_title'      => 'Review Your Form',
+    'review_hint'       => 'Check the details below before submitting the request.',
 
     // Section A
     'section_a_title'    => 'Introduction — Form Terms',
