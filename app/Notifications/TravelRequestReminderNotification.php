@@ -31,7 +31,7 @@ class TravelRequestReminderNotification extends Notification implements ShouldQu
             subject:     "Action Required: Travel request pending for {$this->daysWaiting} day(s)",
             headline:    'Pending Approval Reminder',
             intro:       "A travel request has been waiting for your approval for {$this->daysWaiting} day(s). Please review and take action.",
-            tone:        'warning',
+            tone:        'amber',
             actionUrl:   route('travel-requests.show', $this->travelRequest->id),
             actionText:  'Review Request',
         );

@@ -1,6 +1,11 @@
 <?php
 
 return [
+    // Laravel core auth messages
+    'failed'   => 'Taarifa hizi hazilingani na kumbukumbu zetu.',
+    'password' => 'Nywila uliyoingiza si sahihi.',
+    'throttle' => 'Majaribio mengi ya kuingia. Tafadhali jaribu tena baada ya sekunde :seconds.',
+
     'welcome_back'   => 'Karibu tena',
     'sign_in_desc'   => 'Ingia kwenye akaunti yako ya NIMR',
     'email'          => 'Barua Pepe',
