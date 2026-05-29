@@ -145,7 +145,24 @@
                 </form>
             </div>
             @elseif ($tr->status === \App\Models\TravelRequest::STATUS_PENDING && $tr->currentApprover && (int)$tr->current_approver_id !== (int)auth()->id() && auth()->user()->isApprover())
-            {{-- ▶ Pending but it's someone else's turn right now --}}
+            @php $myAction = $travelRequest->approvalActions->firstWhere('actor_id', auth()->id()); @endphp
+            @if ($myAction)
+            {{-- ▶ This approver already acted — show what they did --}}
+            <div class="card overflow-hidden" style="border-left: 4px solid #16a34a;">
+                <div class="px-5 py-4 flex items-center gap-3">
+                    <div class="h-8 w-8 rounded-full flex items-center justify-center shrink-0" style="background-color:#dcfce7;">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800">
+                            You {{ $myAction->decision === 'approved' ? 'approved' : ($myAction->decision === 'returned' ? 'returned' : 'rejected') }} this request on {{ $myAction->created_at->format('d M Y, H:i') }}.
+                        </p>
+                        <p class="text-xs text-slate-500 mt-0.5">Currently with: {{ $tr->currentApprover->name }}</p>
+                    </div>
+                </div>
+            </div>
+            @else
+            {{-- ▶ Pending but not yet this approver's turn --}}
             <div class="card overflow-hidden" style="border-left: 4px solid #f59e0b;">
                 <div class="px-5 py-4 flex items-center gap-3" style="background-color:#fef3c70a;">
                     <div class="h-8 w-8 rounded-full flex items-center justify-center shrink-0" style="background-color:#fef3c7;">
@@ -157,6 +174,7 @@
                     </div>
                 </div>
             </div>
+            @endif
             @elseif ($tr->status === \App\Models\TravelRequest::STATUS_DRAFT && auth()->user()->isApprover() && $tr->requester_id !== auth()->id())
             {{-- ▶ Draft — not submitted yet --}}
             <div class="card overflow-hidden" style="border-left: 4px solid #94a3b8;">
@@ -193,7 +211,7 @@
 
                     {{-- A --}}
                     <div>
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-2 mb-4">A: {{ __('travel.section_a_title') }}</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-widest border-b pb-2 mb-4" style="color:#05499c;border-color:#bfdbfe;">A: {{ __('travel.section_a_title') }}</h3>
                         <div class="text-xs space-y-2 text-slate-600 leading-relaxed bg-slate-50 rounded-lg p-4 border border-slate-100">
                             <p><span class="font-semibold text-slate-700">(i)</span> {{ __('travel.section_a_i') }}</p>
                             <p><span class="font-semibold text-slate-700">(ii)</span> {{ __('travel.section_a_ii') }}</p>
@@ -206,7 +224,7 @@
 
                     {{-- B --}}
                     <div>
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-2 mb-4">B: {{ __('travel.section_b_title') }}</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-widest border-b pb-2 mb-4" style="color:#05499c;border-color:#bfdbfe;">B: {{ __('travel.section_b_title') }}</h3>
                         <div class="space-y-3">
                             @foreach ([
                                 ['(i)',   __('travel.b_name'),           $tr->requester->name],
@@ -228,13 +246,13 @@
 
                     {{-- C --}}
                     <div>
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-2 mb-3">C: {{ __('travel.section_c_title') }}</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-widest border-b pb-2 mb-3" style="color:#05499c;border-color:#bfdbfe;">C: {{ __('travel.section_c_title') }}</h3>
                         <div class="text-sm text-slate-800 bg-slate-50 rounded-lg p-4 border border-slate-100 whitespace-pre-wrap min-h-[4rem]">{{ $tr->c_travel_source ?? '—' }}</div>
                     </div>
 
                     {{-- D --}}
                     <div>
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-2 mb-4">D: {{ __('travel.section_d_title') }}</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-widest border-b pb-2 mb-4" style="color:#05499c;border-color:#bfdbfe;">D: {{ __('travel.section_d_title') }}</h3>
                         <p class="text-sm font-medium text-slate-600 mb-3">{{ __('travel.d_benefits_sub') }}</p>
                         <div class="space-y-4">
                             @foreach ([
@@ -252,7 +270,7 @@
 
                     {{-- E --}}
                     <div>
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-2 mb-4">E: {{ __('travel.section_e_title') }}</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-widest border-b pb-2 mb-4" style="color:#05499c;border-color:#bfdbfe;">E: {{ __('travel.section_e_title') }}</h3>
                         <div class="space-y-4">
                             <div>
                                 <p class="text-sm font-medium text-slate-600 mb-1.5">{{ __('travel.e_transport') }}</p>
@@ -298,13 +316,13 @@
 
                     {{-- F --}}
                     <div>
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-2 mb-3">F: {{ __('travel.section_f_title') }}</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-widest border-b pb-2 mb-3" style="color:#05499c;border-color:#bfdbfe;">F: {{ __('travel.section_f_title') }}</h3>
                         <div class="text-sm text-slate-800 bg-slate-50 rounded-lg p-4 border border-slate-100 whitespace-pre-wrap min-h-[4rem]">{{ $tr->f_previous_travel_impact ?? '—' }}</div>
                     </div>
 
                     {{-- G --}}
                     <div>
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-2 mb-3">G: {{ __('travel.section_g_title') }}</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-widest border-b pb-2 mb-3" style="color:#05499c;border-color:#bfdbfe;">G: {{ __('travel.section_g_title') }}</h3>
                         <div class="space-y-2 mb-3">
                             <div class="flex items-baseline gap-2">
                                 <span class="text-sm w-16 shrink-0 text-slate-600">{{ __('travel.signed_name') }}</span>
@@ -336,7 +354,7 @@
                         @endphp
                         @foreach ($travelRequest->approvalActions as $action)
                         <div>
-                            <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 border-b border-slate-200 pb-2 mb-3">
+                            <h3 class="text-xs font-bold uppercase tracking-widest border-b pb-2 mb-3" style="color:#05499c;border-color:#bfdbfe;">
                                 {{ $sectionLabels[$action->stage] ?? $action->stage }}
                             </h3>
                             @if ($action->comment)

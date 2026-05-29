@@ -189,8 +189,6 @@
                         @if ($needsMyAction->count() > 0)
                             &nbsp;·&nbsp;<strong style="color:#d97706;">{{ $needsMyAction->count() }} {{ Str::plural('approval', $needsMyAction->count()) }}</strong> waiting on you.
                         @endif
-                    @else
-                        No active requests — ready to submit a new permit?
                     @endif
                 @endif
             </p>
@@ -556,7 +554,7 @@
                     </svg>
                 </div>
                 <p class="text-sm" style="color:#94a3b8;">No requests yet.</p>
-                @if (!$user->isHr() && !$user->isDirectorGeneral())
+                @if (!$user->isDirectorGeneral())
                     @if ($supervisorRequired && !$supervisor)
                     <a href="#supervisor-card"
                        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-amber-800 border border-amber-300 bg-amber-50">
@@ -642,7 +640,7 @@
         <div class="flex flex-col gap-4">
 
             {{-- Supervisor card --}}
-            @if (!$user->isHr() && !$user->isDirectorGeneral())
+            @if (!$user->isDirectorGeneral())
             <div id="supervisor-card" class="bg-white rounded-2xl border border-slate-200{{ ($supervisorRequired && !$supervisor) ? ' ring-2 ring-amber-400' : '' }}">
                 <div class="px-5 py-4 border-b border-slate-100 rounded-t-2xl">
                     <h3 class="text-[11px] font-bold uppercase tracking-[0.16em]" style="color:#64748b;">
@@ -651,123 +649,149 @@
                 </div>
 
                 <div class="p-5 space-y-4">
-                    {{-- Current supervisor display --}}
-                    @if ($supervisor)
-                    <div class="flex items-center gap-3">
-                        <div class="h-11 w-11 rounded-full text-white text-sm font-bold flex items-center justify-center shrink-0"
-                             style="background:linear-gradient(135deg,#16a34a,#22c55e);">
-                            {{ strtoupper(substr($supervisor->name, 0, 2)) }}
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold" style="color:#0f172a;">{{ $supervisor->name }}</p>
-                            <p class="text-[11.5px] mt-0.5" style="color:#64748b;">
-                                {{ $supervisor->job_title ?? __('common.role_' . $supervisor->role) }}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="rounded-lg px-3 py-2.5 text-[11.5px] leading-relaxed"
-                         style="background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;">
-                        {{ __('dashboard.supervisor_review_hint') }}
-                    </div>
-                    @else
-                    <div class="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
-                        <div class="h-9 w-9 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-700">{{ __('dashboard.supervisor_not_assigned') }}</p>
-                            <p class="text-xs text-slate-400 mt-0.5">{{ __('dashboard.supervisor_not_assigned_hint') }}</p>
-                        </div>
-                    </div>
-                    @endif
+                    @php
+                        $currentSupervisorId   = (int) old('supervisor_id', $user->supervisor_id);
+                        $currentSupervisorName = $supervisorCandidates->firstWhere('id', $currentSupervisorId)?->name ?? '';
+                        $hasValidationError    = $errors->has('supervisor_id');
+                    @endphp
 
-                    {{-- No candidates and none set --}}
-                    @if ($supervisorCandidates->isEmpty() && !$supervisor)
-                    <p class="text-xs text-slate-400">{{ __('dashboard.supervisor_candidates_empty') }}</p>
-                    @endif
+                    <div x-data="{ changing: {{ $hasValidationError || !$supervisor ? 'true' : 'false' }} }">
 
-                    {{-- Supervisor combobox --}}
-                    @if ($supervisorCandidates->count() > 0)
-                    <form method="POST" action="{{ route('dashboard.supervisor.update') }}" class="space-y-2.5">
-                        @csrf @method('PATCH')
-                        <label class="block text-[10.5px] font-bold uppercase tracking-widest" style="color:#64748b;">
-                            {{ __('dashboard.supervisor_change') }}
-                        </label>
-
-                        @php
-                            $currentSupervisorId   = (int) old('supervisor_id', $user->supervisor_id);
-                            $currentSupervisorName = $supervisorCandidates->firstWhere('id', $currentSupervisorId)?->name ?? '';
-                        @endphp
-
-                        <div x-data="{
-                                open: false,
-                                search: '{{ addslashes($currentSupervisorName) }}',
-                                selectedId: {{ $currentSupervisorId ?: 'null' }},
-                                candidates: {{ Js::from($supervisorCandidates->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'title' => $c->job_title ?? __('common.role_' . $c->role)])->values()) }},
-                                get filtered() {
-                                    if (!this.search) return this.candidates;
-                                    const q = this.search.toLowerCase();
-                                    return this.candidates.filter(c => c.name.toLowerCase().includes(q) || c.title.toLowerCase().includes(q));
-                                },
-                                select(c) { this.selectedId = c.id; this.search = c.name; this.open = false; }
-                             }"
-                             class="relative" @click.outside="open = false">
-
-                            <input type="hidden" name="supervisor_id" :value="selectedId ?? ''">
-
-                            <div class="relative">
-                                <input type="text"
-                                       x-model="search"
-                                       @focus="open = true"
-                                       @input="open = true; selectedId = null"
-                                       placeholder="Search by name…"
-                                       autocomplete="off"
-                                       class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-9 text-sm placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
-                                       style="color:#0e1a2b;">
-                                <button type="button" @click="open = !open"
-                                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        {{-- Current supervisor display --}}
+                        @if ($supervisor)
+                        <div x-show="!changing" class="space-y-3">
+                            <div class="flex items-center gap-3">
+                                <div class="h-11 w-11 rounded-full text-white text-sm font-bold flex items-center justify-center shrink-0"
+                                     style="background:linear-gradient(135deg,#16a34a,#22c55e);">
+                                    {{ strtoupper(substr($supervisor->name, 0, 2)) }}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-semibold" style="color:#0f172a;">{{ $supervisor->name }}</p>
+                                    <p class="text-[11.5px] mt-0.5" style="color:#64748b;">
+                                        {{ $supervisor->job_title ?? __('common.role_' . $supervisor->role) }}
+                                    </p>
+                                </div>
+                                @if ($supervisorCandidates->count() > 0)
+                                <button type="button" @click="changing = true"
+                                        class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition">
+                                    Change
                                 </button>
+                                @endif
+                            </div>
+                            <div class="rounded-lg px-3 py-2.5 text-[11.5px] leading-relaxed"
+                                 style="background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;">
+                                {{ __('dashboard.supervisor_review_hint') }}
+                            </div>
+                        </div>
+                        @else
+                        <div class="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
+                            <div class="h-9 w-9 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+                                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-700">{{ __('dashboard.supervisor_not_assigned') }}</p>
+                                <p class="text-xs text-slate-400 mt-0.5">{{ __('dashboard.supervisor_not_assigned_hint') }}</p>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- No candidates and none set --}}
+                        @if ($supervisorCandidates->isEmpty() && !$supervisor)
+                        <div class="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+                            <svg class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                            <p class="text-xs text-amber-800 leading-relaxed">{{ __('dashboard.supervisor_candidates_empty') }}</p>
+                        </div>
+                        @endif
+
+                        {{-- Supervisor combobox --}}
+                        @if ($supervisorCandidates->count() > 0)
+                        <div x-show="changing" x-cloak class="mt-3">
+                        <form method="POST" action="{{ route('dashboard.supervisor.update') }}" class="space-y-2.5">
+                            @csrf @method('PATCH')
+                            <div class="flex items-center justify-between">
+                                <label class="block text-[10.5px] font-bold uppercase tracking-widest" style="color:#64748b;">
+                                    {{ $supervisor ? __('dashboard.supervisor_change') : __('dashboard.supervisor_change') }}
+                                </label>
+                                @if ($supervisor)
+                                <button type="button" @click="changing = false"
+                                        class="text-xs text-slate-400 hover:text-slate-600 transition">
+                                    Cancel
+                                </button>
+                                @endif
                             </div>
 
-                            <div x-show="open" x-cloak
-                                 class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-y-auto"
-                                 style="max-height:200px;">
-                                <button type="button"
-                                        @click="select({ id: null, name: '', title: '' }); selectedId = null; search = ''"
-                                        class="w-full text-left px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 border-b border-slate-100 italic">
-                                    {{ __('dashboard.supervisor_clear') }}
-                                </button>
-                                <template x-for="c in filtered" :key="c.id">
-                                    <button type="button"
-                                            @click="select(c)"
-                                            class="w-full text-left px-3 py-2.5 hover:bg-blue-50 flex items-center gap-2.5 border-b border-slate-50 last:border-0 transition"
-                                            :class="{ 'bg-blue-50': selectedId === c.id }">
-                                        <div class="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                                             style="background:linear-gradient(135deg,#16a34a,#22c55e);"
-                                             x-text="c.name.substring(0,2).toUpperCase()"></div>
-                                        <div class="min-w-0">
-                                            <p class="text-sm font-medium text-slate-800 truncate" x-text="c.name"></p>
-                                            <p class="text-xs text-slate-400 truncate" x-text="c.title"></p>
-                                        </div>
+                            <div x-data="{
+                                    open: false,
+                                    search: '{{ addslashes($currentSupervisorName) }}',
+                                    selectedId: {{ $currentSupervisorId ?: 'null' }},
+                                    candidates: {{ Js::from($supervisorCandidates->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'title' => $c->job_title ?? __('common.role_' . $c->role)])->values()) }},
+                                    get filtered() {
+                                        if (!this.search) return this.candidates;
+                                        const q = this.search.toLowerCase();
+                                        return this.candidates.filter(c => c.name.toLowerCase().includes(q) || c.title.toLowerCase().includes(q));
+                                    },
+                                    select(c) { this.selectedId = c.id; this.search = c.name; this.open = false; }
+                                 }"
+                                 class="relative" @click.outside="open = false">
+
+                                <input type="hidden" name="supervisor_id" :value="selectedId ?? ''">
+
+                                <div class="relative">
+                                    <input type="text"
+                                           x-model="search"
+                                           @focus="open = true"
+                                           @input="open = true; selectedId = null"
+                                           placeholder="Search by name…"
+                                           autocomplete="off"
+                                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-9 text-sm placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+                                           style="color:#0e1a2b;">
+                                    <button type="button" @click="open = !open"
+                                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                     </button>
-                                </template>
-                                <div x-show="filtered.length === 0"
-                                     class="px-3 py-3 text-sm text-slate-400 text-center">{{ __('dashboard.no_results') }}</div>
+                                </div>
+
+                                <div x-show="open" x-cloak
+                                     class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-y-auto"
+                                     style="max-height:200px;">
+                                    <button type="button"
+                                            @click="select({ id: null, name: '', title: '' }); selectedId = null; search = ''"
+                                            class="w-full text-left px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 border-b border-slate-100 italic">
+                                        {{ __('dashboard.supervisor_clear') }}
+                                    </button>
+                                    <template x-for="c in filtered" :key="c.id">
+                                        <button type="button"
+                                                @click="select(c)"
+                                                class="w-full text-left px-3 py-2.5 hover:bg-blue-50 flex items-center gap-2.5 border-b border-slate-50 last:border-0 transition"
+                                                :class="{ 'bg-blue-50': selectedId === c.id }">
+                                            <div class="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                                                 style="background:linear-gradient(135deg,#16a34a,#22c55e);"
+                                                 x-text="c.name.substring(0,2).toUpperCase()"></div>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-medium text-slate-800 truncate" x-text="c.name"></p>
+                                                <p class="text-xs text-slate-400 truncate" x-text="c.title"></p>
+                                            </div>
+                                        </button>
+                                    </template>
+                                    <div x-show="filtered.length === 0"
+                                         class="px-3 py-3 text-sm text-slate-400 text-center">{{ __('dashboard.no_results') }}</div>
+                                </div>
                             </div>
+
+                            @error('supervisor_id')
+                            <p class="text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+
+                            <button type="submit"
+                                    class="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition hover:opacity-90"
+                                    style="background:#16a34a;">
+                                {{ __('dashboard.supervisor_save') }}
+                            </button>
+                        </form>
                         </div>
+                        @endif
 
-                        @error('supervisor_id')
-                        <p class="text-xs text-red-600">{{ $message }}</p>
-                        @enderror
-
-                        <button type="submit"
-                                class="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition hover:opacity-90"
-                                style="background:#16a34a;">
-                            {{ __('dashboard.supervisor_save') }}
-                        </button>
-                    </form>
-                    @endif
+                    </div>
                 </div>
             </div>
             @endif

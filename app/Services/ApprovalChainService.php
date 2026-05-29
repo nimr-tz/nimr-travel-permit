@@ -146,7 +146,7 @@ class ApprovalChainService
             ],
 
             // Staff must have a supervisor set; go supervisor → centre_manager.
-            'staff', 'manager', 'system_admin' => $traveller->supervisor_id
+            'staff', 'manager', 'hr', 'system_admin' => $traveller->supervisor_id
                 ? [
                     ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
                     ['stage' => 'final',      'approver_id' => $centreManager->id],
@@ -178,7 +178,7 @@ class ApprovalChainService
                 ['stage' => 'final',    'approver_id' => $dg->id],
             ],
 
-            'staff', 'manager', 'system_admin' => $traveller->supervisor_id
+            'staff', 'manager', 'hr', 'system_admin' => $traveller->supervisor_id
                 ? [
                     ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
                     ['stage' => 'director',   'approver_id' => $directorId],
@@ -203,7 +203,7 @@ class ApprovalChainService
                 ['stage' => 'final', 'approver_id' => $dg->id],
             ],
 
-            'staff', 'system_admin' => $traveller->supervisor_id
+            'staff', 'hr', 'system_admin' => $traveller->supervisor_id
                 ? [
                     ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
                     ['stage' => 'final',      'approver_id' => $dg->id],

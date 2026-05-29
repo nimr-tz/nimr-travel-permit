@@ -42,7 +42,7 @@ return [
     'supervisor_save' => 'Hifadhi',
     'supervisor_updated' => 'Msimamizi amesasishwa.',
     'supervisor_invalid' => 'Chagua msimamizi hai kutoka kitengo chako.',
-    'supervisor_candidates_empty' => 'Hakuna wasimamizi wanaofaa kwa kitengo chako kwa sasa.',
+    'supervisor_candidates_empty' => 'Hakuna msimamizi aliyepewa kitengo chako bado. Tafadhali wasiliana na Msimamizi wa Mfumo ili aweze kuongeza mtu anayefaa kabla ya kuweza kuwasilisha ombi la safari.',
     'supervisor_required_banner_title' => 'Msimamizi hajachaguliwa',
     'supervisor_required_banner_body'  => 'Lazima uchague msimamizi wako kabla ya kuwasilisha ombi la safari. Chagua mmoja kwenye sehemu iliyo hapa chini.',
     'supervisor_required_to_submit'    => 'Hujachagua msimamizi. Tafadhali chagua mmoja kwenye Dashibodi kabla ya kuwasilisha ombi la safari.',

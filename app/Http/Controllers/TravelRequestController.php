@@ -78,19 +78,29 @@ class TravelRequestController extends Controller
         return view('travel-requests.index', compact('requests', 'user', 'statusCounts'));
     }
 
-    public function create(): View
+    public function create(): View|RedirectResponse
     {
         $user = auth()->user();
+
+        if ($this->missingSupervisor($user)) {
+            return redirect()->route('dashboard')
+                ->with('status', __('dashboard.supervisor_required_to_submit'));
+        }
+
         $handoverUsers = $this->handoverUserList();
         return view('travel-requests.create', compact('user', 'handoverUsers'));
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $this->validateForm($request);
+        $isDraft   = $request->input('action') === 'draft';
+        $validated = $this->validateForm($request, withFile: true, isDraft: $isDraft);
 
-        $user    = $request->user();
-        $isDraft = $request->input('action') === 'draft';
+        if (!$isDraft) {
+            $this->checkAtLeastOneCost($validated);
+        }
+
+        $user = $request->user();
 
         if (!$isDraft && $this->missingSupervisor($user)) {
             return redirect()->route('dashboard')
@@ -136,6 +146,11 @@ class TravelRequestController extends Controller
             $this->notifyFirstApprover($travelRequest);
         }
 
+        // Persist phone to user profile if provided and differs from saved value
+        if (!empty($validated['b_phone']) && $user->phone !== $validated['b_phone']) {
+            $user->forceFill(['phone' => $validated['b_phone']])->save();
+        }
+
         $message  = $isDraft ? 'Ombi limehifadhiwa kama rasimu.' : 'Ombi limewasilishwa kwa mafanikio.';
         $redirect = redirect()->route('travel-requests.show', $travelRequest)->with('status', $message);
 
@@ -176,8 +191,18 @@ class TravelRequestController extends Controller
     {
         $this->authorize('update', $travelRequest);
 
-        $validated = $this->validateForm($request, withFile: true);
         $isDraft   = $request->input('action') === 'draft';
+        $validated = $this->validateForm($request, withFile: true, isDraft: $isDraft);
+
+        if (!$isDraft) {
+            $this->checkAtLeastOneCost($validated);
+            // For updates, a file already on the record satisfies the requirement
+            if (!$request->hasFile('g_handover_document') && !$travelRequest->g_handover_document) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'g_handover_document' => 'Please upload the handover note document.',
+                ]);
+            }
+        }
 
         if (!$isDraft && $this->missingSupervisor($request->user())) {
             return redirect()->route('dashboard')
@@ -232,6 +257,12 @@ class TravelRequestController extends Controller
                 ...$validated,
                 'status' => TravelRequest::STATUS_DRAFT,
             ]);
+        }
+
+        // Persist phone to user profile if provided and differs from saved value
+        $updateUser = $request->user();
+        if (!empty($validated['b_phone']) && $updateUser->phone !== $validated['b_phone']) {
+            $updateUser->forceFill(['phone' => $validated['b_phone']])->save();
         }
 
         $message  = $isDraft ? 'Rasimu imesasishwa.' : 'Ombi limewasilishwa kwa mafanikio.';
@@ -290,20 +321,22 @@ class TravelRequestController extends Controller
         return $pdf->download($filename);
     }
 
-    protected function validateForm(Request $request, bool $withFile = true): array
+    protected function validateForm(Request $request, bool $withFile = true, bool $isDraft = false): array
     {
+        $req = $isDraft ? 'nullable' : 'required';
+
         $rules = [
             'b_applicant_name'           => ['required', 'string', 'max:255'],
-            'b_phone'                    => ['nullable', 'string', 'max:50'],
+            'b_phone'                    => ['required', 'string', 'max:50'],
             'b_email'                    => ['nullable', 'email', 'max:255'],
             'b_position'                 => ['nullable', 'string', 'max:255'],
             'b_destination'              => ['required', 'string', 'max:500'],
             'b_departure_date'           => ['required', 'date', 'after:today'],
-            'b_return_date'              => ['required', 'date', 'after_or_equal:b_departure_date'],
+            'b_return_date'              => ['required', 'date', 'after:b_departure_date'],
             'c_travel_source'            => ['nullable', 'string'],
-            'd_benefit_to_institution'   => ['nullable', 'string'],
-            'd_benefit_to_nation'        => ['nullable', 'string'],
-            'd_consequences_if_rejected' => ['nullable', 'string'],
+            'd_benefit_to_institution'   => [$req, 'string'],
+            'd_benefit_to_nation'        => [$req, 'string'],
+            'd_consequences_if_rejected' => [$req, 'string'],
             'e_transport_costs'          => ['nullable', 'string'],
             'e_allowance_a'              => ['nullable', 'string', 'max:500'],
             'e_allowance_b'              => ['nullable', 'string', 'max:500'],
@@ -317,17 +350,36 @@ class TravelRequestController extends Controller
             'e_govt_cost_ii'             => ['nullable', 'string', 'max:500'],
             'e_govt_cost_iii'            => ['nullable', 'string', 'max:500'],
             'e_other_costs'              => ['nullable', 'string'],
-            'f_previous_travel_impact'   => ['nullable', 'string'],
+            'f_previous_travel_impact'   => [$req, 'string'],
             'f_traveller_signed_date'    => ['nullable', 'date'],
-            'g_handover_officer_name'    => ['nullable', 'string', 'max:255'],
+            'g_handover_officer_name'    => [$req, 'string', 'max:255'],
             'g_handover_officer_title'   => ['nullable', 'string', 'max:255'],
         ];
 
         if ($withFile) {
-            $rules['g_handover_document'] = ['nullable', 'file', 'mimes:pdf', 'max:5120'];
+            $rules['g_handover_document'] = $isDraft
+                ? ['nullable', 'file', 'mimes:pdf', 'max:5120']
+                : ['required', 'file', 'mimes:pdf', 'max:5120'];
         }
 
         return $request->validate($rules);
+    }
+
+    private function checkAtLeastOneCost(array $validated): void
+    {
+        $costFields = [
+            'e_transport_costs', 'e_allowance_a', 'e_allowance_b', 'e_allowance_c', 'e_allowance_d',
+            'e_budget_line', 'e_donor_cost_i', 'e_donor_cost_ii', 'e_donor_cost_iii',
+            'e_govt_cost_i', 'e_govt_cost_ii', 'e_govt_cost_iii', 'e_other_costs',
+        ];
+
+        $hasCost = collect($costFields)->some(fn ($f) => !empty($validated[$f]));
+
+        if (!$hasCost) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'e_costs' => 'Please fill in at least one cost or allowance field.',
+            ]);
+        }
     }
 
     private function handoverUserList(): \Illuminate\Support\Collection
@@ -345,9 +397,17 @@ class TravelRequestController extends Controller
     private function missingSupervisor(User $user): bool
     {
         $user->loadMissing('unit');
-        return $user->role === 'staff'
-            && $user->unit_id !== null
-            && !$user->supervisor_id;
+
+        if (!$user->unit_id || !$user->unit || $user->supervisor_id) {
+            return false;
+        }
+
+        return match($user->unit->type) {
+            'research_centre' => in_array($user->role, ['staff', 'manager', 'hr', 'system_admin']),
+            'hq_section'      => in_array($user->role, ['staff', 'manager', 'hr', 'system_admin']),
+            'hq_standalone'   => in_array($user->role, ['staff', 'hr', 'system_admin']),
+            default           => false,
+        };
     }
 
     private function findOverlappingRequest(int $userId, string $departure, string $return, int $excludeId): ?TravelRequest

@@ -69,8 +69,7 @@ class DashboardController extends Controller
         $statsBase = $user->isHr() || $user->isDirectorGeneral() ? $allRequests : $myRequests->merge($approvalRequests);
 
         $supervisorCandidates = $this->supervisorCandidatesFor($user);
-        // All staff must set a supervisor before submitting.
-        $supervisorRequired = $user->role === 'staff' && $user->unit_id !== null;
+        $supervisorRequired   = $this->supervisorRequiredFor($user);
 
         return view('dashboard', [
             'user'                 => $user,
@@ -92,7 +91,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        abort_if($user->isHr() || $user->isDirectorGeneral(), 403);
+        abort_if($user->isDirectorGeneral(), 403);
 
         $validated = $request->validate([
             'supervisor_id' => ['nullable', 'integer'],
@@ -127,26 +126,56 @@ class DashboardController extends Controller
             return new Collection();
         }
 
-        $excludedRoles = ['centre_manager', 'director_general', 'hr'];
+        $unit = $user->unit;
 
-        // Research centre staff pick from their own centre only.
-        if ($user->unit->type === 'research_centre') {
+        // Research centre staff/manager → pick from managers in their own centre.
+        if ($unit->type === 'research_centre' && in_array($user->role, ['staff', 'manager', 'hr', 'system_admin'])) {
             return User::query()
                 ->where('unit_id', $user->unit_id)
                 ->where('id', '!=', $user->id)
                 ->where('is_active', true)
-                ->whereNotIn('role', $excludedRoles)
+                ->where('role', 'manager')
                 ->orderBy('name')
                 ->get();
         }
 
-        // HQ staff can pick any active HQ colleague as their supervisor.
-        return User::query()
-            ->whereHas('unit', fn($q) => $q->whereIn('type', ['hq_standalone', 'hq_section', 'hq_directorate']))
-            ->where('id', '!=', $user->id)
-            ->where('is_active', true)
-            ->whereNotIn('role', $excludedRoles)
-            ->orderBy('name')
-            ->get();
+        // HQ section staff/manager → pick from heads in their own section.
+        if ($unit->type === 'hq_section' && in_array($user->role, ['staff', 'manager', 'hr', 'system_admin'])) {
+            return User::query()
+                ->where('unit_id', $user->unit_id)
+                ->where('id', '!=', $user->id)
+                ->where('is_active', true)
+                ->where('role', 'head')
+                ->orderBy('name')
+                ->get();
+        }
+
+        // HQ standalone staff → pick from managers in their own unit.
+        if ($unit->type === 'hq_standalone' && in_array($user->role, ['staff', 'hr', 'system_admin'])) {
+            return User::query()
+                ->where('unit_id', $user->unit_id)
+                ->where('id', '!=', $user->id)
+                ->where('is_active', true)
+                ->where('role', 'manager')
+                ->orderBy('name')
+                ->get();
+        }
+
+        // All other roles (head, director, centre_manager, DG, HR) don't need a supervisor.
+        return new Collection();
+    }
+
+    private function supervisorRequiredFor(User $user): bool
+    {
+        if (!$user->unit_id || !$user->unit) {
+            return false;
+        }
+
+        return match($user->unit->type) {
+            'research_centre' => in_array($user->role, ['staff', 'manager', 'hr', 'system_admin']),
+            'hq_section'      => in_array($user->role, ['staff', 'manager', 'hr', 'system_admin']),
+            'hq_standalone'   => in_array($user->role, ['staff', 'hr', 'system_admin']),
+            default           => false,
+        };
     }
 }

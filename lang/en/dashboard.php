@@ -42,7 +42,7 @@ return [
     'supervisor_save' => 'Save',
     'supervisor_updated' => 'Supervisor updated.',
     'supervisor_invalid' => 'Choose an active supervisor from your unit.',
-    'supervisor_candidates_empty' => 'No eligible supervisors are available for your current unit.',
+    'supervisor_candidates_empty' => 'No supervisor has been assigned to your unit yet. Please contact your System Administrator so they can add the appropriate person before you can submit a travel request.',
     'supervisor_required_banner_title' => 'Supervisor not set',
     'supervisor_required_banner_body'  => 'You must select your supervisor before you can submit a travel request. Choose one from the panel below.',
     'supervisor_required_to_submit'    => 'You have not set a supervisor. Please select one on the Dashboard before submitting a travel request.',
