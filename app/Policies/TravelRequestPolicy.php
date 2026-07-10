@@ -44,4 +44,15 @@ class TravelRequestPolicy
     {
         return $this->view($user, $travelRequest);
     }
+
+    public function uploadReport(User $user, TravelRequest $travelRequest): bool
+    {
+        return $travelRequest->requester_id === $user->id
+            && $travelRequest->status === TravelRequest::STATUS_APPROVED;
+    }
+
+    public function downloadReport(User $user, TravelRequest $travelRequest): bool
+    {
+        return $this->view($user, $travelRequest);
+    }
 }

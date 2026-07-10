@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\TravelRequest;
 use App\Models\User;
+use App\Notifications\TravelReportSubmittedNotification;
 use App\Notifications\TravelRequestHrCopyNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
@@ -305,6 +306,62 @@ class TravelRequestController extends Controller
         return Storage::disk('private')->download($travelRequest->g_handover_document);
     }
 
+    public function uploadReport(Request $request, TravelRequest $travelRequest): RedirectResponse
+    {
+        $this->authorize('uploadReport', $travelRequest);
+
+        $validated = $request->validate([
+            'travel_report_document' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'travel_report_notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        if (!$request->hasFile('travel_report_document') && !$travelRequest->travel_report_document) {
+            return back()->withErrors([
+                'travel_report_document' => __('travel.report_file_required'),
+            ])->withInput();
+        }
+
+        $hasNewReportDocument = $request->hasFile('travel_report_document');
+
+        if ($hasNewReportDocument) {
+            if ($travelRequest->travel_report_document) {
+                Storage::disk('private')->delete($travelRequest->travel_report_document);
+            }
+
+            $file = $request->file('travel_report_document');
+
+            $validated['travel_report_document'] = $file->store('travel-reports', 'private');
+            $validated['travel_report_original_name'] = $file->getClientOriginalName();
+        } else {
+            unset($validated['travel_report_document']);
+        }
+
+        $travelRequest->update([
+            ...$validated,
+            'travel_report_submitted_at' => now(),
+        ]);
+
+        if ($hasNewReportDocument) {
+            $this->notifyTravelReportSupervisor($travelRequest);
+        }
+
+        return redirect()->route('travel-requests.show', $travelRequest)
+            ->with('status', __('travel.report_saved'));
+    }
+
+    public function downloadReport(TravelRequest $travelRequest)
+    {
+        $this->authorize('downloadReport', $travelRequest);
+
+        abort_unless($travelRequest->travel_report_document, 404);
+        abort_unless(Storage::disk('private')->exists($travelRequest->travel_report_document), 404);
+
+        $filename = $travelRequest->travel_report_original_name
+            ?: $travelRequest->request_number . '-travel-report.pdf';
+
+        return Storage::disk('private')->download($travelRequest->travel_report_document, $filename);
+    }
+
     public function print(TravelRequest $travelRequest): View
     {
         $this->authorize('view', $travelRequest);
@@ -445,6 +502,26 @@ class TravelRequestController extends Controller
                 ->each(fn($hr) => $hr->notify(new TravelRequestHrCopyNotification($travelRequest, 'submitted')));
         } catch (\Throwable $e) {
             Log::warning('Failed to send HR copy on submission for request ' . $travelRequest->request_number, [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function notifyTravelReportSupervisor(TravelRequest $travelRequest): void
+    {
+        $travelRequest->loadMissing('requester.supervisor');
+
+        $supervisor = $travelRequest->requester?->supervisor;
+
+        if (!$supervisor || !$supervisor->is_active) {
+            return;
+        }
+
+        try {
+            $supervisor->notify(new TravelReportSubmittedNotification($travelRequest));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to notify supervisor about travel report for request ' . $travelRequest->request_number, [
+                'supervisor_id' => $supervisor->id,
                 'error' => $e->getMessage(),
             ]);
         }

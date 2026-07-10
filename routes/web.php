@@ -51,6 +51,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\PreventBackHistory::
 
     Route::delete('/travel-requests/{travelRequest}/cancel', [TravelRequestController::class, 'cancel'])->name('travel-requests.cancel');
     Route::get('/travel-requests/{travelRequest}/download',  [TravelRequestController::class, 'download'])->name('travel-requests.download');
+    Route::post('/travel-requests/{travelRequest}/report', [TravelRequestController::class, 'uploadReport'])->name('travel-requests.report.upload');
+    Route::get('/travel-requests/{travelRequest}/report/download', [TravelRequestController::class, 'downloadReport'])->name('travel-requests.report.download');
 
     Route::get('/profile',    [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile',  [ProfileController::class, 'update'])->name('profile.update');

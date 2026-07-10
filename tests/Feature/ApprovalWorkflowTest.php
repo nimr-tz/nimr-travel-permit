@@ -6,6 +6,9 @@ use App\Models\TravelRequest;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ApprovalWorkflowTest extends TestCase
@@ -22,6 +25,9 @@ class ApprovalWorkflowTest extends TestCase
     {
         parent::setUp();
 
+        Notification::fake();
+        Storage::fake('private');
+
         // HR receives copies only; it is not an approval step.
         $this->dg = User::factory()->directorGeneral()->create(['unit_id' => null]);
 
@@ -33,17 +39,34 @@ class ApprovalWorkflowTest extends TestCase
 
     private function submitRequest(User $traveller, array $extra = []): TravelRequest
     {
-        $response = $this->actingAs($traveller)->post(route('travel-requests.store'), array_merge([
+        $response = $this->actingAs($traveller)->post(route('travel-requests.store'), $this->validRequestPayload($traveller, $extra));
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('travel_requests', ['requester_id' => $traveller->id]);
+
+        return TravelRequest::where('requester_id', $traveller->id)->latest()->first();
+    }
+
+    private function validRequestPayload(User $traveller, array $extra = []): array
+    {
+        return array_merge([
             'action'           => 'submit',
             'b_applicant_name' => $traveller->name,
+            'b_phone'          => '+255752000000',
+            'b_email'          => $traveller->email,
+            'b_position'       => $traveller->job_title ?? 'Research Officer',
             'b_destination'    => 'Dar es Salaam',
             'b_departure_date' => now()->addDays(5)->toDateString(),
             'b_return_date'    => now()->addDays(8)->toDateString(),
-        ], $extra));
-
-        $response->assertRedirect();
-
-        return TravelRequest::where('requester_id', $traveller->id)->latest()->first();
+            'd_benefit_to_institution' => 'The trip supports institutional objectives.',
+            'd_benefit_to_nation' => 'The trip supports public health delivery.',
+            'd_consequences_if_rejected' => 'Important coordination work will be delayed.',
+            'e_transport_costs' => '100000',
+            'f_previous_travel_impact' => 'Previous travel improved collaboration.',
+            'g_handover_officer_name' => 'Handover Officer',
+            'g_handover_officer_title' => 'Administrator',
+            'g_handover_document' => UploadedFile::fake()->create('handover.pdf', 120, 'application/pdf'),
+        ], $extra);
     }
 
     private function approve(User $approver, TravelRequest $tr, string $decision = 'approved', ?string $comment = null): void
@@ -83,20 +106,19 @@ class ApprovalWorkflowTest extends TestCase
         $this->assertNull($tr->current_approver_id);
     }
 
-    public function test_centre_staff_without_supervisor_skips_supervisor_step(): void
+    public function test_centre_staff_without_supervisor_cannot_submit(): void
     {
         $centreUnit    = Unit::factory()->researchCentre()->create();
         $centreManager = User::factory()->centreManager()->create(['unit_id' => $centreUnit->id]);
         $centreHr      = User::factory()->hr()->create(['unit_id' => $centreUnit->id]);
         $staff         = User::factory()->staff()->create(['unit_id' => $centreUnit->id, 'supervisor_id' => null]);
 
-        $tr = $this->submitRequest($staff);
+        $this->actingAs($staff)
+            ->post(route('travel-requests.store'), $this->validRequestPayload($staff))
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('status', __('dashboard.supervisor_required_to_submit'));
 
-        $this->assertEquals($centreManager->id, $tr->current_approver_id);
-
-        $this->approve($centreManager, $tr);
-        $tr->refresh();
-        $this->assertEquals(TravelRequest::STATUS_APPROVED, $tr->status);
+        $this->assertDatabaseMissing('travel_requests', ['requester_id' => $staff->id]);
     }
 
     public function test_wrong_approver_gets_403(): void
@@ -126,11 +148,12 @@ class ApprovalWorkflowTest extends TestCase
         $centreUnit    = Unit::factory()->researchCentre()->create();
         $centreManager = User::factory()->centreManager()->create(['unit_id' => $centreUnit->id]);
         User::factory()->hr()->create(['unit_id' => $centreUnit->id]);
-        $staff = User::factory()->staff()->create(['unit_id' => $centreUnit->id, 'supervisor_id' => null]);
+        $supervisor = User::factory()->manager()->create(['unit_id' => $centreUnit->id]);
+        $staff = User::factory()->staff()->create(['unit_id' => $centreUnit->id, 'supervisor_id' => $supervisor->id]);
 
         $tr = $this->submitRequest($staff);
 
-        $this->approve($centreManager, $tr, 'rejected', 'Not approved for budget reasons.');
+        $this->approve($supervisor, $tr, 'rejected', 'Not approved for budget reasons.');
         $tr->refresh();
 
         $this->assertEquals(TravelRequest::STATUS_REJECTED, $tr->status);
@@ -142,11 +165,12 @@ class ApprovalWorkflowTest extends TestCase
         $centreUnit    = Unit::factory()->researchCentre()->create();
         $centreManager = User::factory()->centreManager()->create(['unit_id' => $centreUnit->id]);
         $centreHr      = User::factory()->hr()->create(['unit_id' => $centreUnit->id]);
-        $staff         = User::factory()->staff()->create(['unit_id' => $centreUnit->id, 'supervisor_id' => null]);
+        $supervisor    = User::factory()->manager()->create(['unit_id' => $centreUnit->id]);
+        $staff         = User::factory()->staff()->create(['unit_id' => $centreUnit->id, 'supervisor_id' => $supervisor->id]);
 
         $tr = $this->submitRequest($staff);
 
-        $this->approve($centreManager, $tr, 'returned', 'Please attach the invitation letter.');
+        $this->approve($supervisor, $tr, 'returned', 'Please attach the invitation letter.');
         $tr->refresh();
 
         $this->assertEquals(TravelRequest::STATUS_RETURNED, $tr->status);
@@ -155,20 +179,18 @@ class ApprovalWorkflowTest extends TestCase
 
         // Requester edits and resubmits
         $this->actingAs($staff)
-            ->patch(route('travel-requests.update', $tr), [
+            ->patch(route('travel-requests.update', $tr), $this->validRequestPayload($staff, [
                 'action'           => 'submit',
                 'b_applicant_name' => $staff->name,
-                'b_destination'    => 'Dar es Salaam',
-                'b_departure_date' => now()->addDays(5)->toDateString(),
-                'b_return_date'    => now()->addDays(8)->toDateString(),
-            ])
+            ]))
             ->assertRedirect();
 
         $tr->refresh();
         $this->assertEquals(TravelRequest::STATUS_PENDING, $tr->status);
-        $this->assertEquals($centreManager->id, $tr->current_approver_id);
+        $this->assertEquals($supervisor->id, $tr->current_approver_id);
 
         // Chain completes normally
+        $this->approve($supervisor, $tr);
         $this->approve($centreManager, $tr);
         $this->assertEquals(TravelRequest::STATUS_APPROVED, $tr->fresh()->status);
     }
@@ -242,7 +264,7 @@ class ApprovalWorkflowTest extends TestCase
 
         $sectionHead = User::factory()->head()->create(['unit_id' => $section->id]);
         $director    = User::factory()->director()->create(['unit_id' => $directorate->id]);
-        $staff       = User::factory()->staff()->create(['unit_id' => $section->id]);
+        $staff       = User::factory()->staff()->create(['unit_id' => $section->id, 'supervisor_id' => $sectionHead->id]);
 
         $tr = $this->submitRequest($staff);
 

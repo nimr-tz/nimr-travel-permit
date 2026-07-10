@@ -91,6 +91,12 @@ class TravelRequest extends Model
         'g_handover_officer_name',
         'g_handover_officer_title',
         'g_handover_document',
+        'travel_report_document',
+        'travel_report_original_name',
+        'travel_report_notes',
+        'travel_report_submitted_at',
+        'travel_report_last_reminded_at',
+        'travel_report_reminder_count',
 
         'approval_chain',
         'submitted_at',
@@ -104,6 +110,9 @@ class TravelRequest extends Model
             'f_traveller_signed_date' => 'date',
             'approval_chain'          => 'array',
             'submitted_at'            => 'datetime',
+            'travel_report_submitted_at' => 'datetime',
+            'travel_report_last_reminded_at' => 'datetime',
+            'travel_report_reminder_count' => 'integer',
         ];
     }
 

@@ -688,6 +688,98 @@
             @endif
 
             {{-- Info card — blue --}}
+            @if ($tr->status === \App\Models\TravelRequest::STATUS_APPROVED || $tr->travel_report_document)
+            {{-- Travel report --}}
+            <div class="card overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
+                    <div class="h-9 w-9 rounded-lg flex items-center justify-center shrink-0" style="background-color:#ecfdf5;color:#047857;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">{{ __('travel.report_title') }}</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ __('travel.report_hint') }}</p>
+                    </div>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    @if ($tr->travel_report_document)
+                    <div class="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-emerald-800 truncate">
+                                    {{ $tr->travel_report_original_name ?: __('travel.report_title') }}
+                                </p>
+                                @if ($tr->travel_report_submitted_at)
+                                <p class="text-xs text-emerald-700 mt-0.5">
+                                    {{ __('travel.report_submitted', ['date' => $tr->travel_report_submitted_at->format('d M Y, H:i')]) }}
+                                </p>
+                                @endif
+                            </div>
+                            <a href="{{ route('travel-requests.report.download', $tr) }}" class="btn-secondary btn-sm shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                {{ __('common.download') }}
+                            </a>
+                        </div>
+                    </div>
+                    @else
+                    <p class="text-sm text-slate-500">{{ __('travel.report_missing') }}</p>
+                    @endif
+
+                    @if ($tr->travel_report_notes)
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">{{ __('travel.report_notes') }}</p>
+                        <div class="text-sm text-slate-700 bg-slate-50 border border-slate-100 rounded-lg p-3 whitespace-pre-wrap">{{ $tr->travel_report_notes }}</div>
+                    </div>
+                    @endif
+
+                    @can('uploadReport', $tr)
+                    <form method="POST"
+                          action="{{ route('travel-requests.report.upload', $tr) }}"
+                          enctype="multipart/form-data"
+                          class="space-y-3 pt-1">
+                        @csrf
+
+                        <div class="field">
+                            <label class="label">{{ $tr->travel_report_document ? __('travel.report_replace') : __('travel.report_upload') }}</label>
+                            <input type="file"
+                                   name="travel_report_document"
+                                   accept=".pdf"
+                                   class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100">
+                            <p class="mt-1.5 text-xs text-slate-500">{{ __('travel.report_file_hint') }}</p>
+                            @error('travel_report_document')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="field">
+                            <label class="label">{{ __('travel.report_notes') }}</label>
+                            <textarea name="travel_report_notes"
+                                      rows="4"
+                                      class="input resize-none"
+                                      placeholder="{{ __('travel.report_notes_ph') }}">{{ old('travel_report_notes', $tr->travel_report_notes) }}</textarea>
+                            @error('travel_report_notes')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <button type="submit" class="btn-primary btn-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            {{ $tr->travel_report_document ? __('travel.report_replace') : __('travel.report_upload') }}
+                        </button>
+                    </form>
+                    @elseif ($tr->status !== \App\Models\TravelRequest::STATUS_APPROVED)
+                    <p class="text-xs text-slate-400">{{ __('travel.report_available_after_approval') }}</p>
+                    @endif
+                </div>
+            </div>
+            @endif
+
             <div class="rounded-xl overflow-hidden shadow-sm p-5" style="background-color:#05499c;">
                 <h3 class="text-[10px] font-bold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.55);">{{ __('travel.info_card') }}</h3>
                 <div class="space-y-4">
