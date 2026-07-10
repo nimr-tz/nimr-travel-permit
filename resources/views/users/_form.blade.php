@@ -7,6 +7,20 @@
     foreach (['hq_standalone','hq_directorate','hq_section','research_centre'] as $type) {
         $unitTypeLabels[$type] = __('common.unit_' . $type);
     }
+    $currentUnitId = (string) old('unit_id', $user->unit_id ?? '');
+    $currentRole = (string) old('role', $user->role ?? 'staff');
+    $currentSupervisorId = (string) old('supervisor_id', $user->supervisor_id ?? '');
+    $unitSupervisorMeta = $units->mapWithKeys(fn ($unit) => [
+        (string) $unit->id => ['type' => $unit->type],
+    ])->all();
+    $supervisorOptionsData = collect($supervisorOptions ?? [])->map(fn ($supervisor) => [
+        'id' => (string) $supervisor->id,
+        'unit_id' => (string) $supervisor->unit_id,
+        'role' => $supervisor->role,
+        'name' => $supervisor->name,
+        'title' => $supervisor->job_title ?: __('common.role_' . $supervisor->role),
+        'unit' => $supervisor->unit?->name,
+    ])->values();
 @endphp
 
 @if ($errors->any())
@@ -55,14 +69,65 @@
 </section>
 
 {{-- Organisational structure --}}
-<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+<section class="rounded-xl border border-slate-200 bg-white shadow-sm"
+         x-data="{
+            selectedUnitId: {{ Js::from($currentUnitId) }},
+            selectedRole: {{ Js::from($currentRole) }},
+            selectedSupervisorId: {{ Js::from($currentSupervisorId) }},
+            units: {{ Js::from($unitSupervisorMeta) }},
+            supervisors: {{ Js::from($supervisorOptionsData) }},
+            supervisorRole() {
+                const unit = this.units[this.selectedUnitId];
+                if (!unit) return null;
+                if (unit.type === 'research_centre' && ['staff', 'manager', 'hr', 'system_admin'].includes(this.selectedRole)) return 'manager';
+                if (unit.type === 'hq_section' && ['staff', 'manager', 'hr', 'system_admin'].includes(this.selectedRole)) return 'head';
+                if (unit.type === 'hq_standalone' && ['staff', 'hr', 'system_admin'].includes(this.selectedRole)) return 'manager';
+                return null;
+            },
+            fixedSupervisor() {
+                const unit = this.units[this.selectedUnitId];
+                if (!unit) return null;
+
+                const reportsToDg =
+                    (unit.type === 'research_centre' && this.selectedRole === 'centre_manager') ||
+                    (unit.type === 'hq_standalone' && this.selectedRole === 'manager') ||
+                    (unit.type === 'hq_directorate' && this.selectedRole === 'director');
+
+                if (!reportsToDg) return null;
+
+                return this.supervisors.find((supervisor) => supervisor.role === 'director_general') || null;
+            },
+            filteredSupervisors() {
+                const fixed = this.fixedSupervisor();
+                if (fixed) return [fixed];
+
+                const role = this.supervisorRole();
+                if (!role) return [];
+                return this.supervisors.filter((supervisor) => supervisor.unit_id === String(this.selectedUnitId) && supervisor.role === role);
+            },
+            supervisorApplies() {
+                return this.fixedSupervisor() !== null || this.supervisorRole() !== null;
+            },
+            syncSupervisor() {
+                const fixed = this.fixedSupervisor();
+                if (fixed) {
+                    this.selectedSupervisorId = fixed.id;
+                    return;
+                }
+
+                if (!this.filteredSupervisors().some((supervisor) => supervisor.id === String(this.selectedSupervisorId))) {
+                    this.selectedSupervisorId = '';
+                }
+            },
+         }"
+         x-init="$watch('selectedUnitId', () => syncSupervisor()); $watch('selectedRole', () => syncSupervisor()); syncSupervisor();">
     <div class="px-6 py-4 border-b border-slate-100">
         <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-400">{{ __('users.form_org') }}</h3>
     </div>
     <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
         <div class="field">
             <label class="label">{{ __('users.field_unit') }} <span class="text-red-500">*</span></label>
-            <select name="unit_id" class="select @error('unit_id') input-error @enderror">
+            <select name="unit_id" x-model="selectedUnitId" class="select @error('unit_id') input-error @enderror">
                 <option value="">{{ __('users.field_unit_ph') }}</option>
                 @foreach ($units->groupBy('type') as $type => $group)
                 <optgroup label="{{ $unitTypeLabels[$type] ?? $type }}">
@@ -77,13 +142,38 @@
         </div>
         <div class="field">
             <label class="label">{{ __('users.field_role') }} <span class="text-red-500">*</span></label>
-            <select name="role" class="select @error('role') input-error @enderror" required>
+            <select name="role" x-model="selectedRole" class="select @error('role') input-error @enderror" required>
                 @foreach ($roleLabels as $key => $label)
                 <option value="{{ $key }}" {{ old('role', $user->role ?? 'staff') === $key ? 'selected' : '' }}>
                     {{ $label }}
                 </option>
                 @endforeach
             </select>
+        </div>
+        <div class="field md:col-span-2" x-show="supervisorApplies()" x-transition>
+            <label class="label">{{ __('users.field_supervisor') }}</label>
+            <input type="hidden"
+                   name="supervisor_id"
+                   :value="selectedSupervisorId"
+                   :disabled="fixedSupervisor() === null">
+            <select name="supervisor_id"
+                    x-model="selectedSupervisorId"
+                    :disabled="fixedSupervisor() !== null"
+                    class="select @error('supervisor_id') input-error @enderror disabled:bg-slate-50 disabled:text-slate-500">
+                <option value="">{{ __('users.field_supervisor_ph') }}</option>
+                <template x-for="supervisor in filteredSupervisors()" :key="supervisor.id">
+                    <option :value="supervisor.id" x-text="`${supervisor.name} - ${supervisor.title}`"></option>
+                </template>
+            </select>
+            <p class="mt-1 text-xs text-slate-500" x-show="fixedSupervisor() !== null">
+                {{ __('users.field_supervisor_auto') }}
+            </p>
+            <p class="mt-1 text-xs text-slate-400" x-show="filteredSupervisors().length === 0">
+                {{ __('users.field_supervisor_empty') }}
+            </p>
+            @error('supervisor_id')
+            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
         </div>
         <div class="flex items-center gap-3 pt-1 self-end pb-0.5 md:col-span-2">
             <input type="checkbox" name="is_active" id="is_active" value="1"

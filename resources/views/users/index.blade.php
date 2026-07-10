@@ -100,6 +100,7 @@
                     <th class="table-th">{{ __('users.col_user') }}</th>
                     <th class="table-th hidden lg:table-cell">{{ __('users.col_unit') }}</th>
                     <th class="table-th">{{ __('users.col_role') }}</th>
+                    <th class="table-th hidden xl:table-cell">{{ __('users.col_supervisor') }}</th>
                     <th class="table-th hidden sm:table-cell">{{ __('users.col_status') }}</th>
                     <th class="table-th w-24 text-right">{{ __('users.col_actions') }}</th>
                 </tr>
@@ -144,6 +145,16 @@
                             {{ __('common.role_' . $user->role) }}
                         </span>
                     </td>
+                    <td class="table-td hidden xl:table-cell">
+                        @if ($user->supervisor)
+                            <div class="text-sm text-slate-700">{{ $user->supervisor->name }}</div>
+                            <div class="text-xs text-slate-400 mt-0.5">
+                                {{ $user->supervisor->job_title ?? __('common.role_' . $user->supervisor->role) }}
+                            </div>
+                        @else
+                            <span class="text-sm text-slate-300">&mdash;</span>
+                        @endif
+                    </td>
                     <td class="table-td hidden sm:table-cell">
                         @if ($user->is_active)
                             <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
@@ -165,7 +176,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="px-6 py-16 text-center">
+                    <td colspan="6" class="px-6 py-16 text-center">
                         <div class="flex flex-col items-center gap-3">
                             <div class="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
                                 <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>

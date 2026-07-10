@@ -40,6 +40,8 @@ return [
     'field_unit_ph'     => '— Select unit —',
     'field_role'        => 'Role',
     'field_supervisor'  => 'Direct Supervisor',
+    'field_supervisor_auto'=> 'Automatically assigned from the organisational reporting line.',
+    'field_supervisor_empty'=> 'No active eligible supervisor is available for the selected unit and role.',
     'field_supervisor_ph'=> '— No supervisor —',
     'field_is_active'   => 'Active account',
     'field_password'    => 'Password',
@@ -48,6 +50,7 @@ return [
     'invite_notice'     => 'An invitation email will be sent to this address with a link to set their password. No password is required now.',
     'invited_success'           => ':name has been added and an invitation email has been sent.',
     'deactivate_pending_warning'=> 'Cannot deactivate: this user has :count pending approval(s). Reassign or resolve those requests first.',
+    'dg_supervisor_missing'     => 'No active Director General is configured to assign as this user\'s supervisor.',
 
     // Index page
     'search_placeholder' => 'Search by name, email, or staff number…',
@@ -63,7 +66,7 @@ return [
 
     // Edit sidebar
     'edit_note_title'    => 'Note',
-    'edit_note_body'     => 'Changing a user\'s role or unit takes effect on their next submitted travel request.',
+    'edit_note_body'     => 'Changing a user\'s role, unit, or supervisor takes effect on their next submitted travel request.',
 
     // Role guide descriptions
     'role_desc_staff'            => 'Submits travel requests. No approval responsibilities.',

@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ApprovalAction;
 use App\Models\TravelRequest;
-use App\Models\User;
-use Illuminate\Database\Eloquent\Collection;
+use App\Services\SupervisorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -12,18 +12,21 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function __construct(private SupervisorService $supervisors) {}
+
     public function __invoke(): View
     {
         $user = auth()->user();
         $user->load(['unit', 'supervisor.unit']);
+        $this->supervisors->applyFixedSupervisor($user);
+        $user->load(['unit', 'supervisor.unit']);
 
-        // My own requests
         $myRequests = TravelRequest::with(['requester', 'unit', 'currentApprover'])
             ->where('requester_id', $user->id)
-            ->latest()->get();
+            ->latest()
+            ->get();
 
-        // Requests I need to act on OR have already acted on (approval queue)
-        $actedOnIds = \App\Models\ApprovalAction::where('actor_id', $user->id)
+        $actedOnIds = ApprovalAction::where('actor_id', $user->id)
             ->pluck('travel_request_id');
 
         $approvalRequests = collect();
@@ -32,12 +35,12 @@ class DashboardController extends Controller
                 ->where('requester_id', '!=', $user->id)
                 ->where(function ($q) use ($user, $actedOnIds) {
                     $q->where('current_approver_id', $user->id)
-                      ->orWhereIn('id', $actedOnIds);
+                        ->orWhereIn('id', $actedOnIds);
                 })
-                ->latest()->get();
+                ->latest()
+                ->get();
         }
 
-        // HR and DG see an org-wide view — but DG only sees what is relevant to them.
         $allRequests = collect();
         if ($user->isHr() || $user->isDirectorGeneral()) {
             $query = TravelRequest::with(['requester', 'unit', 'currentApprover']);
@@ -45,12 +48,10 @@ class DashboardController extends Controller
                 $query->where('unit_id', $user->unit_id);
             }
             if ($user->isDirectorGeneral()) {
-                // Show DG: pending requests at their stage + all resolved/returned requests.
-                // Exclude drafts and requests still pending at a lower stage.
                 $query->where(function ($q) use ($user) {
                     $q->where(function ($inner) use ($user) {
                         $inner->where('status', TravelRequest::STATUS_PENDING)
-                              ->where('current_approver_id', $user->id);
+                            ->where('current_approver_id', $user->id);
                     })->orWhereIn('status', [
                         TravelRequest::STATUS_APPROVED,
                         TravelRequest::STATUS_REJECTED,
@@ -66,24 +67,26 @@ class DashboardController extends Controller
             ->where('current_approver_id', $user->id)
             ->where('status', 'pending');
 
-        $statsBase = $user->isHr() || $user->isDirectorGeneral() ? $allRequests : $myRequests->merge($approvalRequests);
+        $statsBase = $user->isHr() || $user->isDirectorGeneral()
+            ? $allRequests
+            : $myRequests->merge($approvalRequests);
 
-        $supervisorCandidates = $this->supervisorCandidatesFor($user);
-        $supervisorRequired   = $this->supervisorRequiredFor($user);
+        $supervisorCandidates = $this->supervisors->candidatesFor($user);
+        $supervisorRequired = $this->supervisors->isRequiredFor($user);
 
         return view('dashboard', [
-            'user'                 => $user,
-            'myRequests'           => $myRequests,
-            'approvalRequests'     => $approvalRequests,
-            'allRequests'          => $allRequests,
-            'needsMyAction'        => $needsMyAction,
-            'supervisor'           => $user->supervisor,
+            'user' => $user,
+            'myRequests' => $myRequests,
+            'approvalRequests' => $approvalRequests,
+            'allRequests' => $allRequests,
+            'needsMyAction' => $needsMyAction,
+            'supervisor' => $user->supervisor,
             'supervisorCandidates' => $supervisorCandidates,
-            'supervisorRequired'   => $supervisorRequired,
-            'totalRequests'        => $statsBase->count(),
-            'pendingCount'         => $statsBase->where('status', 'pending')->count(),
-            'approvedCount'        => $statsBase->where('status', 'approved')->count(),
-            'rejectedCount'        => $statsBase->where('status', 'rejected')->count(),
+            'supervisorRequired' => $supervisorRequired,
+            'totalRequests' => $statsBase->count(),
+            'pendingCount' => $statsBase->where('status', 'pending')->count(),
+            'approvedCount' => $statsBase->where('status', 'approved')->count(),
+            'rejectedCount' => $statsBase->where('status', 'rejected')->count(),
         ]);
     }
 
@@ -92,6 +95,11 @@ class DashboardController extends Controller
         $user = $request->user();
 
         abort_if($user->isDirectorGeneral(), 403);
+
+        if ($this->supervisors->applyFixedSupervisor($user)) {
+            return redirect()->route('dashboard')
+                ->with('status', __('dashboard.supervisor_updated'));
+        }
 
         $validated = $request->validate([
             'supervisor_id' => ['nullable', 'integer'],
@@ -106,9 +114,7 @@ class DashboardController extends Controller
                 ->with('status', __('dashboard.supervisor_updated'));
         }
 
-        $candidateIds = $this->supervisorCandidatesFor($user)->pluck('id')->all();
-
-        if (!in_array((int) $supervisorId, $candidateIds, true)) {
+        if (!$this->supervisors->isValidCandidate((int) $supervisorId, $user->unit, $user->role, $user->id)) {
             throw ValidationException::withMessages([
                 'supervisor_id' => __('dashboard.supervisor_invalid'),
             ]);
@@ -118,64 +124,5 @@ class DashboardController extends Controller
 
         return redirect()->route('dashboard')
             ->with('status', __('dashboard.supervisor_updated'));
-    }
-
-    private function supervisorCandidatesFor(User $user): Collection
-    {
-        if (!$user->unit_id || !$user->unit) {
-            return new Collection();
-        }
-
-        $unit = $user->unit;
-
-        // Research centre staff/manager → pick from managers in their own centre.
-        if ($unit->type === 'research_centre' && in_array($user->role, ['staff', 'manager', 'hr', 'system_admin'])) {
-            return User::query()
-                ->where('unit_id', $user->unit_id)
-                ->where('id', '!=', $user->id)
-                ->where('is_active', true)
-                ->where('role', 'manager')
-                ->orderBy('name')
-                ->get();
-        }
-
-        // HQ section staff/manager → pick from heads in their own section.
-        if ($unit->type === 'hq_section' && in_array($user->role, ['staff', 'manager', 'hr', 'system_admin'])) {
-            return User::query()
-                ->where('unit_id', $user->unit_id)
-                ->where('id', '!=', $user->id)
-                ->where('is_active', true)
-                ->where('role', 'head')
-                ->orderBy('name')
-                ->get();
-        }
-
-        // HQ standalone staff → pick from managers in their own unit.
-        if ($unit->type === 'hq_standalone' && in_array($user->role, ['staff', 'hr', 'system_admin'])) {
-            return User::query()
-                ->where('unit_id', $user->unit_id)
-                ->where('id', '!=', $user->id)
-                ->where('is_active', true)
-                ->where('role', 'manager')
-                ->orderBy('name')
-                ->get();
-        }
-
-        // All other roles (head, director, centre_manager, DG, HR) don't need a supervisor.
-        return new Collection();
-    }
-
-    private function supervisorRequiredFor(User $user): bool
-    {
-        if (!$user->unit_id || !$user->unit) {
-            return false;
-        }
-
-        return match($user->unit->type) {
-            'research_centre' => in_array($user->role, ['staff', 'manager', 'hr', 'system_admin']),
-            'hq_section'      => in_array($user->role, ['staff', 'manager', 'hr', 'system_admin']),
-            'hq_standalone'   => in_array($user->role, ['staff', 'hr', 'system_admin']),
-            default           => false,
-        };
     }
 }

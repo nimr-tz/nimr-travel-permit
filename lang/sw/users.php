@@ -40,6 +40,8 @@ return [
     'field_unit_ph'     => '— Chagua kitengo —',
     'field_role'        => 'Wadhifu / Role',
     'field_supervisor'  => 'Msimamizi wa Moja kwa Moja',
+    'field_supervisor_auto'=> 'Amewekwa moja kwa moja kulingana na muundo wa kuripoti.',
+    'field_supervisor_empty'=> 'Hakuna msimamizi hai anayefaa kwa kitengo na wadhifu uliouchagua.',
     'field_supervisor_ph'=> '— Hakuna msimamizi —',
     'field_is_active'   => 'Akaunti hai (Active)',
     'field_password'    => 'Nenosiri',
@@ -48,6 +50,7 @@ return [
     'invite_notice'     => 'Barua pepe ya mwaliko itatumwa kwa anwani hii na kiungo cha kuweka nenosiri. Hakuna nenosiri linalohitajika sasa.',
     'invited_success'           => ':name ameongezwa na barua pepe ya mwaliko imetumwa.',
     'deactivate_pending_warning'=> 'Haiwezekani kuzima: mtumiaji huyu ana idhini :count zinazosubiri. Panga upya au tatua maombi hayo kwanza.',
+    'dg_supervisor_missing'     => 'Hakuna Mkurugenzi Mkuu aliye hai wa kuwekwa kama msimamizi wa mtumiaji huyu.',
 
     // Index page
     'search_placeholder' => 'Tafuta kwa jina, barua pepe, au nambari ya utumishi…',
@@ -63,7 +66,7 @@ return [
 
     // Edit sidebar
     'edit_note_title'    => 'Kumbuka',
-    'edit_note_body'     => 'Kubadilisha wadhifu au kitengo cha mtumiaji kutaathiri ombi lake la safari lijalo.',
+    'edit_note_body'     => 'Kubadilisha wadhifu, kitengo, au msimamizi wa mtumiaji kutaathiri ombi lake la safari lijalo.',
 
     // Role guide descriptions
     'role_desc_staff'            => 'Inawasilisha maombi ya safari. Haina jukumu la idhini.',

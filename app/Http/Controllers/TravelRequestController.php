@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\TravelRequestHrCopyNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
+use App\Services\SupervisorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,10 @@ use Illuminate\View\View;
 
 class TravelRequestController extends Controller
 {
-    public function __construct(private ApprovalChainService $chainService) {}
+    public function __construct(
+        private ApprovalChainService $chainService,
+        private SupervisorService $supervisors,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -396,18 +400,11 @@ class TravelRequestController extends Controller
 
     private function missingSupervisor(User $user): bool
     {
-        $user->loadMissing('unit');
-
-        if (!$user->unit_id || !$user->unit || $user->supervisor_id) {
+        if ($this->supervisors->applyFixedSupervisor($user)) {
             return false;
         }
 
-        return match($user->unit->type) {
-            'research_centre' => in_array($user->role, ['staff', 'manager', 'hr', 'system_admin']),
-            'hq_section'      => in_array($user->role, ['staff', 'manager', 'hr', 'system_admin']),
-            'hq_standalone'   => in_array($user->role, ['staff', 'hr', 'system_admin']),
-            default           => false,
-        };
+        return !$user->supervisor_id && $this->supervisors->isRequiredFor($user);
     }
 
     private function findOverlappingRequest(int $userId, string $departure, string $return, int $excludeId): ?TravelRequest
