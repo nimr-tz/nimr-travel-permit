@@ -287,6 +287,23 @@ class ExampleTest extends TestCase
         $this->assertSame($dg->id, $user->refresh()->supervisor_id);
     }
 
+    public function test_edit_form_exposes_dg_for_stale_direct_manager_without_saved_supervisor(): void
+    {
+        $admin = User::factory()->systemAdmin()->create();
+        $dg = User::factory()->directorGeneral()->create(['name' => 'Director General User']);
+        $unit = Unit::factory()->hqStandalone()->create();
+        $manager = User::factory()->manager()->create([
+            'unit_id' => $unit->id,
+            'supervisor_id' => null,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('users.edit', $manager));
+
+        $response->assertOk();
+        $response->assertSee('Director General User');
+        $response->assertSee(__('users.field_supervisor_auto'));
+    }
+
     public function test_centre_manager_is_automatically_assigned_dg_as_supervisor(): void
     {
         Notification::fake();

@@ -97,6 +97,10 @@
 
                 return this.supervisors.find((supervisor) => supervisor.role === 'director_general') || null;
             },
+            fixedSupervisorLabel() {
+                const fixed = this.fixedSupervisor();
+                return fixed ? `${fixed.name} - ${fixed.title}` : '';
+            },
             filteredSupervisors() {
                 const fixed = this.fixedSupervisor();
                 if (fixed) return [fixed];
@@ -154,10 +158,16 @@
             <label class="label">{{ __('users.field_supervisor') }}</label>
             <input type="hidden"
                    name="supervisor_id"
-                   :value="selectedSupervisorId"
+                   :value="fixedSupervisor() ? fixedSupervisor().id : ''"
                    :disabled="fixedSupervisor() === null">
+            <input type="text"
+                   class="input bg-slate-50 text-slate-600"
+                   :value="fixedSupervisorLabel()"
+                   x-show="fixedSupervisor() !== null"
+                   readonly>
             <select name="supervisor_id"
                     x-model="selectedSupervisorId"
+                    x-show="fixedSupervisor() === null"
                     :disabled="fixedSupervisor() !== null"
                     class="select @error('supervisor_id') input-error @enderror disabled:bg-slate-50 disabled:text-slate-500">
                 <option value="">{{ __('users.field_supervisor_ph') }}</option>
