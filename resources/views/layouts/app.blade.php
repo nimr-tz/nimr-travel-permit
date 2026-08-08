@@ -59,6 +59,7 @@
                         $navItems[] = ['route' => 'hr.reports.index', 'label' => __('nav.hr_reports'), 'icon' => 'chart-bar', 'badge' => null, 'pattern' => 'hr.reports.*'];
                     }
                     if ($user->isDirectorGeneral()) {
+                        $navItems[] = ['route' => 'travel-reports.index', 'label' => __('nav.travel_reports'), 'icon' => 'chart-bar', 'badge' => null, 'pattern' => 'travel-reports.*'];
                         $navItems[] = ['route' => 'approvals.index', 'label' => __('nav.approvals'), 'icon' => 'check-circle', 'badge' => $pendingCount ?: null, 'pattern' => 'approvals.*'];
                     }
                 } else {
@@ -66,6 +67,9 @@
                     $navItems[] = ['route' => 'travel-requests.create', 'label' => __('nav.new_request'), 'icon' => 'plus-circle', 'badge' => null, 'pattern' => 'travel-requests.create'];
                     if ($user->isApprover()) {
                         $navItems[] = ['route' => 'approvals.index', 'label' => __('nav.approvals'), 'icon' => 'check-circle', 'badge' => $pendingCount ?: null, 'pattern' => 'approvals.*'];
+                    }
+                    if ($user->isSystemAdmin()) {
+                        $navItems[] = ['route' => 'travel-reports.index', 'label' => __('nav.travel_reports'), 'icon' => 'chart-bar', 'badge' => null, 'pattern' => 'travel-reports.*'];
                     }
                 }
             @endphp
@@ -155,6 +159,7 @@
                         request()->routeIs('travel-requests.*')       => ($topbarUser->isHr() || $topbarUser->isDirectorGeneral()) ? __('nav.all_requests') : __('nav.my_requests'),
                         request()->routeIs('approvals.*')             => __('nav.approvals'),
                         request()->routeIs('hr.reports.*')            => __('nav.hr_reports'),
+                        request()->routeIs('travel-reports.*')        => __('nav.travel_reports'),
                         request()->routeIs('users.*')                 => __('nav.users'),
                         request()->routeIs('profile.*')               => __('nav.profile'),
                         default                                       => config('app.name'),

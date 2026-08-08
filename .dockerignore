@@ -1,0 +1,62 @@
+# The Dockerfile uses `COPY . .`; without this file a local build bakes
+# secrets, databases, logs and uploads straight into the published image.
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+auth.json
+
+# Local Apache backstop only. It denies everything, which is correct for a
+# developer machine where this folder sits under a document root, and wrong
+# inside the image, where the web container serves public/ directly. Shipping
+# it would take the site down if that container ever reads .htaccess.
+.htaccess
+
+# Databases
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+database/*.sqlite
+
+# Runtime state: logs, caches, sessions, private uploads
+storage/app/private
+storage/app/public
+storage/debugbar
+storage/framework/cache/data
+storage/framework/sessions
+storage/framework/testing
+storage/framework/views
+storage/logs
+bootstrap/cache/*.php
+public/storage
+
+# Dependencies — reinstalled inside the image
+node_modules
+vendor
+
+# Version control and CI
+.git
+.github
+.gitattributes
+.gitignore
+
+# Editor and OS noise
+.claude
+.editorconfig
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Tests and local build artefacts
+tests
+phpunit.xml
+.phpunit.result.cache
+.phpunit.cache
+
+# Docs and non-shipping assets
+*.md
+docs
+*.pdf

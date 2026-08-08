@@ -101,6 +101,8 @@
         .sig-item { display: flex; align-items: flex-end; gap: 6px; }
         .sig-line { border-bottom: 1px solid #000; width: 120px; min-height: 16px; }
         .sig-line-wide { width: 180px; }
+        /* Decision stamp — replaces the wet signature and rubber stamp lines */
+        .stamp { width: 90px; height: auto; }
 
         /* Approval section box */
         .approval-section {
@@ -207,9 +209,7 @@
             <p><strong>(iii)</strong> Fomu hii itajazwa na kila Mtumishi wa Taasisi atakayesafiri kwa shughuli za kiofisi ndani ya nchi.</p>
             <p><strong>(iv)</strong> Fomu ambayo haikujazwa kikamilifu kuonesha taarifa zote muhimu na kwa kiwango kinachoeleweka au imechelewa chini ya siku zilizotajwa hapo juu haitashughulikiwa na hivyo Mtumishi atakuwa amejinyima ruhusa mwenyewe ya kusafiri.</p>
             <p><strong>(v)</strong> Ndani ya kipindi cha wiki mbili baada ya kurudi kutoka safarini Mtumishi anatakiwa kuwasilisha ripoti ya safari kwa Mkurugenzi Mkuu kupitia kwa Mkurugenzi wa Idara/ Meneja wa Kituo au Mkuu wa Idara anapofanyia kazi. Nakala ya ripoti hii pia iwasilishwe Ofisi ya Rasilimali Watu na Utawala.</p>
-            <p><strong>(vi)</strong> Fomu hii ikishajazwa kikamilifu na kibali kutolewa na mwenye Mamlaka, nakala moja ya fomu hii ikiwa imeshawekwa mhuri wa Mkurugenzi Mkuu au Mkurugenzi wa Kituo irudishwe Ofisi ya Rasilimali Watu na Utawala.</p>
-            <p><strong>(vii)</strong> Safari za dharura zitatumia utaratibu wa dharura.</p>
-            <p><strong>(viii)</strong> Fomu hii itajazwa nakala mbili (2).</p>
+            <p><strong>(vi)</strong> Safari za dharura zitatumia utaratibu wa dharura.</p>
         </div>
     </div>
 
@@ -354,12 +354,10 @@
 
         <div class="sig-row" style="margin-top:10px;">
             <div class="sig-item">
-                <span>Saini ya anayesafiri:</span>
-                <span class="sig-line sig-line-wide"></span>
+                <span>Imewasilishwa kielektroniki na: <strong>{{ $tr->b_applicant_name }}</strong></span>
             </div>
             <div class="sig-item">
-                <span>Tarehe:</span>
-                <span class="sig-line">{{ $tr->f_traveller_signed_date?->format('d/m/Y') }}</span>
+                <span>Tarehe: <strong>{{ $tr->submitted_at?->format('d/m/Y') ?? '—' }}</strong></span>
             </div>
         </div>
     </div>
@@ -424,25 +422,23 @@
                 <span>Cheo: <strong>{{ $action->actor?->job_title }}</strong></span>
             </div>
         </div>
-        <div class="sig-row" style="margin-top:6px;">
+        <div class="sig-row" style="margin-top:6px; align-items:center;">
             <div class="sig-item">
-                <span>Saini:</span>
-                <span class="sig-line sig-line-wide"></span>
+                <span>Tarehe: <strong>{{ $action->acted_at->format('d/m/Y') }}</strong></span>
             </div>
+            @if (in_array($action->decision, ['approved', 'rejected'], true))
             <div class="sig-item">
-                <span>Tarehe:</span>
-                <span class="sig-line">{{ $action->acted_at->format('d/m/Y') }}</span>
+                <img src="{{ asset('images/stamp-'.$action->decision.'.png') }}"
+                     alt="{{ $action->decision }}" class="stamp">
             </div>
-            <div class="sig-item">
-                <span>Mhuri wa Ofisi:</span>
-                <span class="sig-line sig-line-wide"></span>
-            </div>
+            @endif
         </div>
     </div>
     @endforeach
 
-    {{-- Pending approval sections (blank) --}}
-    @if ($tr->approval_chain)
+    {{-- Pending approval sections (blank) — not for a request that is already
+         finished, where the remaining steps will never be taken. --}}
+    @if ($tr->approval_chain && ! in_array($tr->status, ['rejected', 'cancelled'], true))
     @php
         $completedStages = $tr->approvalActions->pluck('stage')->toArray();
         $pendingSteps = collect($tr->approval_chain)->filter(fn($s) => !in_array($s['stage'], $completedStages));
@@ -466,11 +462,7 @@
             @endif
         </div>
         @endif
-        <div class="sig-row" style="margin-top:8px;">
-            <div class="sig-item"><span>Saini:</span><span class="sig-line sig-line-wide"></span></div>
-            <div class="sig-item"><span>Tarehe:</span><span class="sig-line"></span></div>
-            <div class="sig-item"><span>Mhuri wa Ofisi:</span><span class="sig-line sig-line-wide"></span></div>
-        </div>
+        <p style="margin-top:8px; font-size:9pt;"><em>Inasubiri uamuzi.</em></p>
     </div>
     @endforeach
     @endif

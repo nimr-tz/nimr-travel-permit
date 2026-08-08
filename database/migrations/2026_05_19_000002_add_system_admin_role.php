@@ -18,24 +18,49 @@ return new class extends Migration
 
     public function up(): void
     {
-        if (DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('staff','head','manager','director','centre_manager','director_general','hr','system_admin') NOT NULL DEFAULT 'staff'");
-            return;
-        }
-
-        $this->rebuildUsersTable($this->roles);
+        $this->applyRoles($this->roles);
     }
 
     public function down(): void
     {
-        if (DB::getDriverName() === 'mysql') {
-            DB::statement("UPDATE users SET role = 'staff' WHERE role = 'system_admin'");
-            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('staff','head','manager','director','centre_manager','director_general','hr') NOT NULL DEFAULT 'staff'");
-            return;
-        }
-
         DB::table('users')->where('role', 'system_admin')->update(['role' => 'staff']);
-        $this->rebuildUsersTable(array_filter($this->roles, fn ($role) => $role !== 'system_admin'));
+
+        $this->applyRoles(array_values(array_filter($this->roles, fn ($role) => $role !== 'system_admin')));
+    }
+
+    /**
+     * Constrain users.role to the given set, per database engine. Dispatch is
+     * explicit: the SQLite table rebuild below is not valid SQL anywhere else,
+     * so an unrecognised driver must fail loudly rather than run it.
+     */
+    private function applyRoles(array $roles): void
+    {
+        $driver = DB::getDriverName();
+
+        match ($driver) {
+            'mysql', 'mariadb' => $this->applyRolesMysql($roles),
+            'pgsql' => $this->applyRolesPostgres($roles),
+            'sqlite' => $this->rebuildUsersTable($roles),
+            default => throw new RuntimeException(
+                "Cannot constrain users.role on unsupported database driver [{$driver}]."
+            ),
+        };
+    }
+
+    private function applyRolesMysql(array $roles): void
+    {
+        $roleList = implode("','", $roles);
+
+        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('{$roleList}') NOT NULL DEFAULT 'staff'");
+    }
+
+    private function applyRolesPostgres(array $roles): void
+    {
+        $roleList = implode("','", $roles);
+
+        // Laravel renders an enum column as varchar plus a CHECK constraint.
+        DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
+        DB::statement("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role::text IN ('{$roleList}'))");
     }
 
     private function rebuildUsersTable(array $roles): void

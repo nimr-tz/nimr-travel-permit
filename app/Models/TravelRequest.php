@@ -10,11 +10,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TravelRequest extends Model
 {
     use HasFactory;
-    const STATUS_DRAFT     = 'draft';
-    const STATUS_PENDING   = 'pending';
-    const STATUS_APPROVED  = 'approved';
-    const STATUS_REJECTED  = 'rejected';
-    const STATUS_RETURNED  = 'returned';
+
+    const STATUS_DRAFT = 'draft';
+
+    const STATUS_PENDING = 'pending';
+
+    const STATUS_APPROVED = 'approved';
+
+    const STATUS_REJECTED = 'rejected';
+
+    const STATUS_RETURNED = 'returned';
+
     const STATUS_CANCELLED = 'cancelled';
 
     const STATUSES = [
@@ -27,20 +33,20 @@ class TravelRequest extends Model
     ];
 
     const STATUS_LABELS = [
-        self::STATUS_DRAFT     => 'Rasimu',
-        self::STATUS_PENDING   => 'Inasubiri Idhini',
-        self::STATUS_APPROVED  => 'Imeidhinishwa',
-        self::STATUS_REJECTED  => 'Imekataliwa',
-        self::STATUS_RETURNED  => 'Imerudishwa kwa Marekebisho',
+        self::STATUS_DRAFT => 'Rasimu',
+        self::STATUS_PENDING => 'Inasubiri Idhini',
+        self::STATUS_APPROVED => 'Imeidhinishwa',
+        self::STATUS_REJECTED => 'Imekataliwa',
+        self::STATUS_RETURNED => 'Imerudishwa kwa Marekebisho',
         self::STATUS_CANCELLED => 'Imefutwa',
     ];
 
     const STATUS_COLORS = [
-        self::STATUS_DRAFT     => 'bg-gray-100 text-gray-600',
-        self::STATUS_PENDING   => 'bg-amber-100 text-amber-700',
-        self::STATUS_APPROVED  => 'bg-green-100 text-green-700',
-        self::STATUS_REJECTED  => 'bg-red-100 text-red-700',
-        self::STATUS_RETURNED  => 'bg-orange-100 text-orange-700',
+        self::STATUS_DRAFT => 'bg-gray-100 text-gray-600',
+        self::STATUS_PENDING => 'bg-amber-100 text-amber-700',
+        self::STATUS_APPROVED => 'bg-green-100 text-green-700',
+        self::STATUS_REJECTED => 'bg-red-100 text-red-700',
+        self::STATUS_RETURNED => 'bg-orange-100 text-orange-700',
         self::STATUS_CANCELLED => 'bg-gray-100 text-gray-400',
     ];
 
@@ -62,6 +68,8 @@ class TravelRequest extends Model
 
         // Section C
         'c_travel_source',
+        'c_invitation_document',
+        'c_invitation_original_name',
 
         // Section D
         'd_benefit_to_institution',
@@ -105,11 +113,11 @@ class TravelRequest extends Model
     protected function casts(): array
     {
         return [
-            'b_departure_date'        => 'date',
-            'b_return_date'           => 'date',
+            'b_departure_date' => 'date',
+            'b_return_date' => 'date',
             'f_traveller_signed_date' => 'date',
-            'approval_chain'          => 'array',
-            'submitted_at'            => 'datetime',
+            'approval_chain' => 'array',
+            'submitted_at' => 'datetime',
             'travel_report_submitted_at' => 'datetime',
             'travel_report_last_reminded_at' => 'datetime',
             'travel_report_reminder_count' => 'integer',
@@ -143,25 +151,31 @@ class TravelRequest extends Model
 
     public function isCancellable(): bool
     {
-        if (!in_array($this->status, [self::STATUS_DRAFT, self::STATUS_PENDING, self::STATUS_RETURNED])) {
+        if (! in_array($this->status, [self::STATUS_DRAFT, self::STATUS_PENDING, self::STATUS_RETURNED])) {
             return false;
         }
 
-        return !$this->approvalActions()
+        return ! $this->approvalActions()
             ->where('decision', 'approved')
             ->exists();
     }
 
+    public function isTravelReportLocked(): bool
+    {
+        return filled($this->travel_report_document)
+            && $this->travel_report_submitted_at !== null;
+    }
+
     public function statusLabel(): string
     {
-        return __('common.status_' . $this->status, [], app()->getLocale())
+        return __('common.status_'.$this->status, [], app()->getLocale())
             ?: (self::STATUS_LABELS[$this->status] ?? ucfirst($this->status));
     }
 
     public static function getStatusLabels(): array
     {
         return array_combine(self::STATUSES, array_map(
-            fn($s) => __('common.status_' . $s),
+            fn ($s) => __('common.status_'.$s),
             self::STATUSES
         ));
     }

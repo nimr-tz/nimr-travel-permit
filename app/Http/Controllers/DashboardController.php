@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\ApprovalAction;
 use App\Models\TravelRequest;
+use App\Models\User;
+use App\Services\ApprovalChainService;
 use App\Services\SupervisorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -74,6 +76,21 @@ class DashboardController extends Controller
         $supervisorCandidates = $this->supervisors->candidatesFor($user);
         $supervisorRequired = $this->supervisors->isRequiredFor($user);
 
+        // Roles with no supervisor step (e.g. a section head) route straight to the
+        // approver derived from the unit hierarchy. Resolve who that is so the
+        // dashboard can name them instead of showing an empty "no supervisor" state.
+        $firstApprover = null;
+        if (!$supervisorRequired && !$user->supervisor && !$user->isDirectorGeneral()) {
+            try {
+                $chain = app(ApprovalChainService::class)->buildChain($user);
+                $firstApprover = isset($chain[0])
+                    ? User::find($chain[0]['approver_id'])
+                    : null;
+            } catch (\RuntimeException) {
+                $firstApprover = null;
+            }
+        }
+
         return view('dashboard', [
             'user' => $user,
             'myRequests' => $myRequests,
@@ -83,6 +100,7 @@ class DashboardController extends Controller
             'supervisor' => $user->supervisor,
             'supervisorCandidates' => $supervisorCandidates,
             'supervisorRequired' => $supervisorRequired,
+            'firstApprover' => $firstApprover,
             'totalRequests' => $statsBase->count(),
             'pendingCount' => $statsBase->where('status', 'pending')->count(),
             'approvedCount' => $statsBase->where('status', 'approved')->count(),

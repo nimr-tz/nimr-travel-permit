@@ -97,6 +97,14 @@
         {{-- ── LEFT (2/3): approval action + official form ──────────────── --}}
         <div class="xl:col-span-2 space-y-5">
 
+            {{-- Accumulated days out of office — advisory, shown to the traveller
+                 and to anyone reviewing the request --}}
+            @isset($travelDays)
+                <x-travel-days-warning
+                    :travel-days="$travelDays"
+                    :context="(int) $tr->requester_id === (int) auth()->id() ? 'requester' : 'approver'" />
+            @endisset
+
             {{-- Approval action form --}}
             @if ($tr->status === \App\Models\TravelRequest::STATUS_PENDING && (int)$tr->current_approver_id === (int)auth()->id())
             {{-- ▶ It's this user's turn: show the decision card --}}
@@ -337,6 +345,12 @@
                         <a href="{{ route('travel-requests.download', $tr) }}" class="btn-secondary btn-sm w-fit">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             {{ __('common.download') }} Handover Note
+                        </a>
+                        @endif
+                        @if ($tr->c_invitation_document)
+                        <a href="{{ route('travel-requests.invitation.download', $tr) }}" class="btn-secondary btn-sm w-fit">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            {{ __('travel.c_invitation_download') }}
                         </a>
                         @endif
                     </div>
@@ -715,6 +729,8 @@
                                 <p class="text-xs text-emerald-700 mt-0.5">
                                     {{ __('travel.report_submitted', ['date' => $tr->travel_report_submitted_at->format('d M Y, H:i')]) }}
                                 </p>
+                                @else
+                                <p class="text-xs text-amber-700 mt-0.5">{{ __('travel.report_unlocked_notice') }}</p>
                                 @endif
                             </div>
                             <a href="{{ route('travel-requests.report.download', $tr) }}" class="btn-secondary btn-sm shrink-0">
@@ -743,11 +759,17 @@
                           class="space-y-3 pt-1">
                         @csrf
 
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                            <p class="font-semibold">{{ __('travel.report_final_warning_title') }}</p>
+                            <p class="mt-1 text-xs leading-relaxed">{{ __('travel.report_final_warning') }}</p>
+                        </div>
+
                         <div class="field">
-                            <label class="label">{{ $tr->travel_report_document ? __('travel.report_replace') : __('travel.report_upload') }}</label>
+                            <label class="label">{{ $tr->travel_report_document ? __('travel.report_upload_correction') : __('travel.report_upload') }}</label>
                             <input type="file"
                                    name="travel_report_document"
                                    accept=".pdf"
+                                   required
                                    class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100">
                             <p class="mt-1.5 text-xs text-slate-500">{{ __('travel.report_file_hint') }}</p>
                             @error('travel_report_document')
@@ -766,16 +788,53 @@
                             @enderror
                         </div>
 
+                        <label class="flex items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                            <input type="checkbox" name="report_submission_confirmed" value="1" required
+                                   class="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                   @checked(old('report_submission_confirmed'))>
+                            <span>{{ __('travel.report_confirmation') }}</span>
+                        </label>
+                        @error('report_submission_confirmed')
+                        <p class="text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+
                         <button type="submit" class="btn-primary btn-sm">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            {{ $tr->travel_report_document ? __('travel.report_replace') : __('travel.report_upload') }}
+                            {{ $tr->travel_report_document ? __('travel.report_submit_correction') : __('travel.report_submit_final') }}
                         </button>
                     </form>
+                    @elseif ($tr->isTravelReportLocked())
+                    <p class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                        {{ __('travel.report_locked_notice') }}
+                    </p>
                     @elseif ($tr->status !== \App\Models\TravelRequest::STATUS_APPROVED)
                     <p class="text-xs text-slate-400">{{ __('travel.report_available_after_approval') }}</p>
                     @endif
+
+                    @can('unlockReport', $tr)
+                    <div x-data="{ confirming: false }" class="border-t border-slate-100 pt-4">
+                        <button x-show="!confirming" type="button" @click="confirming = true" class="text-xs font-semibold text-amber-700 hover:text-amber-900">
+                            {{ __('travel.report_unlock_action') }}
+                        </button>
+                        <div x-show="confirming" x-cloak class="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                            <p class="text-xs text-amber-800">{{ __('travel.report_unlock_warning') }}</p>
+                            <div class="mt-3 flex gap-2">
+                                <form method="POST" action="{{ route('travel-requests.report.unlock', $tr) }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">
+                                        {{ __('travel.report_unlock_confirm') }}
+                                    </button>
+                                </form>
+                                <button type="button" @click="confirming = false" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200">
+                                    {{ __('common.cancel') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    @endcan
                 </div>
             </div>
             @endif
@@ -856,7 +915,7 @@
                 this.selectedDecision = decision;
                 const c = {
                     approved: { title: @json(__('travel.modal_approve_title')), desc: @json(__('travel.modal_approve_desc')), label: @json(__('travel.approve_btn')), btn: 'bg-emerald-600 hover:bg-emerald-700', icon: 'bg-emerald-100 text-emerald-700', path: 'M5 13l4 4L19 7', act: () => { document.getElementById('approval-decision-input').value = 'approved'; document.getElementById('approval-form').submit(); } },
-                    returned:  { title: @json(__('travel.modal_return_title')), desc: @json(__('travel.modal_return_desc')), label: @json(__('travel.return_btn')), btn: 'bg-amber-500 hover:bg-amber-600', icon: 'bg-amber-100 text-amber-700', path: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', act: () => { document.getElementById('approval-decision-input').value = 'returned'; document.getElementById('approval-form').submit(); } },
+                    returned:  { title: @json(__('travel.modal_return_title')), desc: @json(($returnGoesToApplicant ?? true) ? __('travel.modal_return_desc') : __('travel.modal_return_desc_previous')), label: @json(__('travel.return_btn')), btn: 'bg-amber-500 hover:bg-amber-600', icon: 'bg-amber-100 text-amber-700', path: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', act: () => { document.getElementById('approval-decision-input').value = 'returned'; document.getElementById('approval-form').submit(); } },
                     rejected:  { title: @json(__('travel.modal_reject_title')), desc: @json(__('travel.modal_reject_desc')), label: @json(__('travel.reject_btn')), btn: 'bg-red-600 hover:bg-red-700', icon: 'bg-red-100 text-red-700', path: 'M6 18L18 6M6 6l12 12', act: () => { document.getElementById('approval-decision-input').value = 'rejected'; document.getElementById('approval-form').submit(); } },
                     cancel:    { title: @json(__('travel.modal_cancel_title')), desc: @json(__('travel.modal_cancel_desc')), label: @json(__('travel.cancel_request')), btn: 'bg-red-600 hover:bg-red-700', icon: 'bg-red-100 text-red-700', path: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16', act: () => document.getElementById('cancel-form').submit() },
                 };

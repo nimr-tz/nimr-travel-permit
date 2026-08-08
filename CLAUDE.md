@@ -37,7 +37,7 @@ The core domain is a multi-step travel permit approval workflow based on the off
 
 `draft` → `pending` → `approved` | `rejected` | `returned` | `cancelled`
 
-- `returned` — approver sent the request back for revision; requester can edit and resubmit
+- `returned` — the **first** approver sent the request back for revision; the chain and `submitted_at` are cleared and the requester can edit and resubmit. A return by a *later* approver does not reach this status: the request stays `pending` and steps back one place to the approver below, who re-reviews it. See "Return for Revision" below.
 - `cancelled` — requester cancelled; terminal state
 
 ### Roles
@@ -63,17 +63,35 @@ Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`
 
 Stages: `supervisor`, `director`, `final`. **HR is not an active approver.** DG (or centre_manager for centre staff) is always the final approver.
 
-HR role: receives email copy on submission and request outcomes (approved/rejected/returned). Has access to the HR Reports dashboard (`/hr/reports`) for full visibility across all requests.
+HR role: receives email copy on submission and request outcomes (approved/rejected/returned). Has access to the HR Reports dashboard (`/hr/reports`) — **HQ HR and the DG see the whole institute; a centre HR officer is scoped to their own centre** via `User::isCentreScopedViewer()`, which also scopes `/travel-reports`.
 
-`advance(TravelRequest, decision)` moves to next step (`approved`), marks as `rejected`, or marks as `returned` (resets chain/submitted_at for re-edit).
+`advance(TravelRequest, decision)` moves to the next step (`approved`), marks as `rejected`, or applies the return rules below.
+
+**Return for Revision** steps back exactly one place, never straight to the requester from mid-chain:
+
+| Returning approver | Result |
+|---|---|
+| First in the chain (or chain missing) | status `returned`, chain and `submitted_at` cleared, requester edits and resubmits |
+| Any later approver | stays `pending`, `current_approver_id` moves to the previous step; that approver re-reviews and decides whether to send it up again or return it further |
+
+`ApprovalChainService::returnGoesToRequester()` is the single source of truth for this and also picks the wording of the confirmation modal on the show page.
+
+On resubmission of a `returned` request the chain resumes at the approver who returned it. If the requester has since been transferred, the chain is rebuilt from their **current** unit and the request's `unit_id` moves with them.
 
 ### Authorization
 
 - `EnsureIsAdmin` middleware guards `/users` routes — only `system_admin`.
+- `EnsureAccountIsActive` runs on the whole `web` group: a user deactivated mid-session is logged out on their next request. Deactivating via `/users` also calls `SessionRevocationService` to delete their stored sessions and rotate `remember_token`.
 - HQ/global system admins can manage all users and assign all roles. Centre system admins can manage non-admin users in their own research centre only.
 - `ApprovalController` checks `current_approver_id === auth()->id()`.
-- `TravelRequestController` edit/update checks `requester_id === auth()->id()` and `isEditable()`.
+- `TravelRequestController` edit/update checks `requester_id === auth()->id()` and `isEditable()`, then re-checks it under `lockForUpdate()` inside the write transaction so a stale tab cannot overwrite a request that has moved on. `cancel` does the same with `isCancellable()`.
+- Traveller identity on the permit (`b_applicant_name`, `b_email`, `b_position`) is **never** accepted from the request body — `travellerIdentity()` fills it from the authenticated account.
+- Self-service account "deletion" (`ProfileController::destroy`) deactivates rather than deletes, and is refused while the user holds pending approvals or open requests. Hard deletion would null out requester/approver foreign keys and erase approval attribution.
 - Download checks requester, current approver, acted-on history, or HR/DG.
+
+### Serving the app
+
+Only `public/` may be exposed. The project must **not** be served from a document root that contains the repository — that makes `.env`, the SQLite database, `storage/logs`, and private handover uploads directly fetchable. `docs/apache-vhost.conf` holds a ready XAMPP virtual host (port 8080); the repo-root `.htaccess` denies everything as a backstop.
 
 ### Key Controllers
 
@@ -112,4 +130,8 @@ Status constants and colors are centralized on `TravelRequest` model — use `$t
 
 SQLite for development. For production, switch to MySQL or PostgreSQL by updating `.env` DB_* variables.
 
-Indexes added by migration `2026_05_15_200000_*` on: `status`, `current_approver_id`, `requester_id`, `unit_id`, `submitted_at`.
+`travel_requests` indexes on `status`, `current_approver_id`, `requester_id`, `unit_id`, `submitted_at`, plus a unique index on `request_number`, are owned by `2026_08_08_120000_restore_travel_request_indexes`. The earlier `2026_05_15_200000_*` created them but the SQLite table rebuild in `2026_05_18_113454_*` silently dropped them — **any future SQLite table rebuild must recreate them**, and that rebuild's `INSERT ... SELECT *` is positional, so it also depends on column order.
+
+Permit numbers come from `TravelRequestController::nextRequestNumber()`, derived from the highest number issued that year; the unique index plus a retry in `createWithRequestNumber()` is what actually prevents duplicates under concurrency.
+
+Migrations that alter enum/CHECK constraints must branch per driver (`mysql`, `pgsql`, `sqlite`) and fail loudly on anything else — see `2026_05_19_000002_add_system_admin_role`. `DatabaseSeeder` creates demo accounts with the password `password` and throws if run in production.

@@ -85,9 +85,10 @@ class ProfileTest extends TestCase
         Storage::disk('public')->assertExists($user->avatar_path);
     }
 
-    public function test_user_can_delete_their_account(): void
+    public function test_closing_an_account_deactivates_it_and_keeps_the_record(): void
     {
         $user = User::factory()->create();
+        $rememberToken = $user->remember_token;
 
         $response = $this
             ->actingAs($user)
@@ -100,7 +101,12 @@ class ProfileTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertGuest();
-        $this->assertNull($user->fresh());
+
+        // The row survives so travel requests and approval history keep their
+        // attribution; the account simply stops working.
+        $user->refresh();
+        $this->assertFalse((bool) $user->is_active);
+        $this->assertNotSame($rememberToken, $user->remember_token);
     }
 
     public function test_correct_password_must_be_provided_to_delete_account(): void

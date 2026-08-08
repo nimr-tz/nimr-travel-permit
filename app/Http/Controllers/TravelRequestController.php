@@ -2,18 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\StaleRequestException;
 use App\Models\TravelRequest;
 use App\Models\User;
-use App\Notifications\TravelReportSubmittedNotification;
 use App\Notifications\TravelRequestHrCopyNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
 use App\Services\SupervisorService;
+use App\Services\TravelDaysService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class TravelRequestController extends Controller
@@ -25,7 +30,7 @@ class TravelRequestController extends Controller
 
     public function index(Request $request): View
     {
-        $user  = auth()->user();
+        $user = auth()->user();
         $query = TravelRequest::with(['requester', 'unit', 'currentApprover']);
 
         if ($user->isHr()) {
@@ -38,7 +43,7 @@ class TravelRequestController extends Controller
             $query->where(function ($q) use ($user) {
                 $q->where(function ($inner) use ($user) {
                     $inner->where('status', TravelRequest::STATUS_PENDING)
-                          ->where('current_approver_id', $user->id);
+                        ->where('current_approver_id', $user->id);
                 })->orWhereIn('status', [
                     TravelRequest::STATUS_APPROVED,
                     TravelRequest::STATUS_REJECTED,
@@ -57,13 +62,13 @@ class TravelRequestController extends Controller
         if ($search = $request->get('q')) {
             $query->where(function ($q) use ($search) {
                 $q->where('b_applicant_name', 'like', "%{$search}%")
-                  ->orWhere('b_destination', 'like', "%{$search}%")
-                  ->orWhere('request_number', 'like', "%{$search}%");
+                    ->orWhere('b_destination', 'like', "%{$search}%")
+                    ->orWhere('request_number', 'like', "%{$search}%");
             });
             $baseQuery->where(function ($q) use ($search) {
                 $q->where('b_applicant_name', 'like', "%{$search}%")
-                  ->orWhere('b_destination', 'like', "%{$search}%")
-                  ->orWhere('request_number', 'like', "%{$search}%");
+                    ->orWhere('b_destination', 'like', "%{$search}%")
+                    ->orWhere('request_number', 'like', "%{$search}%");
             });
         }
 
@@ -74,11 +79,11 @@ class TravelRequestController extends Controller
             }
         }
 
-        $requests     = $query->latest()->paginate(15)->withQueryString();
+        $requests = $query->latest()->paginate(15)->withQueryString();
         $statusCounts = $baseQuery->selectRaw('status, count(*) as cnt')
-                                  ->groupBy('status')
-                                  ->pluck('cnt', 'status')
-                                  ->toArray();
+            ->groupBy('status')
+            ->pluck('cnt', 'status')
+            ->toArray();
 
         return view('travel-requests.index', compact('requests', 'user', 'statusCounts'));
     }
@@ -87,42 +92,54 @@ class TravelRequestController extends Controller
     {
         $user = auth()->user();
 
+        if ($missingReport = $this->missingRequiredTravelReport($user)) {
+            return redirect()->route('travel-requests.show', $missingReport)
+                ->with('error', __('travel.report_required_before_new_request'));
+        }
+
         if ($this->missingSupervisor($user)) {
             return redirect()->route('dashboard')
                 ->with('status', __('dashboard.supervisor_required_to_submit'));
         }
 
         $handoverUsers = $this->handoverUserList();
-        return view('travel-requests.create', compact('user', 'handoverUsers'));
+        $travelDays = $this->travelDaysSummary($user);
+
+        return view('travel-requests.create', compact('user', 'handoverUsers', 'travelDays'));
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $isDraft   = $request->input('action') === 'draft';
+        $user = $request->user();
+
+        if ($missingReport = $this->missingRequiredTravelReport($user)) {
+            return redirect()->route('travel-requests.show', $missingReport)
+                ->with('error', __('travel.report_required_before_new_request'));
+        }
+
+        $isDraft = $request->input('action') === 'draft';
         $validated = $this->validateForm($request, withFile: true, isDraft: $isDraft);
 
-        if (!$isDraft) {
+        if (! $isDraft) {
             $this->checkAtLeastOneCost($validated);
         }
 
-        $user = $request->user();
-
-        if (!$isDraft && $this->missingSupervisor($user)) {
+        if (! $isDraft && $this->missingSupervisor($user)) {
             return redirect()->route('dashboard')
                 ->with('status', __('dashboard.supervisor_required_to_submit'));
         }
 
-        $chain             = null;
+        $chain = null;
         $currentApproverId = null;
-        $status            = TravelRequest::STATUS_DRAFT;
-        $submittedAt       = null;
+        $status = TravelRequest::STATUS_DRAFT;
+        $submittedAt = null;
 
-        if (!$isDraft) {
+        if (! $isDraft) {
             try {
-                $chain             = $this->chainService->buildChain($user);
+                $chain = $this->chainService->buildChain($user);
                 $currentApproverId = $chain[0]['approver_id'];
-                $status            = TravelRequest::STATUS_PENDING;
-                $submittedAt       = now();
+                $status = TravelRequest::STATUS_PENDING;
+                $submittedAt = now();
             } catch (\RuntimeException $e) {
                 return back()->withInput()->withErrors(['submit' => $e->getMessage()]);
             }
@@ -133,33 +150,37 @@ class TravelRequestController extends Controller
             $documentPath = $request->file('g_handover_document')->store('handover-documents', 'private');
         }
 
-        $travelRequest = DB::transaction(function () use ($validated, $documentPath, $user, $status, $chain, $currentApproverId, $submittedAt) {
-            return TravelRequest::create([
-                ...$validated,
-                'g_handover_document' => $documentPath,
-                'request_number'      => $this->nextRequestNumber(),
-                'requester_id'        => $user->id,
-                'unit_id'             => $user->unit_id,
-                'status'              => $status,
-                'approval_chain'      => $chain,
-                'current_approver_id' => $currentApproverId,
-                'submitted_at'        => $submittedAt,
-            ]);
-        });
+        $invitation = $this->storeInvitationLetter($request);
 
-        if (!$isDraft && $chain) {
+        // Deliberately not wrapped in a transaction: this is a single insert,
+        // and createWithRequestNumber retries after a losing race for a permit
+        // number — which a surrounding aborted transaction would prevent.
+        $travelRequest = $this->createWithRequestNumber([
+            ...$validated,
+            ...$this->travellerIdentity($user),
+            ...$invitation,
+            'g_handover_document' => $documentPath,
+            'requester_id' => $user->id,
+            'unit_id' => $user->unit_id,
+            'status' => $status,
+            'approval_chain' => $chain,
+            'current_approver_id' => $currentApproverId,
+            'submitted_at' => $submittedAt,
+        ]);
+
+        if (! $isDraft && $chain) {
             $this->notifyFirstApprover($travelRequest);
         }
 
         // Persist phone to user profile if provided and differs from saved value
-        if (!empty($validated['b_phone']) && $user->phone !== $validated['b_phone']) {
+        if (! empty($validated['b_phone']) && $user->phone !== $validated['b_phone']) {
             $user->forceFill(['phone' => $validated['b_phone']])->save();
         }
 
-        $message  = $isDraft ? 'Ombi limehifadhiwa kama rasimu.' : 'Ombi limewasilishwa kwa mafanikio.';
+        $message = $isDraft ? 'Ombi limehifadhiwa kama rasimu.' : 'Ombi limewasilishwa kwa mafanikio.';
         $redirect = redirect()->route('travel-requests.show', $travelRequest)->with('status', $message);
 
-        if (!$isDraft) {
+        if (! $isDraft) {
             $overlap = $this->findOverlappingRequest($user->id, $validated['b_departure_date'], $validated['b_return_date'], $travelRequest->id);
             if ($overlap) {
                 $redirect->with('overlap_warning', $overlap->request_number);
@@ -178,10 +199,59 @@ class TravelRequestController extends Controller
         $chainApprovers = collect();
         if ($travelRequest->approval_chain) {
             $ids = collect($travelRequest->approval_chain)->pluck('approver_id')->filter()->unique();
-            $chainApprovers = \App\Models\User::whereIn('id', $ids)->get()->keyBy('id');
+            $chainApprovers = User::whereIn('id', $ids)->get()->keyBy('id');
         }
 
-        return view('travel-requests.show', compact('travelRequest', 'chainApprovers'));
+        // Days this traveller has accumulated in the financial year the trip
+        // falls in — shown to the traveller and to whoever is reviewing it.
+        $travelDays = $this->travelDaysSummary($travelRequest->requester, $travelRequest);
+
+        // Drives the wording of the "Return for Revision" modal, which differs
+        // depending on whether the request steps back to the applicant or to
+        // the approver below the current one.
+        $returnGoesToApplicant = $this->chainService->returnGoesToRequester($travelRequest);
+
+        return view('travel-requests.show', compact(
+            'travelRequest',
+            'chainApprovers',
+            'travelDays',
+            'returnGoesToApplicant',
+        ));
+    }
+
+    /**
+     * Accumulated days out of office for a traveller, optionally projected to
+     * include a specific trip. Returns null when it cannot be computed.
+     *
+     * The 60-day ceiling is advisory: this only ever produces a warning.
+     */
+    private function travelDaysSummary(?User $user, ?TravelRequest $travelRequest = null): ?array
+    {
+        if (! $user) {
+            return null;
+        }
+
+        $service = app(TravelDaysService::class);
+
+        $financialYear = $travelRequest?->b_departure_date
+            ? $service->financialYearFor($travelRequest->b_departure_date)
+            : $service->financialYearFor();
+
+        $accumulated = $service->accumulatedDaysFor($user, $financialYear);
+        $projected = $travelRequest
+            ? $service->projectedDaysWith($travelRequest, $financialYear)
+            : $accumulated;
+
+        return [
+            'financial_year' => $financialYear,
+            'financial_year_label' => $service->label($financialYear),
+            'limit' => TravelDaysService::ANNUAL_LIMIT,
+            'accumulated' => $accumulated,
+            'projected' => $projected,
+            'remaining' => $service->remaining($accumulated),
+            'over_limit' => $service->isOverLimit($accumulated),
+            'projected_over_limit' => $service->isOverLimit($projected),
+        ];
     }
 
     public function edit(TravelRequest $travelRequest): View
@@ -189,6 +259,7 @@ class TravelRequestController extends Controller
         $this->authorize('update', $travelRequest);
         $user = auth()->user();
         $handoverUsers = $this->handoverUserList();
+
         return view('travel-requests.edit', compact('travelRequest', 'user', 'handoverUsers'));
     }
 
@@ -196,84 +267,132 @@ class TravelRequestController extends Controller
     {
         $this->authorize('update', $travelRequest);
 
-        $isDraft   = $request->input('action') === 'draft';
-        $validated = $this->validateForm($request, withFile: true, isDraft: $isDraft);
+        $isDraft = $request->input('action') === 'draft';
 
-        if (!$isDraft) {
-            $this->checkAtLeastOneCost($validated);
-            // For updates, a file already on the record satisfies the requirement
-            if (!$request->hasFile('g_handover_document') && !$travelRequest->g_handover_document) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'g_handover_document' => 'Please upload the handover note document.',
-                ]);
-            }
+        if (! $isDraft && ($missingReport = $this->missingRequiredTravelReport($request->user(), $travelRequest->id))) {
+            return redirect()->route('travel-requests.show', $missingReport)
+                ->with('error', __('travel.report_required_before_new_request'));
         }
 
-        if (!$isDraft && $this->missingSupervisor($request->user())) {
+        // A document already on the record satisfies the upload requirement.
+        $validated = $this->validateForm(
+            $request,
+            withFile: true,
+            isDraft: $isDraft,
+            fileRequired: ! $travelRequest->g_handover_document,
+        );
+
+        if (! $isDraft) {
+            $this->checkAtLeastOneCost($validated);
+        }
+
+        if (! $isDraft && $this->missingSupervisor($request->user())) {
             return redirect()->route('dashboard')
                 ->with('status', __('dashboard.supervisor_required_to_submit'));
         }
 
-        // Handle file replacement
+        // Store replacements before touching the database, and remember the old
+        // paths so they are only deleted once the write has actually committed.
+        $replacedDocuments = [];
+
         if ($request->hasFile('g_handover_document')) {
-            if ($travelRequest->g_handover_document) {
-                Storage::disk('private')->delete($travelRequest->g_handover_document);
-            }
+            $replacedDocuments[] = $travelRequest->g_handover_document;
             $validated['g_handover_document'] = $request->file('g_handover_document')
                 ->store('handover-documents', 'private');
         } else {
             unset($validated['g_handover_document']);
         }
 
-        if (!$isDraft) {
-            try {
+        if ($request->hasFile('c_invitation_document')) {
+            $replacedDocuments[] = $travelRequest->c_invitation_document;
+            $validated = [...$validated, ...$this->storeInvitationLetter($request)];
+        } else {
+            unset($validated['c_invitation_document']);
+        }
+
+        $user = $request->user();
+
+        try {
+            DB::transaction(function () use ($travelRequest, $validated, $isDraft, $user) {
+                // Re-read under a row lock: a stale tab must not overwrite a
+                // request that has since been submitted, cancelled or acted on.
+                $fresh = TravelRequest::whereKey($travelRequest->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (! $fresh->isEditable()) {
+                    throw new StaleRequestException(__('travel.no_longer_editable'));
+                }
+
+                $payload = [
+                    ...$validated,
+                    ...$this->travellerIdentity($user),
+                ];
+
+                if ($isDraft) {
+                    $fresh->update([...$payload, 'status' => TravelRequest::STATUS_DRAFT]);
+
+                    return;
+                }
+
                 // If resubmitting a returned request, resume from the approver who
                 // returned it rather than restarting the whole chain from step 1.
-                $wasReturned = $travelRequest->status === TravelRequest::STATUS_RETURNED;
-
-                if ($wasReturned && $travelRequest->approval_chain) {
-                    $chain = $travelRequest->approval_chain;
-                    $returnAction = $travelRequest->approvalActions()
+                if ($fresh->status === TravelRequest::STATUS_RETURNED && $fresh->approval_chain) {
+                    $chain = $fresh->approval_chain;
+                    $returnAction = $fresh->approvalActions()
                         ->where('decision', 'returned')
                         ->latest('acted_at')
                         ->first();
                     $resumeIndex = $returnAction
-                        ? collect($chain)->search(fn($step) => (int) $step['approver_id'] === (int) $returnAction->actor_id)
+                        ? collect($chain)->search(fn ($step) => (int) $step['approver_id'] === (int) $returnAction->actor_id)
                         : false;
                     $startApprover = $resumeIndex !== false ? $chain[$resumeIndex]['approver_id'] : $chain[0]['approver_id'];
                 } else {
-                    $chain         = $this->chainService->buildChain($request->user());
+                    $chain = $this->chainService->buildChain($user);
                     $startApprover = $chain[0]['approver_id'];
+                    // The chain was built from the traveller's current unit, so
+                    // the request must follow them there after a transfer.
+                    $payload['unit_id'] = $user->unit_id;
                 }
 
-                $travelRequest->update([
-                    ...$validated,
-                    'status'              => TravelRequest::STATUS_PENDING,
-                    'approval_chain'      => $chain,
+                $fresh->update([
+                    ...$payload,
+                    'status' => TravelRequest::STATUS_PENDING,
+                    'approval_chain' => $chain,
                     'current_approver_id' => $startApprover,
-                    'submitted_at'        => now(),
+                    'submitted_at' => now(),
                 ]);
-                $this->notifyFirstApprover($travelRequest);
-            } catch (\RuntimeException $e) {
-                return back()->withInput()->withErrors(['submit' => $e->getMessage()]);
-            }
-        } else {
-            $travelRequest->update([
-                ...$validated,
-                'status' => TravelRequest::STATUS_DRAFT,
-            ]);
+            });
+
+            $travelRequest->refresh();
+        } catch (StaleRequestException $e) {
+            $this->discardUploads($validated['g_handover_document'] ?? null, $validated['c_invitation_document'] ?? null);
+
+            return redirect()->route('travel-requests.show', $travelRequest)
+                ->with('error', $e->getMessage());
+        } catch (\RuntimeException $e) {
+            $this->discardUploads($validated['g_handover_document'] ?? null, $validated['c_invitation_document'] ?? null);
+
+            return back()->withInput()->withErrors(['submit' => $e->getMessage()]);
+        }
+
+        // Committed — the superseded documents can now safely go.
+        $this->discardUploads(...$replacedDocuments);
+
+        if (! $isDraft) {
+            $this->notifyFirstApprover($travelRequest);
         }
 
         // Persist phone to user profile if provided and differs from saved value
         $updateUser = $request->user();
-        if (!empty($validated['b_phone']) && $updateUser->phone !== $validated['b_phone']) {
+        if (! empty($validated['b_phone']) && $updateUser->phone !== $validated['b_phone']) {
             $updateUser->forceFill(['phone' => $validated['b_phone']])->save();
         }
 
-        $message  = $isDraft ? 'Rasimu imesasishwa.' : 'Ombi limewasilishwa kwa mafanikio.';
+        $message = $isDraft ? 'Rasimu imesasishwa.' : 'Ombi limewasilishwa kwa mafanikio.';
         $redirect = redirect()->route('travel-requests.show', $travelRequest)->with('status', $message);
 
-        if (!$isDraft) {
+        if (! $isDraft) {
             $overlap = $this->findOverlappingRequest($request->user()->id, $validated['b_departure_date'], $validated['b_return_date'], $travelRequest->id);
             if ($overlap) {
                 $redirect->with('overlap_warning', $overlap->request_number);
@@ -287,13 +406,75 @@ class TravelRequestController extends Controller
     {
         $this->authorize('cancel', $travelRequest);
 
-        $travelRequest->update([
-            'status'              => TravelRequest::STATUS_CANCELLED,
-            'current_approver_id' => null,
-        ]);
+        try {
+            DB::transaction(function () use ($travelRequest) {
+                // Re-check under a row lock so a cancellation cannot race an
+                // approval that is being recorded at the same moment.
+                $fresh = TravelRequest::whereKey($travelRequest->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (! $fresh->isCancellable()) {
+                    throw new StaleRequestException(__('travel.no_longer_cancellable'));
+                }
+
+                $fresh->update([
+                    'status' => TravelRequest::STATUS_CANCELLED,
+                    'current_approver_id' => null,
+                ]);
+            });
+        } catch (StaleRequestException $e) {
+            return redirect()->route('travel-requests.show', $travelRequest)
+                ->with('error', $e->getMessage());
+        }
+
+        $travelRequest->refresh();
 
         return redirect()->route('travel-requests.show', $travelRequest)
             ->with('status', 'Ombi limefutwa.');
+    }
+
+    /**
+     * Remove stored documents, tolerating already-missing or null paths.
+     */
+    protected function discardUploads(?string ...$paths): void
+    {
+        foreach (array_filter($paths) as $path) {
+            Storage::disk('private')->delete($path);
+        }
+    }
+
+    /**
+     * Persist the optional Section C invitation letter, keeping the original
+     * filename so it downloads as something the applicant recognises.
+     *
+     * @return array<string, string>
+     */
+    protected function storeInvitationLetter(Request $request): array
+    {
+        if (! $request->hasFile('c_invitation_document')) {
+            return [];
+        }
+
+        $file = $request->file('c_invitation_document');
+
+        return [
+            'c_invitation_document' => $file->store('invitation-letters', 'private'),
+            'c_invitation_original_name' => $file->getClientOriginalName(),
+        ];
+    }
+
+    public function downloadInvitation(TravelRequest $travelRequest)
+    {
+        $this->authorize('download', $travelRequest);
+
+        abort_unless($travelRequest->c_invitation_document, 404);
+        abort_unless(Storage::disk('private')->exists($travelRequest->c_invitation_document), 404);
+
+        return Storage::disk('private')->download(
+            $travelRequest->c_invitation_document,
+            $travelRequest->c_invitation_original_name ?: $travelRequest->request_number.'-invitation.pdf',
+        );
     }
 
     public function download(TravelRequest $travelRequest)
@@ -311,42 +492,58 @@ class TravelRequestController extends Controller
         $this->authorize('uploadReport', $travelRequest);
 
         $validated = $request->validate([
-            'travel_report_document' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'travel_report_document' => ['required', 'file', 'mimes:pdf', 'max:5120'],
             'travel_report_notes' => ['nullable', 'string', 'max:5000'],
+            'report_submission_confirmed' => ['accepted'],
         ]);
 
-        if (!$request->hasFile('travel_report_document') && !$travelRequest->travel_report_document) {
-            return back()->withErrors([
-                'travel_report_document' => __('travel.report_file_required'),
-            ])->withInput();
+        unset($validated['report_submission_confirmed']);
+
+        $file = $request->file('travel_report_document');
+        $newPath = $file->store('travel-reports', 'private');
+
+        if (! is_string($newPath) || $newPath === '') {
+            throw ValidationException::withMessages([
+                'travel_report_document' => __('travel.report_upload_failed'),
+            ]);
         }
 
-        $hasNewReportDocument = $request->hasFile('travel_report_document');
+        $oldPath = null;
 
-        if ($hasNewReportDocument) {
-            if ($travelRequest->travel_report_document) {
-                Storage::disk('private')->delete($travelRequest->travel_report_document);
-            }
+        try {
+            DB::transaction(function () use ($travelRequest, $validated, $file, $newPath, &$oldPath): void {
+                $lockedRequest = TravelRequest::query()->lockForUpdate()->findOrFail($travelRequest->id);
+                $this->authorize('uploadReport', $lockedRequest);
 
-            $file = $request->file('travel_report_document');
-
-            $validated['travel_report_document'] = $file->store('travel-reports', 'private');
-            $validated['travel_report_original_name'] = $file->getClientOriginalName();
-        } else {
-            unset($validated['travel_report_document']);
+                $oldPath = $lockedRequest->travel_report_document;
+                $lockedRequest->update([
+                    ...$validated,
+                    'travel_report_document' => $newPath,
+                    'travel_report_original_name' => $file->getClientOriginalName(),
+                    'travel_report_submitted_at' => now(),
+                ]);
+            });
+        } catch (\Throwable $e) {
+            Storage::disk('private')->delete($newPath);
+            throw $e;
         }
 
-        $travelRequest->update([
-            ...$validated,
-            'travel_report_submitted_at' => now(),
-        ]);
-
-        if ($hasNewReportDocument) {
-            $this->notifyTravelReportSupervisor($travelRequest);
+        if ($oldPath && $oldPath !== $newPath) {
+            Storage::disk('private')->delete($oldPath);
         }
 
         return redirect()->route('travel-requests.show', $travelRequest)
             ->with('status', __('travel.report_saved'));
+    }
+
+    public function unlockReport(TravelRequest $travelRequest): RedirectResponse
+    {
+        $this->authorize('unlockReport', $travelRequest);
+
+        $travelRequest->update(['travel_report_submitted_at' => null]);
+
+        return redirect()->route('travel-requests.show', $travelRequest)
+            ->with('status', __('travel.report_unlocked'));
     }
 
     public function downloadReport(TravelRequest $travelRequest)
@@ -357,7 +554,7 @@ class TravelRequestController extends Controller
         abort_unless(Storage::disk('private')->exists($travelRequest->travel_report_document), 404);
 
         $filename = $travelRequest->travel_report_original_name
-            ?: $travelRequest->request_number . '-travel-report.pdf';
+            ?: $travelRequest->request_number.'-travel-report.pdf';
 
         return Storage::disk('private')->download($travelRequest->travel_report_document, $filename);
     }
@@ -366,6 +563,7 @@ class TravelRequestController extends Controller
     {
         $this->authorize('view', $travelRequest);
         $travelRequest->load(['requester', 'unit', 'currentApprover', 'approvalActions.actor']);
+
         return view('travel-requests.print', compact('travelRequest'));
     }
 
@@ -374,53 +572,77 @@ class TravelRequestController extends Controller
         $this->authorize('view', $travelRequest);
         $travelRequest->load(['requester', 'unit', 'currentApprover', 'approvalActions.actor']);
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('travel-requests.pdf', compact('travelRequest'))
+        $pdf = Pdf::loadView('travel-requests.pdf', compact('travelRequest'))
             ->setPaper('a4', 'portrait');
 
-        $filename = $travelRequest->request_number . '.pdf';
+        $filename = $travelRequest->request_number.'.pdf';
 
         return $pdf->download($filename);
     }
 
-    protected function validateForm(Request $request, bool $withFile = true, bool $isDraft = false): array
+    /**
+     * Identity of the traveller as printed on the permit. Never taken from the
+     * request body — the form shows these fields read-only, and a forged post
+     * would otherwise put someone else's name on an approved permit.
+     *
+     * @return array<string, string|null>
+     */
+    protected function travellerIdentity(User $traveller): array
     {
+        return [
+            'b_applicant_name' => $traveller->name,
+            'b_email' => $traveller->email,
+            'b_position' => $traveller->job_title,
+        ];
+    }
+
+    protected function validateForm(
+        Request $request,
+        bool $withFile = true,
+        bool $isDraft = false,
+        bool $fileRequired = true,
+    ): array {
         $req = $isDraft ? 'nullable' : 'required';
 
+        // b_applicant_name / b_email / b_position are deliberately absent: the
+        // traveller's identity is printed on an official permit and is filled
+        // server-side from the authenticated account by travellerIdentity().
         $rules = [
-            'b_applicant_name'           => ['required', 'string', 'max:255'],
-            'b_phone'                    => ['required', 'string', 'max:50'],
-            'b_email'                    => ['nullable', 'email', 'max:255'],
-            'b_position'                 => ['nullable', 'string', 'max:255'],
-            'b_destination'              => ['required', 'string', 'max:500'],
-            'b_departure_date'           => ['required', 'date', 'after:today'],
-            'b_return_date'              => ['required', 'date', 'after:b_departure_date'],
-            'c_travel_source'            => ['nullable', 'string'],
-            'd_benefit_to_institution'   => [$req, 'string'],
-            'd_benefit_to_nation'        => [$req, 'string'],
+            'b_phone' => ['required', 'string', 'max:50'],
+            'b_destination' => ['required', 'string', 'max:500'],
+            'b_departure_date' => ['required', 'date', 'after:today'],
+            'b_return_date' => ['required', 'date', 'after:b_departure_date'],
+            'c_travel_source' => ['nullable', 'string'],
+            'd_benefit_to_institution' => [$req, 'string'],
+            'd_benefit_to_nation' => [$req, 'string'],
             'd_consequences_if_rejected' => [$req, 'string'],
-            'e_transport_costs'          => ['nullable', 'string'],
-            'e_allowance_a'              => ['nullable', 'string', 'max:500'],
-            'e_allowance_b'              => ['nullable', 'string', 'max:500'],
-            'e_allowance_c'              => ['nullable', 'string', 'max:500'],
-            'e_allowance_d'              => ['nullable', 'string', 'max:500'],
-            'e_budget_line'              => ['nullable', 'string', 'max:500'],
-            'e_donor_cost_i'             => ['nullable', 'string', 'max:500'],
-            'e_donor_cost_ii'            => ['nullable', 'string', 'max:500'],
-            'e_donor_cost_iii'           => ['nullable', 'string', 'max:500'],
-            'e_govt_cost_i'              => ['nullable', 'string', 'max:500'],
-            'e_govt_cost_ii'             => ['nullable', 'string', 'max:500'],
-            'e_govt_cost_iii'            => ['nullable', 'string', 'max:500'],
-            'e_other_costs'              => ['nullable', 'string'],
-            'f_previous_travel_impact'   => [$req, 'string'],
-            'f_traveller_signed_date'    => ['nullable', 'date'],
-            'g_handover_officer_name'    => [$req, 'string', 'max:255'],
-            'g_handover_officer_title'   => ['nullable', 'string', 'max:255'],
+            'e_transport_costs' => ['nullable', 'string'],
+            'e_allowance_a' => ['nullable', 'string', 'max:500'],
+            'e_allowance_b' => ['nullable', 'string', 'max:500'],
+            'e_allowance_c' => ['nullable', 'string', 'max:500'],
+            'e_allowance_d' => ['nullable', 'string', 'max:500'],
+            'e_budget_line' => ['nullable', 'string', 'max:500'],
+            'e_donor_cost_i' => ['nullable', 'string', 'max:500'],
+            'e_donor_cost_ii' => ['nullable', 'string', 'max:500'],
+            'e_donor_cost_iii' => ['nullable', 'string', 'max:500'],
+            'e_govt_cost_i' => ['nullable', 'string', 'max:500'],
+            'e_govt_cost_ii' => ['nullable', 'string', 'max:500'],
+            'e_govt_cost_iii' => ['nullable', 'string', 'max:500'],
+            'e_other_costs' => ['nullable', 'string'],
+            'f_previous_travel_impact' => [$req, 'string'],
+            'f_traveller_signed_date' => ['nullable', 'date'],
+            'g_handover_officer_name' => [$req, 'string', 'max:255'],
+            'g_handover_officer_title' => ['nullable', 'string', 'max:255'],
         ];
 
         if ($withFile) {
-            $rules['g_handover_document'] = $isDraft
+            $rules['g_handover_document'] = $isDraft || ! $fileRequired
                 ? ['nullable', 'file', 'mimes:pdf', 'max:5120']
                 : ['required', 'file', 'mimes:pdf', 'max:5120'];
+
+            // Supporting evidence for Section C. Always optional — not every
+            // trip stems from an invitation. Scans are common, so images too.
+            $rules['c_invitation_document'] = ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'];
         }
 
         return $request->validate($rules);
@@ -434,23 +656,23 @@ class TravelRequestController extends Controller
             'e_govt_cost_i', 'e_govt_cost_ii', 'e_govt_cost_iii', 'e_other_costs',
         ];
 
-        $hasCost = collect($costFields)->some(fn ($f) => !empty($validated[$f]));
+        $hasCost = collect($costFields)->some(fn ($f) => ! empty($validated[$f]));
 
-        if (!$hasCost) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+        if (! $hasCost) {
+            throw ValidationException::withMessages([
                 'e_costs' => 'Please fill in at least one cost or allowance field.',
             ]);
         }
     }
 
-    private function handoverUserList(): \Illuminate\Support\Collection
+    private function handoverUserList(): Collection
     {
         return User::where('is_active', true)
             ->orderBy('name')
             ->get()
-            ->map(fn($u) => [
-                'id'    => $u->id,
-                'name'  => $u->name,
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
                 'title' => $u->job_title ?? '',
             ]);
     }
@@ -461,7 +683,7 @@ class TravelRequestController extends Controller
             return false;
         }
 
-        return !$user->supervisor_id && $this->supervisors->isRequiredFor($user);
+        return ! $user->supervisor_id && $this->supervisors->isRequiredFor($user);
     }
 
     private function findOverlappingRequest(int $userId, string $departure, string $return, int $excludeId): ?TravelRequest
@@ -474,24 +696,73 @@ class TravelRequestController extends Controller
             ->first();
     }
 
+    private function missingRequiredTravelReport(User $user, ?int $excludeRequestId = null): ?TravelRequest
+    {
+        return TravelRequest::query()
+            ->where('requester_id', $user->id)
+            ->where('status', TravelRequest::STATUS_APPROVED)
+            ->whereDate('b_return_date', '<', today())
+            ->whereNull('travel_report_submitted_at')
+            ->when($excludeRequestId, fn ($query) => $query->where('id', '!=', $excludeRequestId))
+            ->oldest('b_return_date')
+            ->first();
+    }
+
+    /**
+     * Create the request, allocating the next permit number.
+     *
+     * The number is derived from the highest number already issued this year
+     * rather than a row count, so a cancelled or rejected request no longer
+     * causes the next submission to reuse a live number. A unique index on
+     * request_number is the real guarantee: if two submissions race for the
+     * same number, one insert loses and is retried with the next one.
+     */
+    protected function createWithRequestNumber(array $attributes): TravelRequest
+    {
+        $attempts = 0;
+
+        while (true) {
+            try {
+                return TravelRequest::create([
+                    ...$attributes,
+                    'request_number' => $this->nextRequestNumber(),
+                ]);
+            } catch (UniqueConstraintViolationException $e) {
+                if (++$attempts >= 5) {
+                    throw $e;
+                }
+            }
+        }
+    }
+
     protected function nextRequestNumber(): string
     {
         $year = now()->year;
-        $seq  = TravelRequest::whereYear('created_at', $year)->lockForUpdate()->count() + 1;
-        return 'NIMR-ITP-' . $year . '-' . str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
+        $prefix = 'NIMR-ITP-'.$year.'-';
+
+        $highest = TravelRequest::where('request_number', 'like', $prefix.'%')
+            ->pluck('request_number')
+            ->map(function (string $number) use ($prefix) {
+                preg_match('/^\d+/', substr($number, strlen($prefix)), $matches);
+
+                return (int) ($matches[0] ?? 0);
+            })
+            ->max();
+
+        return $prefix.str_pad((string) (($highest ?? 0) + 1), 3, '0', STR_PAD_LEFT);
     }
 
     private function notifyFirstApprover(TravelRequest $travelRequest): void
     {
         try {
-            $firstApprover = \App\Models\User::find($travelRequest->current_approver_id);
+            $firstApprover = User::find($travelRequest->current_approver_id);
             if ($firstApprover) {
                 $firstApprover->notify(new TravelRequestSubmittedNotification($travelRequest));
             }
         } catch (\Throwable $e) {
-            Log::warning('Failed to notify first approver for request ' . $travelRequest->request_number, [
+            Log::warning('Failed to notify first approver for request '.$travelRequest->request_number, [
                 'approver_id' => $travelRequest->current_approver_id,
-                'error'       => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
         }
 
@@ -499,29 +770,9 @@ class TravelRequestController extends Controller
         try {
             $this->chainService
                 ->hrCopyRecipients($travelRequest)
-                ->each(fn($hr) => $hr->notify(new TravelRequestHrCopyNotification($travelRequest, 'submitted')));
+                ->each(fn ($hr) => $hr->notify(new TravelRequestHrCopyNotification($travelRequest, 'submitted')));
         } catch (\Throwable $e) {
-            Log::warning('Failed to send HR copy on submission for request ' . $travelRequest->request_number, [
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    private function notifyTravelReportSupervisor(TravelRequest $travelRequest): void
-    {
-        $travelRequest->loadMissing('requester.supervisor');
-
-        $supervisor = $travelRequest->requester?->supervisor;
-
-        if (!$supervisor || !$supervisor->is_active) {
-            return;
-        }
-
-        try {
-            $supervisor->notify(new TravelReportSubmittedNotification($travelRequest));
-        } catch (\Throwable $e) {
-            Log::warning('Failed to notify supervisor about travel report for request ' . $travelRequest->request_number, [
-                'supervisor_id' => $supervisor->id,
+            Log::warning('Failed to send HR copy on submission for request '.$travelRequest->request_number, [
                 'error' => $e->getMessage(),
             ]);
         }

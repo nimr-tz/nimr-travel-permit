@@ -81,6 +81,12 @@
             </div>
             @endif
 
+            @isset($travelDays)
+            <div class="mb-4">
+                <x-travel-days-warning :travel-days="$travelDays" context="requester" />
+            </div>
+            @endisset
+
             <form method="POST" action="{{ route('travel-requests.store') }}" enctype="multipart/form-data" id="travel-form" x-ref="form" novalidate @submit="if ($event.submitter?.value === 'submit' && !validateAll()) $event.preventDefault()">
                 @csrf
 
@@ -108,8 +114,6 @@
                                 __('travel.section_a_iv'),
                                 __('travel.section_a_v'),
                                 __('travel.section_a_vi'),
-                                __('travel.section_a_vii'),
-                                __('travel.section_a_viii'),
                             ] as $i => $rule)
                             <div class="flex items-start gap-4 px-6 py-4">
                                 <div class="h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
@@ -221,6 +225,8 @@
                                 <textarea name="c_travel_source" rows="8" class="input resize-none leading-relaxed"
                                     placeholder="{{ __('travel.c_label') }}...">{{ old('c_travel_source') }}</textarea>
                             </div>
+
+                            <x-invitation-upload class="mt-5" />
                         </div>
                     </div>
                 </div>
@@ -432,8 +438,18 @@
                                     @drop.prevent="
                                         dragOver = false;
                                         const f = $event.dataTransfer.files[0];
-                                        if (f && f.type !== 'application/pdf') { fileError = 'Only PDF files are accepted.'; fileName = ''; }
-                                        else { fileError = ''; fileName = f?.name ?? ''; }
+                                        if (!f) { return; }
+                                        if (f.type !== 'application/pdf') {
+                                            fileError = 'Only PDF files are accepted.'; fileName = ''; $refs.fileInput.value = '';
+                                            return;
+                                        }
+                                        // The dropped file must be moved into the input itself,
+                                        // otherwise nothing is submitted and the green
+                                        // 'file selected' state is a lie.
+                                        const dt = new DataTransfer();
+                                        dt.items.add(f);
+                                        $refs.fileInput.files = dt.files;
+                                        fileError = ''; fileName = f.name;
                                     ">
                                     <div x-show="!fileName && !fileError" class="flex flex-col items-center gap-2 text-slate-400">
                                         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
@@ -451,6 +467,7 @@
                                         </div>
                                     </div>
                                     <input type="file" name="g_handover_document" accept=".pdf" class="hidden"
+                                        x-ref="fileInput"
                                         @change="
                                             const f = $event.target.files[0];
                                             if (f && f.type !== 'application/pdf') { fileError = 'Only PDF files are accepted.'; fileName = ''; $event.target.value = ''; }
@@ -516,8 +533,8 @@
                             <div>
                                 <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-2 mb-3">A: {{ __('travel.section_a_title') }}</h3>
                                 <div class="text-xs space-y-1.5 text-slate-600 leading-relaxed bg-slate-50 rounded-lg p-4 border border-slate-100">
-                                    @foreach (['section_a_i','section_a_ii','section_a_iii','section_a_iv','section_a_v','section_a_vi','section_a_vii','section_a_viii'] as $i => $key)
-                                    <p><span class="font-semibold text-slate-700">({{ ['i','ii','iii','iv','v','vi','vii','viii'][$i] }})</span> {{ __('travel.' . $key) }}</p>
+                                    @foreach (['section_a_i','section_a_ii','section_a_iii','section_a_iv','section_a_v','section_a_vi'] as $i => $key)
+                                    <p><span class="font-semibold text-slate-700">({{ ['i','ii','iii','iv','v','vi'][$i] }})</span> {{ __('travel.' . $key) }}</p>
                                     @endforeach
                                 </div>
                             </div>

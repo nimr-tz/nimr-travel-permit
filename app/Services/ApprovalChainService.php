@@ -53,11 +53,9 @@ class ApprovalChainService
 
         if ($decision === 'returned') {
             $chain        = $request->approval_chain;
-            $currentIndex = collect($chain)->search(
-                fn($step) => (int) $step['approver_id'] === (int) $request->current_approver_id
-            );
+            $currentIndex = $this->currentStepIndex($request);
 
-            if ($currentIndex !== false && $currentIndex > 0) {
+            if (! $this->returnGoesToRequester($request)) {
                 // Non-first approver returns → route to the previous approver in the chain.
                 // The requester is NOT involved; the previous approver re-reviews and decides
                 // whether to re-approve (send it back up) or return it to the requester.
@@ -100,6 +98,33 @@ class ApprovalChainService
                 'current_approver_id' => null,
             ]);
         }
+    }
+
+    /**
+     * Position of the current approver within the request's chain, or false
+     * when the chain is absent or does not contain them.
+     */
+    public function currentStepIndex(TravelRequest $request): int|false
+    {
+        $index = collect($request->approval_chain ?? [])->search(
+            fn ($step) => (int) $step['approver_id'] === (int) $request->current_approver_id
+        );
+
+        return $index === false ? false : (int) $index;
+    }
+
+    /**
+     * Where a "Return for Revision" from the current approver lands.
+     *
+     * Returning steps back exactly one place in the chain: the first approver
+     * returns to the requester, anyone further up returns to the approver
+     * below them, who re-reviews and decides whether to send it up again.
+     */
+    public function returnGoesToRequester(TravelRequest $request): bool
+    {
+        $index = $this->currentStepIndex($request);
+
+        return $index === false || $index === 0;
     }
 
     public function hrCopyRecipients(TravelRequest $request): Collection

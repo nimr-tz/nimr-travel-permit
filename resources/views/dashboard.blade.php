@@ -683,6 +683,35 @@
                                 {{ __('dashboard.supervisor_review_hint') }}
                             </div>
                         </div>
+                        @elseif (!$supervisorRequired)
+                        {{-- Role has no supervisor step (e.g. section head) — the chain is
+                             derived from the unit hierarchy, so nothing is missing here. --}}
+                        <div class="flex items-start gap-3 p-3 rounded-xl" style="background:#f0f9ff;border:1px solid #bae6fd;">
+                            <div class="h-9 w-9 rounded-full flex items-center justify-center shrink-0" style="background:#e0f2fe;">
+                                <svg class="w-4 h-4" style="color:#0284c7;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold" style="color:#0c4a6e;">{{ __('dashboard.supervisor_not_needed') }}</p>
+                                <p class="text-xs mt-0.5 leading-relaxed" style="color:#0369a1;">
+                                    @if ($firstApprover)
+                                        @php
+                                            $faName  = $firstApprover->name;
+                                            $faTitle = $firstApprover->job_title ?: __('common.role_' . $firstApprover->role);
+                                            // Some accounts are named after the post they hold
+                                            // ("Director Corporate Services" / "Director of Corporate
+                                            // Services") — don't print the same thing twice.
+                                            $faKey       = fn ($s) => preg_replace('/[^a-z0-9]+/', '', strtolower((string) $s));
+                                            $faRedundant = $faKey($faTitle) === '' || str_contains($faKey($faName), $faKey($faTitle)) || str_contains($faKey($faTitle), $faKey($faName));
+                                        @endphp
+                                        {{ $faRedundant
+                                            ? __('dashboard.supervisor_not_needed_hint_named_plain', ['name' => $faName])
+                                            : __('dashboard.supervisor_not_needed_hint_named', ['name' => $faName, 'title' => $faTitle]) }}
+                                    @else
+                                        {{ __('dashboard.supervisor_not_needed_hint') }}
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
                         @else
                         <div class="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
                             <div class="h-9 w-9 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
@@ -695,8 +724,8 @@
                         </div>
                         @endif
 
-                        {{-- No candidates and none set --}}
-                        @if ($supervisorCandidates->isEmpty() && !$supervisor)
+                        {{-- No candidates and none set — only a problem when one is actually required --}}
+                        @if ($supervisorRequired && $supervisorCandidates->isEmpty() && !$supervisor)
                         <div class="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
                             <svg class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
                             <p class="text-xs text-amber-800 leading-relaxed">{{ __('dashboard.supervisor_candidates_empty') }}</p>

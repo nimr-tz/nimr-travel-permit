@@ -39,6 +39,9 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
 .sig-line { border-bottom: 1px solid #000; min-width: 100px; display: inline-block; width: 120px; }
 .sig-line-wide { width: 180px; }
 
+/* Decision stamp — replaces the wet signature and rubber stamp lines */
+.stamp { width: 92px; height: auto; }
+
 /* Approval box */
 .approval-box { border: 1px solid #000; padding: 7px 9px; margin-bottom: 9px; page-break-inside: avoid; }
 .approval-decision { font-weight: bold; font-size: 11pt; }
@@ -73,9 +76,7 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
     <p style="font-size:9pt;">(iii) Fomu hii itajazwa na kila Mtumishi wa Taasisi atakayesafiri kwa shughuli za kiofisi ndani ya nchi.</p>
     <p style="font-size:9pt;">(iv) Fomu ambayo haikujazwa kikamilifu haitashughulikiwa na hivyo Mtumishi atakuwa amejinyima ruhusa.</p>
     <p style="font-size:9pt;">(v) Ndani ya wiki mbili baada ya kurudi, Mtumishi atatoa ripoti ya safari kwa Mkurugenzi Mkuu.</p>
-    <p style="font-size:9pt;">(vi) Nakala moja ya fomu iliyopewa kibali irudishwe Ofisi ya Rasilimali Watu na Utawala.</p>
-    <p style="font-size:9pt;">(vii) Safari za dharura zitatumia utaratibu wa dharura.</p>
-    <p style="font-size:9pt;">(viii) Fomu hii itajazwa nakala mbili (2).</p>
+    <p style="font-size:9pt;">(vi) Safari za dharura zitatumia utaratibu wa dharura.</p>
 </div>
 
 {{-- ── SECTION B ── --}}
@@ -97,6 +98,10 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
     <div class="section-heading">C: Chanzo cha Safari (Kielezwe kwa Kina):</div>
     @php $lines = $tr->c_travel_source ? explode("\n", wordwrap($tr->c_travel_source, 115, "\n", true)) : ['','','']; while(count($lines) < 3) $lines[] = ''; @endphp
     @foreach ($lines as $line)<div class="dotted-line">{{ $line }}</div>@endforeach
+    <p style="font-size:9pt;margin-top:3px;">
+        Barua ya mwaliko:
+        <strong>{{ $tr->c_invitation_document ? ($tr->c_invitation_original_name ?: 'Imeambatishwa') : 'Haikuambatishwa' }}</strong>
+    </p>
 </div>
 
 {{-- ── SECTION D ── --}}
@@ -161,8 +166,8 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
 
     <table class="sig-table" style="margin-top:8px;">
         <tr>
-            <td>Saini ya anayesafiri: <span class="sig-line sig-line-wide">&nbsp;</span></td>
-            <td>Tarehe: <span class="sig-line">{{ $tr->f_traveller_signed_date?->format('d/m/Y') }}</span></td>
+            <td>Imewasilishwa kielektroniki na: <strong>{{ $tr->b_applicant_name }}</strong></td>
+            <td>Tarehe: <strong>{{ $tr->submitted_at?->format('d/m/Y') ?? '—' }}</strong></td>
         </tr>
     </table>
 </div>
@@ -211,20 +216,25 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
 
     <table class="sig-table" style="margin-top:7px;">
         <tr>
-            <td>Jina: <strong>{{ $action->actor?->name }}</strong></td>
-            <td>Cheo: <strong>{{ $action->actor?->job_title }}</strong></td>
-        </tr>
-        <tr>
-            <td>Saini: <span class="sig-line sig-line-wide">&nbsp;</span></td>
-            <td>Tarehe: <span class="sig-line">{{ $action->acted_at->format('d/m/Y') }}</span></td>
-            <td>Mhuri: <span class="sig-line sig-line-wide">&nbsp;</span></td>
+            <td style="width:62%;">
+                Jina: <strong>{{ $action->actor?->name }}</strong><br>
+                Cheo: <strong>{{ $action->actor?->job_title }}</strong><br>
+                Tarehe: <strong>{{ $action->acted_at->format('d/m/Y') }}</strong>
+            </td>
+            <td style="width:38%;text-align:center;vertical-align:middle;">
+                @if (in_array($action->decision, ['approved', 'rejected'], true))
+                    <img src="{{ public_path('images/stamp-'.$action->decision.'.png') }}"
+                         alt="{{ $action->decision }}" class="stamp">
+                @endif
+            </td>
         </tr>
     </table>
 </div>
 @endforeach
 
-{{-- Pending blank approval sections --}}
-@if ($tr->approval_chain)
+{{-- Pending blank approval sections — not for a request that is already
+     finished, where the remaining steps will never be taken. --}}
+@if ($tr->approval_chain && ! in_array($tr->status, ['rejected', 'cancelled'], true))
 @php
     $completedStages = $tr->approvalActions->pluck('stage')->toArray();
     $pendingSteps    = collect($tr->approval_chain)->filter(fn($s) => !in_array($s['stage'], $completedStages) && $s['stage'] !== 'hr');
@@ -246,13 +256,7 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
         <p><strong>ARUHUSIWE / ASIRUHUSIWE</strong> .......................................</p>
         @endif
     </div>
-    <table class="sig-table" style="margin-top:7px;">
-        <tr>
-            <td>Saini: <span class="sig-line sig-line-wide">&nbsp;</span></td>
-            <td>Tarehe: <span class="sig-line">&nbsp;</span></td>
-            <td>Mhuri: <span class="sig-line sig-line-wide">&nbsp;</span></td>
-        </tr>
-    </table>
+    <p style="font-size:9pt;margin-top:6px;"><em>Inasubiri uamuzi.</em></p>
 </div>
 @endforeach
 @endif

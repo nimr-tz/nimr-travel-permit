@@ -183,6 +183,8 @@
                                 <label class="label">{{ __('travel.c_label') }}</label>
                                 <textarea name="c_travel_source" rows="8" class="input resize-none leading-relaxed">{{ old('c_travel_source', $tr->c_travel_source) }}</textarea>
                             </div>
+
+                            <x-invitation-upload :travel-request="$tr" class="mt-5" />
                         </div>
                     </div>
                 </div>
@@ -355,8 +357,18 @@
                                     @drop.prevent="
                                         dragOver = false;
                                         const f = $event.dataTransfer.files[0];
-                                        if (f && f.type !== 'application/pdf') { fileError = 'Only PDF files are accepted.'; fileName = ''; }
-                                        else { fileError = ''; fileName = f?.name ?? ''; }
+                                        if (!f) { return; }
+                                        if (f.type !== 'application/pdf') {
+                                            fileError = 'Only PDF files are accepted.'; fileName = ''; $refs.fileInput.value = '';
+                                            return;
+                                        }
+                                        // The dropped file must be moved into the input itself.
+                                        // Without this the request resubmits with the previous
+                                        // document while the UI reports the new one.
+                                        const dt = new DataTransfer();
+                                        dt.items.add(f);
+                                        $refs.fileInput.files = dt.files;
+                                        fileError = ''; fileName = f.name;
                                     ">
                                     <div x-show="!fileName && !fileError" class="flex flex-col items-center gap-2 text-slate-400">
                                         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
@@ -374,6 +386,7 @@
                                         </div>
                                     </div>
                                     <input type="file" name="g_handover_document" accept=".pdf" class="hidden"
+                                        x-ref="fileInput"
                                         @change="
                                             const f = $event.target.files[0];
                                             if (f && f.type !== 'application/pdf') { fileError = 'Only PDF files are accepted.'; fileName = ''; $event.target.value = ''; }

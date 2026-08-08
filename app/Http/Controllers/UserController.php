@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\SessionRevocationService;
 use App\Services\SupervisorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,10 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    public function __construct(private SupervisorService $supervisors) {}
+    public function __construct(
+        private SupervisorService $supervisors,
+        private SessionRevocationService $sessions,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -145,9 +149,16 @@ class UserController extends Controller
             }
         }
 
+        $wasDeactivated = $user->is_active && ! $newIsActive;
+
         $before = $user->only(['name', 'email', 'role', 'unit_id', 'supervisor_id', 'is_active', 'job_title', 'phone']);
         $user->update($validated);
         $after = $user->fresh()->only(['name', 'email', 'role', 'unit_id', 'supervisor_id', 'is_active', 'job_title', 'phone']);
+
+        // Deactivation must lock the account out now, not at next login.
+        if ($wasDeactivated) {
+            $this->sessions->revokeAllFor($user);
+        }
 
         ActivityLog::record('updated', $user, ['before' => $before, 'after' => $after]);
 

@@ -1,25 +1,17 @@
-<IfModule mod_rewrite.c>
-    <IfModule mod_negotiation.c>
-        Options -MultiViews -Indexes
-    </IfModule>
+# This directory is the APPLICATION ROOT, not a web root.
+#
+# It contains .env, the SQLite database, logs, private uploads, and all source
+# code. Nothing in here may ever be served over HTTP. Only ./public may be
+# exposed, and it must be exposed as a virtual host DocumentRoot -- never by
+# dropping this folder inside a server's document root.
+#
+# See docs/apache-vhost.conf for a ready-made XAMPP/Apache virtual host.
 
-    RewriteEngine On
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
 
-    # Handle Authorization Header
-    RewriteCond %{HTTP:Authorization} .
-    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
-
-    # Handle X-XSRF-Token Header
-    RewriteCond %{HTTP:x-xsrf-token} .
-    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
-
-    # Redirect Trailing Slashes If Not A Folder...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_URI} (.+)/$
-    RewriteRule ^ %1 [L,R=301]
-
-    # Send Requests To Front Controller...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^ index.php [L]
+<IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
 </IfModule>

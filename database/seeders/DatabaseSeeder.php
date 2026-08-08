@@ -6,11 +6,14 @@ use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->guardAgainstProduction();
+
         // ---------------------------------------------------------------
         // UNITS
         // ---------------------------------------------------------------
@@ -189,5 +192,22 @@ class DatabaseSeeder extends Seeder
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);
+    }
+
+    /**
+     * This seeder creates active, e-mail-verified privileged accounts — a
+     * Director General among them — all with the password "password". Running
+     * it against a real deployment hands over the institute.
+     */
+    private function guardAgainstProduction(): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        throw new RuntimeException(
+            'DatabaseSeeder creates demo accounts with well-known passwords and must never run in production. '
+            . 'Seed reference data with a dedicated, credential-free seeder instead.'
+        );
     }
 }

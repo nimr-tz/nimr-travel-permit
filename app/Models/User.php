@@ -104,4 +104,16 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return !$this->isHr() && !$this->isSystemAdmin() && $this->role !== 'staff';
     }
+
+    /**
+     * Reporting visibility is limited to this user's own research centre.
+     *
+     * Centre-based system admins and centre HR officers see only their centre;
+     * HQ HR, global system admins and the DG see the whole institute.
+     */
+    public function isCentreScopedViewer(): bool
+    {
+        return $this->isCentreSystemAdmin()
+            || ($this->isHr() && $this->unit?->isResearchCentre());
+    }
 }
