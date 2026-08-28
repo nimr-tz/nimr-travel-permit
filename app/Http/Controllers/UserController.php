@@ -187,7 +187,7 @@ class UserController extends Controller
     {
         $query = User::with('unit')
             ->where('is_active', true)
-            ->whereIn('role', ['head', 'manager']);
+            ->whereIn('role', ['head', 'manager', 'director']);
 
         $this->scopeUsersForAdmin($query, $admin);
 
@@ -225,6 +225,12 @@ class UserController extends Controller
         if ($unit && $this->supervisors->reportsDirectlyToDirectorGeneral($unit, $role)) {
             throw ValidationException::withMessages([
                 'supervisor_id' => __('users.dg_supervisor_missing'),
+            ]);
+        }
+
+        if ($unit && $this->supervisors->reportsDirectlyToDirectorate($unit, $role)) {
+            throw ValidationException::withMessages([
+                'supervisor_id' => __('users.director_supervisor_missing'),
             ]);
         }
 

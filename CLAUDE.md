@@ -55,13 +55,17 @@ Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`
 | `research_centre` | `staff`/`manager` (with supervisor) | supervisor → centre_manager |
 | `research_centre` | `staff`/`manager` (no supervisor) | centre_manager |
 | `research_centre` | `centre_manager` | DG |
-| `hq_section` | `head` | director → DG |
-| `hq_section` | `staff`/`manager` | section_head → director → DG |
+| `hq_section` | `head`/`manager` (section lead) | director → DG |
+| `hq_section` | `staff`/`hr`/`system_admin` | section lead (head or manager) → director → DG |
 | `hq_standalone` | `manager` | DG |
 | `hq_standalone` | `staff` | unit_manager → DG |
 | `hq_directorate` | any | DG |
 
 Stages: `supervisor`, `director`, `final`. **HR is not an active approver.** DG (or centre_manager for centre staff) is always the final approver.
+
+**Section lead role varies by directorate, per the official NIMR organogram**: sections under the two *scientific* directorates (Research Coordination and Promotion; Research Information and Regulatory Affairs) are led by a `head`; sections under the Corporate Services Directorate (an administrative directorate) are led by a `manager` instead. `ApprovalChainService::chainForHqSection()` treats both roles identically (top of section, no supervisor, straight to their Directorate's Director); `SupervisorService::supervisorRolesFor()` resolves an ordinary section staff member's supervisor by looking for whichever of `head`/`manager` actually leads their specific section — it is not hardcoded per directorate.
+
+A section lead's own `supervisor_id` is auto-assigned to their Directorate's active Director, the same "fixed supervisor" mechanism that gives Directors/centre managers/standalone-unit managers the DG automatically — `SupervisorService::reportsDirectlyToDirectorate()` / `fixedSupervisorForAssignment()`. Neither the admin (user create/edit form) nor the lead themselves (Dashboard) picks it manually; it's silently kept in sync on every load via `applyFixedSupervisor()`. If the Directorate has no active Director yet, user creation/update is blocked with a clear validation error (`users.director_supervisor_missing`) rather than silently leaving a bad value.
 
 HR role: receives email copy on submission and request outcomes (approved/rejected/returned). Has access to the HR Reports dashboard (`/hr/reports`) — **HQ HR and the DG see the whole institute; a centre HR officer is scoped to their own centre** via `User::isCentreScopedViewer()`, which also scopes `/travel-reports`.
 

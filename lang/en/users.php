@@ -51,6 +51,7 @@ return [
     'invited_success'           => ':name has been added and an invitation email has been sent.',
     'deactivate_pending_warning'=> 'Cannot deactivate: this user has :count pending approval(s). Reassign or resolve those requests first.',
     'dg_supervisor_missing'     => 'No active Director General is configured to assign as this user\'s supervisor.',
+    'director_supervisor_missing' => 'No active Director is configured for this section\'s Directorate to assign as this user\'s supervisor.',
 
     // Index page
     'search_placeholder' => 'Search by name, email, or staff number…',

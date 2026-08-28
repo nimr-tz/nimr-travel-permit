@@ -262,6 +262,76 @@ class ExampleTest extends TestCase
         $this->assertSame($dg->id, $created->supervisor_id);
     }
 
+    public function test_hq_section_head_is_automatically_assigned_directorate_director_as_supervisor(): void
+    {
+        Notification::fake();
+
+        $admin      = User::factory()->systemAdmin()->create();
+        $directorate = Unit::factory()->hqDirectorate()->create();
+        $director   = User::factory()->director()->create(['unit_id' => $directorate->id]);
+        $section    = Unit::factory()->hqSection()->create(['parent_id' => $directorate->id]);
+
+        $response = $this->actingAs($admin)->post(route('users.store'), [
+            'name' => 'Head One',
+            'email' => 'head.one@example.test',
+            'unit_id' => $section->id,
+            'role' => 'head',
+            'is_active' => '1',
+        ]);
+
+        $response->assertRedirect(route('users.index'));
+        $response->assertSessionHasNoErrors();
+
+        $created = User::where('email', 'head.one@example.test')->first();
+
+        $this->assertNotNull($created);
+        $this->assertSame($director->id, $created->supervisor_id);
+    }
+
+    public function test_hq_section_manager_is_automatically_assigned_directorate_director_as_supervisor(): void
+    {
+        Notification::fake();
+
+        $admin      = User::factory()->systemAdmin()->create();
+        $directorate = Unit::factory()->hqDirectorate()->create();
+        $director   = User::factory()->director()->create(['unit_id' => $directorate->id]);
+        $section    = Unit::factory()->hqSection()->create(['parent_id' => $directorate->id]);
+
+        $response = $this->actingAs($admin)->post(route('users.store'), [
+            'name' => 'Manager One',
+            'email' => 'manager.one@example.test',
+            'unit_id' => $section->id,
+            'role' => 'manager',
+            'is_active' => '1',
+        ]);
+
+        $response->assertRedirect(route('users.index'));
+        $response->assertSessionHasNoErrors();
+
+        $created = User::where('email', 'manager.one@example.test')->first();
+
+        $this->assertNotNull($created);
+        $this->assertSame($director->id, $created->supervisor_id);
+    }
+
+    public function test_hq_section_head_creation_fails_when_directorate_has_no_active_director(): void
+    {
+        $admin   = User::factory()->systemAdmin()->create();
+        $directorate = Unit::factory()->hqDirectorate()->create();
+        $section = Unit::factory()->hqSection()->create(['parent_id' => $directorate->id]);
+
+        $response = $this->actingAs($admin)->post(route('users.store'), [
+            'name' => 'Head Two',
+            'email' => 'head.two@example.test',
+            'unit_id' => $section->id,
+            'role' => 'head',
+            'is_active' => '1',
+        ]);
+
+        $response->assertSessionHasErrors('supervisor_id');
+        $this->assertNull(User::where('email', 'head.two@example.test')->first());
+    }
+
     public function test_updating_user_to_hq_standalone_manager_automatically_assigns_dg_as_supervisor(): void
     {
         $admin = User::factory()->systemAdmin()->create();

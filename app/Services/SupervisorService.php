@@ -47,9 +47,9 @@ class SupervisorService
             return new Collection([$fixedSupervisor]);
         }
 
-        $supervisorRole = $this->supervisorRoleFor($unit, $role);
+        $supervisorRoles = $this->supervisorRolesFor($unit, $role);
 
-        if (!$supervisorRole) {
+        if (!$supervisorRoles) {
             return new Collection();
         }
 
@@ -57,7 +57,7 @@ class SupervisorService
             ->where('unit_id', $unit->id)
             ->when($excludeUserId, fn ($query) => $query->where('id', '!=', $excludeUserId))
             ->where('is_active', true)
-            ->where('role', $supervisorRole)
+            ->whereIn('role', $supervisorRoles)
             ->orderBy('name')
             ->get();
     }
@@ -79,23 +79,43 @@ class SupervisorService
     {
         $unit = $this->resolveUnit($unit);
 
-        return $unit && $this->supervisorRoleFor($unit, $role) !== null;
+        return $unit && $this->supervisorRolesFor($unit, $role) !== [];
     }
 
     public function fixedSupervisorForAssignment(Unit|int|null $unit, string $role, ?int $excludeUserId = null): ?User
     {
         $unit = $this->resolveUnit($unit);
 
-        if (!$unit || !$this->reportsDirectlyToDirectorGeneral($unit, $role)) {
+        if (!$unit) {
             return null;
         }
 
-        return User::query()
-            ->where('role', 'director_general')
-            ->where('is_active', true)
-            ->when($excludeUserId, fn ($query) => $query->where('id', '!=', $excludeUserId))
-            ->orderBy('name')
-            ->first();
+        if ($this->reportsDirectlyToDirectorGeneral($unit, $role)) {
+            return User::query()
+                ->where('role', 'director_general')
+                ->where('is_active', true)
+                ->when($excludeUserId, fn ($query) => $query->where('id', '!=', $excludeUserId))
+                ->orderBy('name')
+                ->first();
+        }
+
+        if ($this->reportsDirectlyToDirectorate($unit, $role)) {
+            $directorate = $unit->parent;
+
+            if (!$directorate) {
+                return null;
+            }
+
+            return User::query()
+                ->where('unit_id', $directorate->id)
+                ->where('role', 'director')
+                ->where('is_active', true)
+                ->when($excludeUserId, fn ($query) => $query->where('id', '!=', $excludeUserId))
+                ->orderBy('name')
+                ->first();
+        }
+
+        return null;
     }
 
     public function reportsDirectlyToDirectorGeneral(Unit $unit, string $role): bool
@@ -108,21 +128,40 @@ class SupervisorService
         };
     }
 
-    public function supervisorRoleFor(Unit $unit, string $role): ?string
+    /**
+     * A section lead (head of a scientific section, or manager of a Corporate
+     * Services section) is the top of their section and reports straight to
+     * their Directorate's Director — no supervisor to choose, just like a
+     * Director's supervisor is fixed to the DG.
+     */
+    public function reportsDirectlyToDirectorate(Unit $unit, string $role): bool
+    {
+        return $unit->type === 'hq_section' && in_array($role, ['head', 'manager'], true);
+    }
+
+    /**
+     * Role(s) that can act as supervisor for the given role within the given unit.
+     * More than one is possible for hq_section: scientific sections (under RCPD/RIRAD)
+     * are led by a "head", Corporate Services sections (under CSD) by a "manager" —
+     * whichever actually leads that particular section.
+     *
+     * @return list<string>
+     */
+    public function supervisorRolesFor(Unit $unit, string $role): array
     {
         if ($unit->type === 'research_centre' && in_array($role, ['staff', 'manager', 'hr', 'system_admin'], true)) {
-            return 'manager';
+            return ['manager'];
         }
 
-        if ($unit->type === 'hq_section' && in_array($role, ['staff', 'manager', 'hr', 'system_admin'], true)) {
-            return 'head';
+        if ($unit->type === 'hq_section' && in_array($role, ['staff', 'hr', 'system_admin'], true)) {
+            return ['head', 'manager'];
         }
 
         if ($unit->type === 'hq_standalone' && in_array($role, ['staff', 'hr', 'system_admin'], true)) {
-            return 'manager';
+            return ['manager'];
         }
 
-        return null;
+        return [];
     }
 
     private function resolveUnit(Unit|int|null $unit): ?Unit
