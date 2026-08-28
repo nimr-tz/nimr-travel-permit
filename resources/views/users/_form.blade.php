@@ -10,6 +10,7 @@
     $currentUnitId = (string) old('unit_id', $user->unit_id ?? '');
     $currentRole = (string) old('role', $user->role ?? 'staff');
     $currentSupervisorId = (string) old('supervisor_id', $user->supervisor_id ?? '');
+    $originalUnitType = isset($user) ? $user->unit?->type : null;
     $unitSupervisorMeta = $units->mapWithKeys(fn ($unit) => [
         (string) $unit->id => ['type' => $unit->type, 'parent_id' => $unit->parent_id ? (string) $unit->parent_id : null],
     ])->all();
@@ -74,12 +75,45 @@
             selectedUnitId: {{ Js::from($currentUnitId) }},
             selectedRole: {{ Js::from($currentRole) }},
             selectedSupervisorId: {{ Js::from($currentSupervisorId) }},
+            originalUnitType: {{ Js::from($originalUnitType) }},
+            confirmUnitTypeChange: false,
             units: {{ Js::from($unitSupervisorMeta) }},
             supervisors: {{ Js::from($supervisorOptionsData) }},
+            allRoles: {{ Js::from(collect($roleLabels)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values()) }},
+            // Keep in sync with UserController::rolesForUnitType() — which roles
+            // make sense for a unit of this type, per the NIMR organogram.
+            rolesForUnitType(type) {
+                const map = {
+                    research_centre: ['staff', 'supervisor', 'centre_manager', 'hr', 'system_admin'],
+                    hq_standalone:   ['staff', 'manager', 'hr', 'system_admin', 'director_general'],
+                    hq_directorate:  ['director'],
+                    hq_section:      ['staff', 'head', 'manager', 'hr', 'system_admin'],
+                };
+                return map[type] || [];
+            },
+            availableRoles() {
+                const unit = this.units[this.selectedUnitId];
+                if (!unit) return this.allRoles;
+                const allowed = this.rolesForUnitType(unit.type);
+                return this.allRoles.filter((role) => allowed.includes(role.key));
+            },
+            syncRole() {
+                if (!this.availableRoles().some((role) => role.key === this.selectedRole)) {
+                    this.selectedRole = '';
+                }
+            },
+            unitCategoryChanged() {
+                if (!this.originalUnitType) return false; // new user — nothing to compare against
+                const unit = this.units[this.selectedUnitId];
+                if (!unit) return false;
+                const wasCentre = this.originalUnitType === 'research_centre';
+                const willBeCentre = unit.type === 'research_centre';
+                return wasCentre !== willBeCentre;
+            },
             supervisorRole() {
                 const unit = this.units[this.selectedUnitId];
                 if (!unit) return null;
-                if (unit.type === 'research_centre' && ['staff', 'manager', 'hr', 'system_admin'].includes(this.selectedRole)) return 'manager';
+                if (unit.type === 'research_centre' && ['staff', 'hr', 'system_admin'].includes(this.selectedRole)) return 'supervisor';
                 if (unit.type === 'hq_section' && ['staff', 'hr', 'system_admin'].includes(this.selectedRole)) return 'head_or_manager';
                 if (unit.type === 'hq_standalone' && ['staff', 'hr', 'system_admin'].includes(this.selectedRole)) return 'manager';
                 return null;
@@ -103,6 +137,13 @@
 
                 if (reportsToDirectorate && unit.parent_id) {
                     return this.supervisors.find((supervisor) => supervisor.unit_id === unit.parent_id && supervisor.role === 'director') || null;
+                }
+
+                // A centre's Supervisor reports straight to their Centre Manager.
+                const reportsToCentreManager = unit.type === 'research_centre' && this.selectedRole === 'supervisor';
+
+                if (reportsToCentreManager) {
+                    return this.supervisors.find((supervisor) => supervisor.unit_id === String(this.selectedUnitId) && supervisor.role === 'centre_manager') || null;
                 }
 
                 return null;
@@ -137,7 +178,7 @@
                 }
             },
          }"
-         x-init="$watch('selectedUnitId', () => syncSupervisor()); $watch('selectedRole', () => syncSupervisor()); syncSupervisor();">
+         x-init="$watch('selectedUnitId', () => { syncRole(); syncSupervisor(); }); $watch('selectedRole', () => syncSupervisor()); syncSupervisor();">
     <div class="px-6 py-4 border-b border-slate-100">
         <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-400">{{ __('users.form_org') }}</h3>
     </div>
@@ -160,12 +201,24 @@
         <div class="field">
             <label class="label">{{ __('users.field_role') }} <span class="text-red-500">*</span></label>
             <select name="role" x-model="selectedRole" class="select @error('role') input-error @enderror" required>
-                @foreach ($roleLabels as $key => $label)
-                <option value="{{ $key }}" {{ old('role', $user->role ?? 'staff') === $key ? 'selected' : '' }}>
-                    {{ $label }}
-                </option>
-                @endforeach
+                <option value="" x-show="!selectedRole">{{ __('users.field_role_ph') }}</option>
+                <template x-for="role in availableRoles()" :key="role.key">
+                    <option :value="role.key" x-text="role.label"></option>
+                </template>
             </select>
+            <p class="mt-1 text-xs text-slate-400" x-show="selectedUnitId && availableRoles().length === 0">
+                {{ __('users.field_role_none_for_unit') }}
+            </p>
+        </div>
+        <div class="field md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-4" x-show="unitCategoryChanged()" x-transition>
+            <label class="flex items-start gap-2.5 cursor-pointer select-none">
+                <input type="checkbox" name="confirm_unit_type_change" value="1" x-model="confirmUnitTypeChange"
+                       class="mt-0.5 h-4 w-4 rounded border-amber-300 text-amber-600 shadow-sm focus:ring-amber-500">
+                <span class="text-xs text-amber-800 leading-relaxed">{{ __('users.field_confirm_unit_type_change') }}</span>
+            </label>
+            @error('unit_id')
+            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
         </div>
         <div class="field md:col-span-2" x-show="supervisorApplies()" x-transition>
             <label class="label">{{ __('users.field_supervisor') }}</label>

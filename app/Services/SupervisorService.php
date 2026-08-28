@@ -115,6 +115,16 @@ class SupervisorService
                 ->first();
         }
 
+        if ($this->reportsDirectlyToCentreManager($unit, $role)) {
+            return User::query()
+                ->where('unit_id', $unit->id)
+                ->where('role', 'centre_manager')
+                ->where('is_active', true)
+                ->when($excludeUserId, fn ($query) => $query->where('id', '!=', $excludeUserId))
+                ->orderBy('name')
+                ->first();
+        }
+
         return null;
     }
 
@@ -140,6 +150,16 @@ class SupervisorService
     }
 
     /**
+     * A centre's Supervisor is the top of the staff hierarchy below the Centre
+     * Manager and reports straight to them — no personal supervisor to choose,
+     * the same "fixed supervisor" pattern as a Director reporting to the DG.
+     */
+    public function reportsDirectlyToCentreManager(Unit $unit, string $role): bool
+    {
+        return $unit->type === 'research_centre' && $role === 'supervisor';
+    }
+
+    /**
      * Role(s) that can act as supervisor for the given role within the given unit.
      * More than one is possible for hq_section: scientific sections (under RCPD/RIRAD)
      * are led by a "head", Corporate Services sections (under CSD) by a "manager" —
@@ -149,8 +169,8 @@ class SupervisorService
      */
     public function supervisorRolesFor(Unit $unit, string $role): array
     {
-        if ($unit->type === 'research_centre' && in_array($role, ['staff', 'manager', 'hr', 'system_admin'], true)) {
-            return ['manager'];
+        if ($unit->type === 'research_centre' && in_array($role, ['staff', 'hr', 'system_admin'], true)) {
+            return ['supervisor'];
         }
 
         if ($unit->type === 'hq_section' && in_array($role, ['staff', 'hr', 'system_admin'], true)) {

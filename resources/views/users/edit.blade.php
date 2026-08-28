@@ -19,6 +19,7 @@
                     'staff'            => ['#f1f5f9', '#475569'],
                     'head'             => ['#eff6ff', '#1d4ed8'],
                     'manager'          => ['#f5f3ff', '#6d28d9'],
+                    'supervisor'       => ['#f5f3ff', '#7e22ce'],
                     'director'         => ['#eef2ff', '#4338ca'],
                     'centre_manager'   => ['#ecfeff', '#0891b2'],
                     'director_general' => ['#fffbeb', '#b45309'],

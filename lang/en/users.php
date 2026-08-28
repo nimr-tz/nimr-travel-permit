@@ -39,6 +39,9 @@ return [
     'field_unit'        => 'Unit',
     'field_unit_ph'     => '— Select unit —',
     'field_role'        => 'Role',
+    'field_role_ph'     => '— Select role —',
+    'field_role_none_for_unit' => 'No roles apply to this unit type. Please choose a different unit.',
+    'field_confirm_unit_type_change' => 'This moves the user between headquarters and a Research Centre, which rebuilds their whole approval chain. Check this box to confirm.',
     'field_supervisor'  => 'Direct Supervisor',
     'field_supervisor_auto'=> 'Automatically assigned from the organisational reporting line.',
     'field_supervisor_empty'=> 'No active eligible supervisor is available for the selected unit and role.',
@@ -52,6 +55,9 @@ return [
     'deactivate_pending_warning'=> 'Cannot deactivate: this user has :count pending approval(s). Reassign or resolve those requests first.',
     'dg_supervisor_missing'     => 'No active Director General is configured to assign as this user\'s supervisor.',
     'director_supervisor_missing' => 'No active Director is configured for this section\'s Directorate to assign as this user\'s supervisor.',
+    'centre_manager_supervisor_missing' => 'No active Centre Manager is configured for this Research Centre to assign as this user\'s supervisor.',
+    'role_not_valid_for_unit'   => 'That role does not apply to the selected unit. Please choose a role that matches its type.',
+    'unit_type_change_requires_confirmation' => 'Moving this user between headquarters and a Research Centre rebuilds their whole approval chain. Please confirm this change before saving.',
 
     // Index page
     'search_placeholder' => 'Search by name, email, or staff number…',
@@ -73,6 +79,7 @@ return [
     'role_desc_staff'            => 'Submits travel requests. No approval responsibilities.',
     'role_desc_head'             => 'Section head; reviews requests before the director.',
     'role_desc_manager'          => 'Senior staff level with limited approval scope.',
+    'role_desc_supervisor'       => 'Research centre supervisor; reviews requests before the centre manager.',
     'role_desc_director'         => 'HQ directorate approver, acts before DG.',
     'role_desc_centre_manager'   => 'Final approver for research centre staff.',
     'role_desc_director_general' => 'Ultimate final approver for all HQ requests.',

@@ -66,6 +66,24 @@ All passwords: `password`
 
 ---
 
+## Centre Supervisors
+
+The person ordinary centre staff report to, below the Centre Manager. Every
+centre needs at least one — without one, staff there have nobody to pick as
+their supervisor and are blocked from submitting a travel request at all.
+
+| Centre | Email |
+|--------|-------|
+| Amani | `supervisor.amani@nimr.or.tz` |
+| Dodoma | `supervisor.dodoma@nimr.or.tz` |
+| Mabibo | `supervisor.mabibo@nimr.or.tz` |
+| Mbeya | `supervisor.mbeya@nimr.or.tz` |
+| Muhimbili | `supervisor.muhimbili@nimr.or.tz` |
+| Mwanza | `supervisor.mwanza@nimr.or.tz` (already set as `staff.mwanza`'s supervisor) |
+| Tanga | `supervisor.tanga@nimr.or.tz` |
+
+---
+
 ## Centre HR Officers
 
 | Centre | Email |
@@ -105,7 +123,10 @@ top of their section and skip straight to their Directorate's Director.
 → Director General → HQ HR
 
 **Research Centre Staff (e.g. `staff.mwanza@nimr.or.tz`)**
-→ (Supervisor if set) → Centre Manager → HQ HR
+→ Supervisor (must be set — see "Centre Supervisors" above) → Centre Manager → HQ HR
+
+**Supervisor travelling (e.g. `supervisor.mwanza@nimr.or.tz`)**
+→ Centre Manager → HQ HR
 
 **Centre Manager travelling**
 → Director General → HQ HR

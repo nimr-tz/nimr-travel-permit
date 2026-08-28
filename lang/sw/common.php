@@ -48,6 +48,7 @@ return [
     'role_staff'            => 'Mtumishi',
     'role_head'             => 'Mkuu wa Kitengo',
     'role_manager'          => 'Meneja',
+    'role_supervisor'       => 'Msimamizi',
     'role_director'         => 'Mkurugenzi',
     'role_centre_manager'   => 'Meneja wa Kituo',
     'role_director_general' => 'Mkurugenzi Mkuu',

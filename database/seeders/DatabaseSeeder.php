@@ -142,6 +142,20 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
                 'is_active'         => true,
             ]);
+
+            // Supervisor - the person ordinary staff report to, below the Centre
+            // Manager. Without one, staff have nobody to pick as their supervisor
+            // and are blocked from submitting a travel request at all.
+            User::create([
+                'name'         => $unit->name . ' Supervisor',
+                'email'        => "supervisor.{$slug}@nimr.or.tz",
+                'password'     => Hash::make('password'),
+                'unit_id'      => $unit->id,
+                'job_title'    => 'Supervisor',
+                'role'         => 'supervisor',
+                'email_verified_at' => now(),
+                'is_active'         => true,
+            ]);
         }
 
         // One sample staff member at Mwanza Research Centre (for testing)
@@ -152,6 +166,7 @@ class DatabaseSeeder extends Seeder
             'unit_id'      => $mwanza->id,
             'job_title'    => 'Research Officer',
             'role'         => 'staff',
+            'supervisor_id' => User::where('email', 'supervisor.mwanza@nimr.or.tz')->value('id'),
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);

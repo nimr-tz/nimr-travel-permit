@@ -70,10 +70,11 @@ class UserController extends Controller
         ]);
 
         $this->authorizeUnitForAdmin($request->user(), (int) $validated['unit_id']);
+        $unit = $this->validateRoleForUnit($validated['role'], (int) $validated['unit_id']);
 
         $validated['supervisor_id'] = $this->validatedSupervisorId(
             $request->user(),
-            (int) $validated['unit_id'],
+            $unit,
             $validated['role'],
             $validated['supervisor_id'] ?? null,
         );
@@ -117,17 +118,22 @@ class UserController extends Controller
             'role' => ['required', 'in:' . implode(',', $this->rolesForAdmin($request->user()))],
             'supervisor_id' => ['nullable', 'integer'],
             'is_active' => ['boolean'],
+            'confirm_unit_type_change' => ['nullable', 'boolean'],
         ]);
 
         $this->authorizeUnitForAdmin($request->user(), (int) $validated['unit_id']);
+        $unit = $this->validateRoleForUnit($validated['role'], (int) $validated['unit_id']);
+        $this->guardAgainstCasualUnitTypeChange($user, $unit, $request->boolean('confirm_unit_type_change'));
 
         $validated['supervisor_id'] = $this->validatedSupervisorId(
             $request->user(),
-            (int) $validated['unit_id'],
+            $unit,
             $validated['role'],
             $validated['supervisor_id'] ?? null,
             $user,
         );
+
+        unset($validated['confirm_unit_type_change']);
 
         if (empty($validated['password'])) {
             unset($validated['password']);
@@ -168,10 +174,70 @@ class UserController extends Controller
     private function rolesForAdmin(User $admin): array
     {
         if ($admin->isCentreSystemAdmin()) {
-            return ['staff', 'manager', 'centre_manager', 'hr'];
+            return ['staff', 'supervisor', 'centre_manager', 'hr'];
         }
 
-        return ['staff', 'head', 'manager', 'director', 'centre_manager', 'director_general', 'hr', 'system_admin'];
+        return ['staff', 'head', 'manager', 'supervisor', 'director', 'centre_manager', 'director_general', 'hr', 'system_admin'];
+    }
+
+    /**
+     * Which roles actually make sense for a unit of this type, per the NIMR
+     * organogram — kept separate from rolesForAdmin() (who's allowed to assign
+     * what) so a Research Centre never offers HQ-only roles like Head/Director,
+     * and vice versa. A role must pass both checks to be accepted.
+     */
+    private function rolesForUnitType(string $unitType): array
+    {
+        return match ($unitType) {
+            'research_centre' => ['staff', 'supervisor', 'centre_manager', 'hr', 'system_admin'],
+            'hq_standalone'   => ['staff', 'manager', 'hr', 'system_admin', 'director_general'],
+            'hq_directorate'  => ['director'],
+            'hq_section'      => ['staff', 'head', 'manager', 'hr', 'system_admin'],
+            default => [],
+        };
+    }
+
+    private function validateRoleForUnit(string $role, int $unitId): Unit
+    {
+        $unit = Unit::find($unitId);
+
+        if (!$unit) {
+            throw ValidationException::withMessages([
+                'unit_id' => __('users.errors_title'),
+            ]);
+        }
+
+        if (!in_array($role, $this->rolesForUnitType($unit->type), true)) {
+            throw ValidationException::withMessages([
+                'role' => __('users.role_not_valid_for_unit'),
+            ]);
+        }
+
+        return $unit;
+    }
+
+    /**
+     * Moving a user between a Research Centre and headquarters (or the other
+     * way around) rebuilds their whole place in the approval chain — it should
+     * never happen by accident. Require an explicit confirmation checkbox
+     * whenever the unit's category actually changes.
+     */
+    private function guardAgainstCasualUnitTypeChange(User $user, Unit $newUnit, bool $confirmed): void
+    {
+        $previousUnit = $user->unit;
+
+        if (!$previousUnit) {
+            return;
+        }
+
+        $wasCentre = $previousUnit->isResearchCentre();
+        $willBeCentre = $newUnit->isResearchCentre();
+
+        if ($wasCentre !== $willBeCentre && !$confirmed) {
+            throw ValidationException::withMessages([
+                'unit_id' => __('users.unit_type_change_requires_confirmation'),
+            ]);
+        }
     }
 
     private function unitsForAdmin(User $admin)
@@ -187,7 +253,7 @@ class UserController extends Controller
     {
         $query = User::with('unit')
             ->where('is_active', true)
-            ->whereIn('role', ['head', 'manager', 'director']);
+            ->whereIn('role', ['head', 'manager', 'director', 'supervisor', 'centre_manager']);
 
         $this->scopeUsersForAdmin($query, $admin);
 
@@ -210,27 +276,32 @@ class UserController extends Controller
 
     private function validatedSupervisorId(
         User $admin,
-        int $unitId,
+        Unit $unit,
         string $role,
         mixed $supervisorId,
         ?User $target = null,
     ): ?int {
-        $fixedSupervisor = $this->supervisors->fixedSupervisorForAssignment($unitId, $role, $target?->id);
-        $unit = Unit::find($unitId);
+        $fixedSupervisor = $this->supervisors->fixedSupervisorForAssignment($unit, $role, $target?->id);
 
         if ($fixedSupervisor) {
             return $fixedSupervisor->id;
         }
 
-        if ($unit && $this->supervisors->reportsDirectlyToDirectorGeneral($unit, $role)) {
+        if ($this->supervisors->reportsDirectlyToDirectorGeneral($unit, $role)) {
             throw ValidationException::withMessages([
                 'supervisor_id' => __('users.dg_supervisor_missing'),
             ]);
         }
 
-        if ($unit && $this->supervisors->reportsDirectlyToDirectorate($unit, $role)) {
+        if ($this->supervisors->reportsDirectlyToDirectorate($unit, $role)) {
             throw ValidationException::withMessages([
                 'supervisor_id' => __('users.director_supervisor_missing'),
+            ]);
+        }
+
+        if ($this->supervisors->reportsDirectlyToCentreManager($unit, $role)) {
+            throw ValidationException::withMessages([
+                'supervisor_id' => __('users.centre_manager_supervisor_missing'),
             ]);
         }
 
@@ -240,7 +311,7 @@ class UserController extends Controller
 
         $supervisorId = (int) $supervisorId;
 
-        if (!$this->supervisors->isValidCandidate($supervisorId, $unitId, $role, $target?->id)) {
+        if (!$this->supervisors->isValidCandidate($supervisorId, $unit, $role, $target?->id)) {
             throw ValidationException::withMessages([
                 'supervisor_id' => __('dashboard.supervisor_invalid'),
             ]);

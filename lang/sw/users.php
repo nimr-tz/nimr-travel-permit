@@ -39,6 +39,9 @@ return [
     'field_unit'        => 'Kitengo / Unit',
     'field_unit_ph'     => '— Chagua kitengo —',
     'field_role'        => 'Wadhifu / Role',
+    'field_role_ph'     => '— Chagua wadhifu —',
+    'field_role_none_for_unit' => 'Hakuna wadhifa unaolingana na aina ya kitengo hiki. Tafadhali chagua kitengo kingine.',
+    'field_confirm_unit_type_change' => 'Hii itahamisha mtumiaji kati ya makao makuu na Kituo cha Utafiti, jambo linalojenga upya mnyororo wake wote wa idhini. Tia alama kwenye kisanduku hiki kuthibitisha.',
     'field_supervisor'  => 'Msimamizi wa Moja kwa Moja',
     'field_supervisor_auto'=> 'Amewekwa moja kwa moja kulingana na muundo wa kuripoti.',
     'field_supervisor_empty'=> 'Hakuna msimamizi hai anayefaa kwa kitengo na wadhifu uliouchagua.',
@@ -52,6 +55,9 @@ return [
     'deactivate_pending_warning'=> 'Haiwezekani kuzima: mtumiaji huyu ana idhini :count zinazosubiri. Panga upya au tatua maombi hayo kwanza.',
     'dg_supervisor_missing'     => 'Hakuna Mkurugenzi Mkuu aliye hai wa kuwekwa kama msimamizi wa mtumiaji huyu.',
     'director_supervisor_missing' => 'Hakuna Mkurugenzi aliye hai wa Idara ya kitengo hiki wa kuwekwa kama msimamizi wa mtumiaji huyu.',
+    'centre_manager_supervisor_missing' => 'Hakuna Meneja wa Kituo aliye hai wa Kituo hiki cha Utafiti wa kuwekwa kama msimamizi wa mtumiaji huyu.',
+    'role_not_valid_for_unit'   => 'Wadhifa huo haulingani na kitengo kilichochaguliwa. Tafadhali chagua wadhifa unaolingana na aina yake.',
+    'unit_type_change_requires_confirmation' => 'Kuhamisha mtumiaji huyu kati ya makao makuu na Kituo cha Utafiti hujenga upya mnyororo wake wote wa idhini. Tafadhali thibitisha mabadiliko haya kabla ya kuhifadhi.',
 
     // Index page
     'search_placeholder' => 'Tafuta kwa jina, barua pepe, au nambari ya utumishi…',
@@ -73,6 +79,7 @@ return [
     'role_desc_staff'            => 'Inawasilisha maombi ya safari. Haina jukumu la idhini.',
     'role_desc_head'             => 'Mkuu wa sehemu; anapitia maombi kabla ya mkurugenzi.',
     'role_desc_manager'          => 'Kiwango cha juu cha wafanyakazi wenye uwezo mdogo wa idhini.',
+    'role_desc_supervisor'       => 'Msimamizi wa kituo cha utafiti; anapitia maombi kabla ya meneja wa kituo.',
     'role_desc_director'         => 'Mkurugenzi wa makao makuu; anapitia kabla ya Mkurugenzi Mkuu.',
     'role_desc_centre_manager'   => 'Mtoa idhini wa mwisho kwa wafanyakazi wa kituo cha utafiti.',
     'role_desc_director_general' => 'Mtoa idhini wa mwisho kabisa kwa maombi yote ya makao makuu.',
