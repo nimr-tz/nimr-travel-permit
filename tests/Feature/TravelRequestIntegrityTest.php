@@ -158,7 +158,7 @@ class TravelRequestIntegrityTest extends TestCase
         // The chain is rebuilt from scratch once the old chain is cleared.
         $newCentre = Unit::factory()->researchCentre()->create(['name' => 'Receiving Centre']);
         $newManager = User::factory()->centreManager()->create(['unit_id' => $newCentre->id]);
-        $newSupervisor = User::factory()->manager()->create(['unit_id' => $newCentre->id]);
+        $newSupervisor = User::factory()->supervisor()->create(['unit_id' => $newCentre->id]);
 
         $staff->forceFill([
             'unit_id' => $newCentre->id,
@@ -223,7 +223,7 @@ class TravelRequestIntegrityTest extends TestCase
     {
         $centre = Unit::factory()->researchCentre()->create();
         User::factory()->centreManager()->create(['unit_id' => $centre->id]);
-        $supervisor = User::factory()->manager()->create(['unit_id' => $centre->id]);
+        $supervisor = User::factory()->supervisor()->create(['unit_id' => $centre->id]);
         $staff = User::factory()->staff()->create([
             'unit_id' => $centre->id,
             'supervisor_id' => $supervisor->id,

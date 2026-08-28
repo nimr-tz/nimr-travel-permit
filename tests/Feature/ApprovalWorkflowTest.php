@@ -86,7 +86,7 @@ class ApprovalWorkflowTest extends TestCase
         $centreUnit    = Unit::factory()->researchCentre()->create();
         $centreManager = User::factory()->centreManager()->create(['unit_id' => $centreUnit->id]);
         $centreHr      = User::factory()->hr()->create(['unit_id' => $centreUnit->id]);
-        $supervisor    = User::factory()->manager()->create(['unit_id' => $centreUnit->id]);
+        $supervisor    = User::factory()->supervisor()->create(['unit_id' => $centreUnit->id]);
         $staff         = User::factory()->staff()->create(['unit_id' => $centreUnit->id, 'supervisor_id' => $supervisor->id]);
 
         $tr = $this->submitRequest($staff);
@@ -141,9 +141,9 @@ class ApprovalWorkflowTest extends TestCase
         $centreUnit    = Unit::factory()->researchCentre()->create();
         $centreManager = User::factory()->centreManager()->create(['unit_id' => $centreUnit->id]);
         $centreHr      = User::factory()->hr()->create(['unit_id' => $centreUnit->id]);
-        $supervisor    = User::factory()->manager()->create(['unit_id' => $centreUnit->id]);
+        $supervisor    = User::factory()->supervisor()->create(['unit_id' => $centreUnit->id]);
         $staff         = User::factory()->staff()->create(['unit_id' => $centreUnit->id, 'supervisor_id' => $supervisor->id]);
-        $otherUser     = User::factory()->manager()->create(['unit_id' => $centreUnit->id]);
+        $otherUser     = User::factory()->supervisor()->create(['unit_id' => $centreUnit->id]);
 
         $tr = $this->submitRequest($staff);
 
@@ -163,7 +163,7 @@ class ApprovalWorkflowTest extends TestCase
         $centreUnit    = Unit::factory()->researchCentre()->create();
         $centreManager = User::factory()->centreManager()->create(['unit_id' => $centreUnit->id]);
         User::factory()->hr()->create(['unit_id' => $centreUnit->id]);
-        $supervisor = User::factory()->manager()->create(['unit_id' => $centreUnit->id]);
+        $supervisor = User::factory()->supervisor()->create(['unit_id' => $centreUnit->id]);
         $staff = User::factory()->staff()->create(['unit_id' => $centreUnit->id, 'supervisor_id' => $supervisor->id]);
 
         $tr = $this->submitRequest($staff);
@@ -180,7 +180,7 @@ class ApprovalWorkflowTest extends TestCase
         $centreUnit    = Unit::factory()->researchCentre()->create();
         $centreManager = User::factory()->centreManager()->create(['unit_id' => $centreUnit->id]);
         $centreHr      = User::factory()->hr()->create(['unit_id' => $centreUnit->id]);
-        $supervisor    = User::factory()->manager()->create(['unit_id' => $centreUnit->id]);
+        $supervisor    = User::factory()->supervisor()->create(['unit_id' => $centreUnit->id]);
         $staff         = User::factory()->staff()->create(['unit_id' => $centreUnit->id, 'supervisor_id' => $supervisor->id]);
 
         $tr = $this->submitRequest($staff);

@@ -43,7 +43,7 @@ class ExampleTest extends TestCase
         $supervisor = User::factory()->create([
             'name' => 'Jane Supervisor',
             'unit_id' => $unit->id,
-            'role' => 'manager',
+            'role' => 'supervisor',
             'job_title' => 'Research Manager',
         ]);
 
@@ -73,7 +73,7 @@ class ExampleTest extends TestCase
         $supervisor = User::factory()->create([
             'name' => 'Jane Supervisor',
             'unit_id' => $unit->id,
-            'role' => 'manager',
+            'role' => 'supervisor',
         ]);
 
         $user = User::factory()->create([
@@ -110,7 +110,7 @@ class ExampleTest extends TestCase
 
         $outsideSupervisor = User::factory()->create([
             'unit_id' => $otherUnit->id,
-            'role' => 'manager',
+            'role' => 'supervisor',
         ]);
 
         $user = User::factory()->create([
@@ -134,7 +134,7 @@ class ExampleTest extends TestCase
 
         $admin = User::factory()->systemAdmin()->create();
         $unit = Unit::factory()->researchCentre()->create();
-        $supervisor = User::factory()->manager()->create([
+        $supervisor = User::factory()->supervisor()->create([
             'name' => 'Jane Supervisor',
             'unit_id' => $unit->id,
         ]);
@@ -163,7 +163,7 @@ class ExampleTest extends TestCase
     {
         $admin = User::factory()->systemAdmin()->create();
         $unit = Unit::factory()->researchCentre()->create();
-        $supervisor = User::factory()->manager()->create(['unit_id' => $unit->id]);
+        $supervisor = User::factory()->supervisor()->create(['unit_id' => $unit->id]);
         $staff = User::factory()->staff()->create([
             'unit_id' => $unit->id,
             'supervisor_id' => null,
@@ -190,7 +190,7 @@ class ExampleTest extends TestCase
         $centre = Unit::factory()->researchCentre()->create();
         $otherCentre = Unit::factory()->researchCentre()->create();
         $admin = User::factory()->systemAdmin()->create(['unit_id' => $centre->id]);
-        $outsideSupervisor = User::factory()->manager()->create(['unit_id' => $otherCentre->id]);
+        $outsideSupervisor = User::factory()->supervisor()->create(['unit_id' => $otherCentre->id]);
         $staff = User::factory()->staff()->create([
             'unit_id' => $centre->id,
             'supervisor_id' => null,
@@ -330,6 +330,99 @@ class ExampleTest extends TestCase
 
         $response->assertSessionHasErrors('supervisor_id');
         $this->assertNull(User::where('email', 'head.two@example.test')->first());
+    }
+
+    public function test_centre_supervisor_is_automatically_assigned_centre_manager_as_supervisor(): void
+    {
+        Notification::fake();
+
+        $admin         = User::factory()->systemAdmin()->create();
+        $centre        = Unit::factory()->researchCentre()->create();
+        $centreManager = User::factory()->centreManager()->create(['unit_id' => $centre->id]);
+
+        $response = $this->actingAs($admin)->post(route('users.store'), [
+            'name' => 'Supervisor One',
+            'email' => 'supervisor.one@example.test',
+            'unit_id' => $centre->id,
+            'role' => 'supervisor',
+            'is_active' => '1',
+        ]);
+
+        $response->assertRedirect(route('users.index'));
+        $response->assertSessionHasNoErrors();
+
+        $created = User::where('email', 'supervisor.one@example.test')->first();
+
+        $this->assertNotNull($created);
+        $this->assertSame($centreManager->id, $created->supervisor_id);
+    }
+
+    public function test_centre_supervisor_creation_fails_when_centre_has_no_active_centre_manager(): void
+    {
+        $admin  = User::factory()->systemAdmin()->create();
+        $centre = Unit::factory()->researchCentre()->create();
+
+        $response = $this->actingAs($admin)->post(route('users.store'), [
+            'name' => 'Supervisor Two',
+            'email' => 'supervisor.two@example.test',
+            'unit_id' => $centre->id,
+            'role' => 'supervisor',
+            'is_active' => '1',
+        ]);
+
+        $response->assertSessionHasErrors('supervisor_id');
+        $this->assertNull(User::where('email', 'supervisor.two@example.test')->first());
+    }
+
+    public function test_role_must_match_the_selected_units_type(): void
+    {
+        // "Head of Section" only makes sense inside an hq_section — a Research
+        // Centre has no such position (its equivalent is "Supervisor").
+        $admin  = User::factory()->systemAdmin()->create();
+        $centre = Unit::factory()->researchCentre()->create();
+
+        $response = $this->actingAs($admin)->post(route('users.store'), [
+            'name' => 'Mismatched Role',
+            'email' => 'mismatched.role@example.test',
+            'unit_id' => $centre->id,
+            'role' => 'head',
+            'is_active' => '1',
+        ]);
+
+        $response->assertSessionHasErrors('role');
+        $this->assertNull(User::where('email', 'mismatched.role@example.test')->first());
+    }
+
+    public function test_moving_a_user_from_a_centre_to_headquarters_requires_confirmation(): void
+    {
+        $admin  = User::factory()->systemAdmin()->create();
+        $centre = Unit::factory()->researchCentre()->create();
+        $hqUnit = Unit::factory()->hqStandalone()->create();
+        $user   = User::factory()->staff()->create(['unit_id' => $centre->id]);
+
+        $unconfirmed = $this->actingAs($admin)->patch(route('users.update', $user), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'unit_id' => $hqUnit->id,
+            'role' => 'staff',
+            'is_active' => '1',
+        ]);
+
+        $unconfirmed->assertSessionHasErrors('unit_id');
+        $this->assertSame($centre->id, $user->refresh()->unit_id);
+
+        $confirmed = $this->actingAs($admin)->patch(route('users.update', $user), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'unit_id' => $hqUnit->id,
+            'role' => 'staff',
+            'is_active' => '1',
+            'confirm_unit_type_change' => '1',
+        ]);
+
+        $confirmed->assertRedirect(route('users.index'));
+        $confirmed->assertSessionHasNoErrors();
+        $this->assertSame($hqUnit->id, $user->refresh()->unit_id);
     }
 
     public function test_updating_user_to_hq_standalone_manager_automatically_assigns_dg_as_supervisor(): void

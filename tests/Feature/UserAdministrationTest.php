@@ -72,13 +72,14 @@ class UserAdministrationTest extends TestCase
 
         $centre = Unit::factory()->researchCentre()->create();
         $admin = User::factory()->systemAdmin()->create(['unit_id' => $centre->id]);
+        User::factory()->centreManager()->create(['unit_id' => $centre->id]);
 
         $this->actingAs($admin)
             ->post(route('users.store'), [
                 'name' => 'New Centre User',
                 'email' => 'new.centre.user@example.com',
                 'unit_id' => $centre->id,
-                'role' => 'manager',
+                'role' => 'supervisor',
                 'is_active' => '1',
             ])
             ->assertRedirect(route('users.index'))
@@ -87,7 +88,7 @@ class UserAdministrationTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'new.centre.user@example.com',
             'unit_id' => $centre->id,
-            'role' => 'manager',
+            'role' => 'supervisor',
         ]);
     }
 

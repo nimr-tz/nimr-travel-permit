@@ -43,6 +43,7 @@ class UserFactory extends Factory
     public function staff(): static         { return $this->state(['role' => 'staff']); }
     public function head(): static          { return $this->state(['role' => 'head']); }
     public function manager(): static       { return $this->state(['role' => 'manager']); }
+    public function supervisor(): static    { return $this->state(['role' => 'supervisor']); }
     public function director(): static      { return $this->state(['role' => 'director']); }
     public function centreManager(): static { return $this->state(['role' => 'centre_manager']); }
     public function directorGeneral(): static { return $this->state(['role' => 'director_general']); }

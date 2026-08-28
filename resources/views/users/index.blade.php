@@ -85,6 +85,7 @@
             'staff'            => ['bg' => '#f1f5f9', 'text' => '#475569'],
             'head'             => ['bg' => '#eff6ff', 'text' => '#1d4ed8'],
             'manager'          => ['bg' => '#f5f3ff', 'text' => '#6d28d9'],
+            'supervisor'       => ['bg' => '#f5f3ff', 'text' => '#7e22ce'],
             'director'         => ['bg' => '#eef2ff', 'text' => '#4338ca'],
             'centre_manager'   => ['bg' => '#ecfeff', 'text' => '#0891b2'],
             'director_general' => ['bg' => '#fffbeb', 'text' => '#b45309'],

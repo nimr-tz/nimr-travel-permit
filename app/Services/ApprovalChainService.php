@@ -170,8 +170,14 @@ class ApprovalChainService
                 ['stage' => 'final', 'approver_id' => $dg->id],
             ],
 
+            // Supervisor is the top of the centre's staff hierarchy, below the
+            // Centre Manager — no personal supervisor of their own needed.
+            'supervisor' => [
+                ['stage' => 'final', 'approver_id' => $centreManager->id],
+            ],
+
             // Staff must have a supervisor set; go supervisor → centre_manager.
-            'staff', 'manager', 'hr', 'system_admin' => $traveller->supervisor_id
+            'staff', 'hr', 'system_admin' => $traveller->supervisor_id
                 ? [
                     ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
                     ['stage' => 'final',      'approver_id' => $centreManager->id],

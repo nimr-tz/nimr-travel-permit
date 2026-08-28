@@ -82,7 +82,7 @@
         'rejected' => 'Request was rejected.',
         'cancelled'=> 'Request was cancelled.',
         'pending'  => match ($focalRequest->currentApprover?->role) {
-            'head', 'manager'  => "Awaiting your supervisor\u{2019}s review.",
+            'head', 'manager', 'supervisor' => "Awaiting your supervisor\u{2019}s review.",
             'centre_manager'   => "Awaiting centre manager\u{2019}s approval.",
             'director'         => "Awaiting director\u{2019}s approval.",
             'director_general' => "Awaiting director general\u{2019}s approval.",

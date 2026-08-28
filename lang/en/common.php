@@ -48,6 +48,7 @@ return [
     'role_staff'            => 'Staff',
     'role_head'             => 'Head of Section',
     'role_manager'          => 'Manager',
+    'role_supervisor'       => 'Supervisor',
     'role_director'         => 'Director',
     'role_centre_manager'   => 'Centre Manager',
     'role_director_general' => 'Director General',
