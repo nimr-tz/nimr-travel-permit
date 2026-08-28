@@ -128,7 +128,8 @@
                                 @endif
                                 @foreach ($hqDirectorates as $directorate)
                                     <optgroup label="{{ $directorate->name }}">
-                                        <option value="{{ $directorate->id }}">{{ $directorate->name }}</option>
+                                        {{-- The Directorate itself is not selectable: only its Director belongs there,
+                                             and that account is created by a system administrator, not self-registration. --}}
                                         @foreach ($directorate->children as $section)
                                             <option value="{{ $section->id }}">{{ $section->name }}</option>
                                         @endforeach

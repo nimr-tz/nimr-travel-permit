@@ -51,6 +51,7 @@ return [
     'invited_success'           => ':name ameongezwa na barua pepe ya mwaliko imetumwa.',
     'deactivate_pending_warning'=> 'Haiwezekani kuzima: mtumiaji huyu ana idhini :count zinazosubiri. Panga upya au tatua maombi hayo kwanza.',
     'dg_supervisor_missing'     => 'Hakuna Mkurugenzi Mkuu aliye hai wa kuwekwa kama msimamizi wa mtumiaji huyu.',
+    'director_supervisor_missing' => 'Hakuna Mkurugenzi aliye hai wa Idara ya kitengo hiki wa kuwekwa kama msimamizi wa mtumiaji huyu.',
 
     // Index page
     'search_placeholder' => 'Tafuta kwa jina, barua pepe, au nambari ya utumishi…',

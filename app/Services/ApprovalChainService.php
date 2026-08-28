@@ -198,12 +198,16 @@ class ApprovalChainService
 
         return match ($traveller->role) {
 
-            'head' => [
+            // Section lead travels → straight to the Directorate's Director.
+            // Scientific sections (under RCPD/RIRAD) are led by a "head";
+            // Corporate Services sections (under CSD) are led by a "manager".
+            // Either way, the lead is the top of their section and needs no supervisor.
+            'head', 'manager' => [
                 ['stage' => 'director', 'approver_id' => $directorId],
                 ['stage' => 'final',    'approver_id' => $dg->id],
             ],
 
-            'staff', 'manager', 'hr', 'system_admin' => $traveller->supervisor_id
+            'staff', 'hr', 'system_admin' => $traveller->supervisor_id
                 ? [
                     ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
                     ['stage' => 'director',   'approver_id' => $directorId],
@@ -245,10 +249,20 @@ class ApprovalChainService
     {
         $dg = $this->findDirectorGeneral();
 
-        // Director → DG
-        return [
-            ['stage' => 'final', 'approver_id' => $dg->id],
-        ];
+        return match ($traveller->role) {
+
+            // Only the Director sits directly in a Directorate unit per the NIMR
+            // organogram — everyone else belongs under one of its sections and must
+            // go through chainForHqSection instead. Without this check, any other
+            // role accidentally placed here (e.g. self-registration picking the
+            // Directorate instead of a section) would skip straight to the DG,
+            // bypassing supervisor/section-head/director review entirely.
+            'director' => [
+                ['stage' => 'final', 'approver_id' => $dg->id],
+            ],
+
+            default => throw new RuntimeException("Your role cannot submit travel requests through this unit. Contact your system administrator."),
+        };
     }
 
     // ------------------------------------------------------------------

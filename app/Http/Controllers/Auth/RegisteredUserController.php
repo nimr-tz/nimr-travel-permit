@@ -110,6 +110,15 @@ class RegisteredUserController extends Controller
             ]);
         }
 
+        // Only a Director belongs directly in a Directorate unit; that account is
+        // created by a system administrator, not self-registration. Everyone else
+        // must register under one of the Directorate's sections.
+        if ($unit->type === 'hq_directorate') {
+            throw ValidationException::withMessages([
+                'unit_id' => 'Please select your section within the directorate, not the directorate itself.',
+            ]);
+        }
+
         return $unit;
     }
 }

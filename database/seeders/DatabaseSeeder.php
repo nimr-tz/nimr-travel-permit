@@ -31,19 +31,19 @@ class DatabaseSeeder extends Seeder
         $rirad= Unit::create(['name' => 'Research Information and Regulatory Affairs Directorate','code' => 'RIRAD','type' => 'hq_directorate']);
         $csd  = Unit::create(['name' => 'Corporate Services Directorate',                      'code' => 'CSD',  'type' => 'hq_directorate']);
 
-        // --- HQ Sections under RCPD ---
-        Unit::create(['name' => 'Public Health and Promotion Section',                        'code' => 'PHPS',  'type' => 'hq_section', 'parent_id' => $rcpd->id]);
-        Unit::create(['name' => 'Health Systems, Policy and Translational Research Section',  'code' => 'HSPTRS','type' => 'hq_section', 'parent_id' => $rcpd->id]);
-        Unit::create(['name' => 'Innovation, Commercialisation and Technology Transfer Section','code' => 'ICTTS','type' => 'hq_section', 'parent_id' => $rcpd->id]);
+        // --- HQ Sections under RCPD (scientific, led by a "head") ---
+        $phps   = Unit::create(['name' => 'Public Health and Promotion Section',                        'code' => 'PHPS',  'type' => 'hq_section', 'parent_id' => $rcpd->id]);
+        $hsptrs = Unit::create(['name' => 'Health Systems, Policy and Translational Research Section',  'code' => 'HSPTRS','type' => 'hq_section', 'parent_id' => $rcpd->id]);
+        $ictts  = Unit::create(['name' => 'Innovation, Commercialisation and Technology Transfer Section','code' => 'ICTTS','type' => 'hq_section', 'parent_id' => $rcpd->id]);
 
-        // --- HQ Sections under RIRAD ---
-        Unit::create(['name' => 'Health Research Regulation Section',     'code' => 'HRRS', 'type' => 'hq_section', 'parent_id' => $rirad->id]);
-        Unit::create(['name' => 'Disease Surveillance Section',           'code' => 'DSS',  'type' => 'hq_section', 'parent_id' => $rirad->id]);
-        Unit::create(['name' => 'Research Publication and Documentation Section','code' => 'RPDS','type' => 'hq_section','parent_id' => $rirad->id]);
+        // --- HQ Sections under RIRAD (scientific, led by a "head") ---
+        $hrrs = Unit::create(['name' => 'Health Research Regulation Section',     'code' => 'HRRS', 'type' => 'hq_section', 'parent_id' => $rirad->id]);
+        $dss  = Unit::create(['name' => 'Disease Surveillance Section',           'code' => 'DSS',  'type' => 'hq_section', 'parent_id' => $rirad->id]);
+        $rpds = Unit::create(['name' => 'Research Publication and Documentation Section','code' => 'RPDS','type' => 'hq_section','parent_id' => $rirad->id]);
 
-        // --- HQ Sections under CSD ---
-        Unit::create(['name' => 'Finance and Accounts Section',                     'code' => 'FAS',  'type' => 'hq_section', 'parent_id' => $csd->id]);
-        Unit::create(['name' => 'Planning, Monitoring and Evaluation Section',      'code' => 'PMES', 'type' => 'hq_section', 'parent_id' => $csd->id]);
+        // --- HQ Sections under CSD (administrative, led by a "manager") ---
+        $fas    = Unit::create(['name' => 'Finance and Accounts Section',                     'code' => 'FAS',  'type' => 'hq_section', 'parent_id' => $csd->id]);
+        $pmes   = Unit::create(['name' => 'Planning, Monitoring and Evaluation Section',      'code' => 'PMES', 'type' => 'hq_section', 'parent_id' => $csd->id]);
         $hrUnit = Unit::create(['name' => 'Human Resource Management and Administration Section','code' => 'HRMAS','type' => 'hq_section','parent_id' => $csd->id]);
 
         // --- Research Centres ---
@@ -156,7 +156,29 @@ class DatabaseSeeder extends Seeder
             'is_active'         => true,
         ]);
 
-        // Corporate Services Directorate — Director
+        // --- Directorate Directors ---
+        User::create([
+            'name'         => 'Director Research Coordination and Promotion',
+            'email'        => 'director.rcpd@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $rcpd->id,
+            'job_title'    => 'Director of Research Coordination and Promotion',
+            'role'         => 'director',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
+
+        User::create([
+            'name'         => 'Director Research Information and Regulatory Affairs',
+            'email'        => 'director.rirad@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $rirad->id,
+            'job_title'    => 'Director of Research Information and Regulatory Affairs',
+            'role'         => 'director',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
+
         User::create([
             'name'         => 'Director Corporate Services',
             'email'        => 'director.csd@nimr.or.tz',
@@ -168,16 +190,60 @@ class DatabaseSeeder extends Seeder
             'is_active'         => true,
         ]);
 
-        // Finance and Accounts Section — Head + sample staff
-        $fas = Unit::where('code', 'FAS')->first();
+        // Public Health and Promotion Section (RCPD, scientific) — Head + sample staff
+        User::create([
+            'name'         => 'Head Public Health and Promotion',
+            'email'        => 'head.phps@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $phps->id,
+            'job_title'    => 'Head of Public Health and Promotion',
+            'role'         => 'head',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
 
         User::create([
-            'name'         => 'Head Finance and Accounts',
-            'email'        => 'head.fas@nimr.or.tz',
+            'name'         => 'Sample Staff RCPD',
+            'email'        => 'staff.rcpd@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $phps->id,
+            'job_title'    => 'Research Officer',
+            'role'         => 'staff',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
+
+        // Health Research Regulation Section (RIRAD, scientific) — Head + sample staff
+        User::create([
+            'name'         => 'Head Health Research Regulation',
+            'email'        => 'head.hrrs@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $hrrs->id,
+            'job_title'    => 'Head of Health Research Regulation',
+            'role'         => 'head',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
+
+        User::create([
+            'name'         => 'Sample Staff RIRAD',
+            'email'        => 'staff.rirad@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $hrrs->id,
+            'job_title'    => 'Research Officer',
+            'role'         => 'staff',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
+
+        // Finance and Accounts Section (CSD, administrative) — Manager + sample staff
+        User::create([
+            'name'         => 'Manager Finance and Accounts',
+            'email'        => 'manager.fas@nimr.or.tz',
             'password'     => Hash::make('password'),
             'unit_id'      => $fas->id,
-            'job_title'    => 'Head of Finance and Accounts',
-            'role'         => 'head',
+            'job_title'    => 'Manager of Finance and Accounts',
+            'role'         => 'manager',
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);
@@ -188,6 +254,84 @@ class DatabaseSeeder extends Seeder
             'password'     => Hash::make('password'),
             'unit_id'      => $fas->id,
             'job_title'    => 'Accounts Officer',
+            'role'         => 'staff',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
+
+        // --- Remaining RCPD/RIRAD section Heads (scientific) ---
+        $heads = [
+            [$hsptrs, 'Health Systems, Policy and Translational Research', 'head.hsptrs@nimr.or.tz'],
+            [$ictts,  'Innovation, Commercialisation and Technology Transfer', 'head.ictts@nimr.or.tz'],
+            [$dss,    'Disease Surveillance', 'head.dss@nimr.or.tz'],
+            [$rpds,   'Research Publication and Documentation', 'head.rpds@nimr.or.tz'],
+        ];
+
+        foreach ($heads as [$unit, $label, $email]) {
+            User::create([
+                'name'         => "Head {$label}",
+                'email'        => $email,
+                'password'     => Hash::make('password'),
+                'unit_id'      => $unit->id,
+                'job_title'    => "Head of {$label}",
+                'role'         => 'head',
+                'email_verified_at' => now(),
+                'is_active'         => true,
+            ]);
+        }
+
+        // --- Remaining CSD section Manager (administrative) ---
+        User::create([
+            'name'         => 'Manager Planning, Monitoring and Evaluation',
+            'email'        => 'manager.pmes@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $pmes->id,
+            'job_title'    => 'Manager of Planning, Monitoring and Evaluation',
+            'role'         => 'manager',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
+
+        User::create([
+            'name'         => 'Manager Human Resource Management and Administration',
+            'email'        => 'manager.hrmas@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $hrUnit->id,
+            'job_title'    => 'Manager of Human Resource Management and Administration',
+            'role'         => 'manager',
+            'email_verified_at' => now(),
+            'is_active'         => true,
+        ]);
+
+        // --- HQ Standalone Unit Managers (report straight to the DG) ---
+        $standaloneLeads = [
+            [$audit, 'Internal Audit Unit', 'manager.iau@nimr.or.tz', 'Chief Internal Auditor'],
+            [$legal, 'Legal Services Unit', 'manager.lsu@nimr.or.tz', 'Manager of Legal Services'],
+            [$ict,   'ICT Unit',            'manager.ict@nimr.or.tz', 'Manager of ICT'],
+            [$proc,  'Procurement Management Unit', 'manager.pmu@nimr.or.tz', 'Manager of Procurement'],
+            [$pr,    'Public Relations and Communication Unit', 'manager.prcu@nimr.or.tz', 'Manager of Public Relations and Communication'],
+        ];
+
+        foreach ($standaloneLeads as [$unit, $unitName, $email, $jobTitle]) {
+            User::create([
+                'name'         => "Manager {$unitName}",
+                'email'        => $email,
+                'password'     => Hash::make('password'),
+                'unit_id'      => $unit->id,
+                'job_title'    => $jobTitle,
+                'role'         => 'manager',
+                'email_verified_at' => now(),
+                'is_active'         => true,
+            ]);
+        }
+
+        // Sample staff under a standalone unit (for testing the staff → manager → DG chain)
+        User::create([
+            'name'         => 'Sample Staff ICT',
+            'email'        => 'staff.ict@nimr.or.tz',
+            'password'     => Hash::make('password'),
+            'unit_id'      => $ict->id,
+            'job_title'    => 'ICT Officer',
             'role'         => 'staff',
             'email_verified_at' => now(),
             'is_active'         => true,

@@ -121,6 +121,21 @@ class ApprovalWorkflowTest extends TestCase
         $this->assertDatabaseMissing('travel_requests', ['requester_id' => $staff->id]);
     }
 
+    public function test_staff_placed_directly_in_a_directorate_cannot_submit(): void
+    {
+        // Only the Director belongs directly in a Directorate unit. If a staff
+        // member ends up there (e.g. legacy data, admin mistake), they must be
+        // blocked rather than silently skipping straight to the DG.
+        $directorate = Unit::factory()->hqDirectorate()->create();
+        $staff       = User::factory()->staff()->create(['unit_id' => $directorate->id]);
+
+        $this->actingAs($staff)
+            ->post(route('travel-requests.store'), $this->validRequestPayload($staff))
+            ->assertSessionHasErrors('submit');
+
+        $this->assertDatabaseMissing('travel_requests', ['requester_id' => $staff->id]);
+    }
+
     public function test_wrong_approver_gets_403(): void
     {
         $centreUnit    = Unit::factory()->researchCentre()->create();

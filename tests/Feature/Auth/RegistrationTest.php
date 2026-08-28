@@ -67,4 +67,33 @@ class RegistrationTest extends TestCase
             'email' => 'test@nimr.or.tz',
         ]);
     }
+
+    public function test_registration_rejects_placement_directly_in_a_directorate(): void
+    {
+        // Only the Director belongs directly in a Directorate unit — that account
+        // is created by a system administrator. A self-registered "staff" placed
+        // there would otherwise skip the entire approval chain and go straight to
+        // the DG, bypassing supervisor/section-head/director review.
+        $directorate = Unit::create([
+            'name' => 'Research Coordination and Promotion Directorate',
+            'code' => 'RCPD',
+            'type' => 'hq_directorate',
+            'is_active' => true,
+        ]);
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Test User',
+            'email' => 'test@nimr.or.tz',
+            'organizational_level' => 'headquarters',
+            'unit_id' => $directorate->id,
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors('unit_id');
+        $this->assertDatabaseMissing('users', [
+            'email' => 'test@nimr.or.tz',
+        ]);
+    }
 }

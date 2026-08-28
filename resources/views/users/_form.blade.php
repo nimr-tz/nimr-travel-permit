@@ -11,7 +11,7 @@
     $currentRole = (string) old('role', $user->role ?? 'staff');
     $currentSupervisorId = (string) old('supervisor_id', $user->supervisor_id ?? '');
     $unitSupervisorMeta = $units->mapWithKeys(fn ($unit) => [
-        (string) $unit->id => ['type' => $unit->type],
+        (string) $unit->id => ['type' => $unit->type, 'parent_id' => $unit->parent_id ? (string) $unit->parent_id : null],
     ])->all();
     $supervisorOptionsData = collect($supervisorOptions ?? [])->map(fn ($supervisor) => [
         'id' => (string) $supervisor->id,
@@ -80,7 +80,7 @@
                 const unit = this.units[this.selectedUnitId];
                 if (!unit) return null;
                 if (unit.type === 'research_centre' && ['staff', 'manager', 'hr', 'system_admin'].includes(this.selectedRole)) return 'manager';
-                if (unit.type === 'hq_section' && ['staff', 'manager', 'hr', 'system_admin'].includes(this.selectedRole)) return 'head';
+                if (unit.type === 'hq_section' && ['staff', 'hr', 'system_admin'].includes(this.selectedRole)) return 'head_or_manager';
                 if (unit.type === 'hq_standalone' && ['staff', 'hr', 'system_admin'].includes(this.selectedRole)) return 'manager';
                 return null;
             },
@@ -93,9 +93,19 @@
                     (unit.type === 'hq_standalone' && this.selectedRole === 'manager') ||
                     (unit.type === 'hq_directorate' && this.selectedRole === 'director');
 
-                if (!reportsToDg) return null;
+                if (reportsToDg) {
+                    return this.supervisors.find((supervisor) => supervisor.role === 'director_general') || null;
+                }
 
-                return this.supervisors.find((supervisor) => supervisor.role === 'director_general') || null;
+                // Section lead (head of a scientific section, or manager of a Corporate
+                // Services section) reports straight to their Directorate's Director.
+                const reportsToDirectorate = unit.type === 'hq_section' && ['head', 'manager'].includes(this.selectedRole);
+
+                if (reportsToDirectorate && unit.parent_id) {
+                    return this.supervisors.find((supervisor) => supervisor.unit_id === unit.parent_id && supervisor.role === 'director') || null;
+                }
+
+                return null;
             },
             fixedSupervisorLabel() {
                 const fixed = this.fixedSupervisor();
@@ -107,7 +117,10 @@
 
                 const role = this.supervisorRole();
                 if (!role) return [];
-                return this.supervisors.filter((supervisor) => supervisor.unit_id === String(this.selectedUnitId) && supervisor.role === role);
+                // A section's lead is either a "head" (scientific sections) or a
+                // "manager" (Corporate Services sections) — match whichever leads it.
+                const roles = role === 'head_or_manager' ? ['head', 'manager'] : [role];
+                return this.supervisors.filter((supervisor) => supervisor.unit_id === String(this.selectedUnitId) && roles.includes(supervisor.role));
             },
             supervisorApplies() {
                 return this.fixedSupervisor() !== null || this.supervisorRole() !== null;
