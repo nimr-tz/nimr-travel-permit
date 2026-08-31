@@ -158,8 +158,8 @@
 
                 const role = this.supervisorRole();
                 if (!role) return [];
-                // A section's lead is either a "head" (scientific sections) or a
-                // "manager" (Corporate Services sections) — match whichever leads it.
+                // A section's lead is either a 'head' (scientific sections) or a
+                // 'manager' (Corporate Services sections) — match whichever leads it.
                 const roles = role === 'head_or_manager' ? ['head', 'manager'] : [role];
                 return this.supervisors.filter((supervisor) => supervisor.unit_id === String(this.selectedUnitId) && roles.includes(supervisor.role));
             },
