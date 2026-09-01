@@ -98,6 +98,7 @@ class TravelRequest extends Model
         // Section G
         'g_handover_officer_name',
         'g_handover_officer_title',
+        'g_handover_officer_id',
         'g_handover_document',
         'travel_report_document',
         'travel_report_original_name',
@@ -137,6 +138,11 @@ class TravelRequest extends Model
     public function currentApprover(): BelongsTo
     {
         return $this->belongsTo(User::class, 'current_approver_id');
+    }
+
+    public function handoverOfficer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'g_handover_officer_id');
     }
 
     public function approvalActions(): HasMany

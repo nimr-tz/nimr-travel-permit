@@ -387,24 +387,27 @@
                             <div class="field relative"
                                  x-data="{
                                      open: false,
-                                     search: '{{ old('g_handover_officer_name', '') }}',
-                                     selectedName: '{{ old('g_handover_officer_name', '') }}',
-                                     selectedTitle: '{{ old('g_handover_officer_title', '') }}',
+                                     search: {{ Js::from(old('g_handover_officer_name', '')) }},
+                                     selectedId: {{ Js::from((string) old('g_handover_officer_id', '')) }},
+                                     selectedName: {{ Js::from(old('g_handover_officer_name', '')) }},
+                                     selectedTitle: {{ Js::from(old('g_handover_officer_title', '')) }},
                                      users: {{ Js::from($handoverUsers) }},
                                      get filtered() {
                                          if (!this.search) return this.users;
                                          const q = this.search.toLowerCase();
                                          return this.users.filter(u => u.name.toLowerCase().includes(q) || u.title.toLowerCase().includes(q));
                                      },
-                                     select(u) { this.selectedName = u.name; this.selectedTitle = u.title; this.search = u.name; this.open = false; }
+                                     clear() { this.selectedId = ''; this.selectedName = ''; this.selectedTitle = ''; },
+                                     select(u) { this.selectedId = String(u.id); this.selectedName = u.name; this.selectedTitle = u.title; this.search = u.name; this.open = false; }
                                  }"
                                  @click.outside="open = false">
                                 <label class="label">{{ __('travel.g_officer_name') }}</label>
+                                <input type="hidden" name="g_handover_officer_id" :value="selectedId">
                                 <input type="hidden" name="g_handover_officer_name" :value="selectedName">
                                 <input type="hidden" name="g_handover_officer_title" :value="selectedTitle">
                                 <div class="relative">
                                     <input type="text" x-model="search"
-                                           @focus="open = true" @input="open = true; selectedName = ''; selectedTitle = ''"
+                                           @focus="open = true" @input="open = true; clear()"
                                            class="input pr-9" placeholder="Search by name or title…" autocomplete="off">
                                     <button type="button" @click="open = !open"
                                             class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">

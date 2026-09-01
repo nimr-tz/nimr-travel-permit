@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ApprovalAction;
 use App\Models\TravelRequest;
+use App\Services\ApprovalDelegationService;
 use App\Models\User;
 use App\Services\ApprovalChainService;
 use App\Services\SupervisorService;
@@ -31,13 +32,24 @@ class DashboardController extends Controller
         $actedOnIds = ApprovalAction::where('actor_id', $user->id)
             ->pluck('travel_request_id');
 
+        // Approvers this user is standing in for while they are away on approved
+        // travel — the same queue /approvals shows, so the two agree.
+        $actingFor = app(ApprovalDelegationService::class)->actingFor($user);
+
         $approvalRequests = collect();
         if (!$user->isHr() && !$user->isDirectorGeneral()) {
             $approvalRequests = TravelRequest::with(['requester', 'unit', 'currentApprover'])
                 ->where('requester_id', '!=', $user->id)
-                ->where(function ($q) use ($user, $actedOnIds) {
+                ->where(function ($q) use ($user, $actedOnIds, $actingFor) {
                     $q->where('current_approver_id', $user->id)
                         ->orWhereIn('id', $actedOnIds);
+
+                    if ($actingFor->isNotEmpty()) {
+                        $q->orWhere(function ($inner) use ($actingFor) {
+                            $inner->whereIn('current_approver_id', $actingFor)
+                                ->where('status', TravelRequest::STATUS_PENDING);
+                        });
+                    }
                 })
                 ->latest()
                 ->get();
@@ -65,8 +77,10 @@ class DashboardController extends Controller
             $allRequests = $query->latest()->get();
         }
 
+        $approverIds = $actingFor->push($user->id)->all();
+
         $needsMyAction = ($user->isDirectorGeneral() ? $allRequests : $approvalRequests)
-            ->where('current_approver_id', $user->id)
+            ->whereIn('current_approver_id', $approverIds)
             ->where('status', 'pending');
 
         $statsBase = $user->isHr() || $user->isDirectorGeneral()

@@ -6,6 +6,7 @@ use App\Exceptions\StaleRequestException;
 use App\Models\TravelRequest;
 use App\Models\User;
 use App\Notifications\TravelRequestHrCopyNotification;
+use App\Notifications\TravelRequestHandoverNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
 use App\Services\SupervisorService;
@@ -102,7 +103,7 @@ class TravelRequestController extends Controller
                 ->with('status', __('dashboard.supervisor_required_to_submit'));
         }
 
-        $handoverUsers = $this->handoverUserList();
+        $handoverUsers = $this->handoverUserList($user);
         $travelDays = $this->travelDaysSummary($user);
 
         return view('travel-requests.create', compact('user', 'handoverUsers', 'travelDays'));
@@ -158,6 +159,7 @@ class TravelRequestController extends Controller
         $travelRequest = $this->createWithRequestNumber([
             ...$validated,
             ...$this->travellerIdentity($user),
+            ...$this->handoverIdentity($request, $user),
             ...$invitation,
             'g_handover_document' => $documentPath,
             'requester_id' => $user->id,
@@ -170,6 +172,7 @@ class TravelRequestController extends Controller
 
         if (! $isDraft && $chain) {
             $this->notifyFirstApprover($travelRequest);
+            $this->notifyHandoverOfficer($travelRequest, TravelRequestHandoverNotification::STAGE_SUBMITTED);
         }
 
         // Persist phone to user profile if provided and differs from saved value
@@ -258,7 +261,7 @@ class TravelRequestController extends Controller
     {
         $this->authorize('update', $travelRequest);
         $user = auth()->user();
-        $handoverUsers = $this->handoverUserList();
+        $handoverUsers = $this->handoverUserList($user);
 
         return view('travel-requests.edit', compact('travelRequest', 'user', 'handoverUsers'));
     }
@@ -312,8 +315,10 @@ class TravelRequestController extends Controller
 
         $user = $request->user();
 
+        $handoverIdentity = $this->handoverIdentity($request, $user);
+
         try {
-            DB::transaction(function () use ($travelRequest, $validated, $isDraft, $user) {
+            DB::transaction(function () use ($travelRequest, $validated, $isDraft, $user, $handoverIdentity) {
                 // Re-read under a row lock: a stale tab must not overwrite a
                 // request that has since been submitted, cancelled or acted on.
                 $fresh = TravelRequest::whereKey($travelRequest->getKey())
@@ -327,6 +332,7 @@ class TravelRequestController extends Controller
                 $payload = [
                     ...$validated,
                     ...$this->travellerIdentity($user),
+                    ...$handoverIdentity,
                 ];
 
                 if ($isDraft) {
@@ -381,6 +387,7 @@ class TravelRequestController extends Controller
 
         if (! $isDraft) {
             $this->notifyFirstApprover($travelRequest);
+            $this->notifyHandoverOfficer($travelRequest, TravelRequestHandoverNotification::STAGE_SUBMITTED);
         }
 
         // Persist phone to user profile if provided and differs from saved value
@@ -633,6 +640,10 @@ class TravelRequestController extends Controller
             'f_traveller_signed_date' => ['nullable', 'date'],
             'g_handover_officer_name' => [$req, 'string', 'max:255'],
             'g_handover_officer_title' => ['nullable', 'string', 'max:255'],
+            // Nullable, not required: permits saved before this column existed
+            // carry a name and no id. handoverIdentity() does the real check —
+            // that the id is an active colleague in the traveller's own unit.
+            'g_handover_officer_id' => ['nullable', 'integer', 'exists:users,id'],
         ];
 
         if ($withFile) {
@@ -665,9 +676,22 @@ class TravelRequestController extends Controller
         }
     }
 
-    private function handoverUserList(): Collection
+    /**
+     * Handover only makes sense to someone who can actually absorb the duties,
+     * which means a colleague in the same unit — the list used to be every
+     * active account in the institute, so a Mwanza technician could hand over
+     * to a Dodoma finance officer. The traveller is excluded: nobody hands over
+     * to themselves.
+     */
+    private function handoverUserList(User $traveller): Collection
     {
+        if (! $traveller->unit_id) {
+            return collect();
+        }
+
         return User::where('is_active', true)
+            ->where('unit_id', $traveller->unit_id)
+            ->whereKeyNot($traveller->getKey())
             ->orderBy('name')
             ->get()
             ->map(fn ($u) => [
@@ -675,6 +699,40 @@ class TravelRequestController extends Controller
                 'name' => $u->name,
                 'title' => $u->job_title ?? '',
             ]);
+    }
+
+    /**
+     * The picker submits an id; the name and title are derived from it rather
+     * than trusted from the request body, the same reason travellerIdentity()
+     * never takes the applicant's own name from the form. Requests submitted
+     * before the id column existed keep whatever name they were saved with.
+     */
+    private function handoverIdentity(Request $request, User $traveller): array
+    {
+        $officerId = $request->input('g_handover_officer_id');
+
+        // Always return the key. Returning an empty array would let the raw id
+        // from the validated request body survive the spread — 'exists:users,id'
+        // only proves the account exists, not that it is a colleague the
+        // traveller may hand over to.
+        if (! $officerId) {
+            return ['g_handover_officer_id' => null];
+        }
+
+        $officer = User::where('is_active', true)
+            ->where('unit_id', $traveller->unit_id)
+            ->whereKeyNot($traveller->getKey())
+            ->find($officerId);
+
+        if (! $officer) {
+            return ['g_handover_officer_id' => null];
+        }
+
+        return [
+            'g_handover_officer_id' => $officer->id,
+            'g_handover_officer_name' => $officer->name,
+            'g_handover_officer_title' => $officer->job_title ?? '',
+        ];
     }
 
     private function missingSupervisor(User $user): bool
@@ -750,6 +808,32 @@ class TravelRequestController extends Controller
             ->max();
 
         return $prefix.str_pad((string) (($highest ?? 0) + 1), 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Tell the handover officer they have been named. Failures are logged and
+     * swallowed for the same reason the approver notification swallows them —
+     * a mail outage must not roll back a submitted permit.
+     */
+    public function notifyHandoverOfficer(TravelRequest $travelRequest, string $stage): void
+    {
+        if (! $travelRequest->g_handover_officer_id) {
+            return;
+        }
+
+        try {
+            $officer = User::find($travelRequest->g_handover_officer_id);
+
+            if ($officer && $officer->is_active) {
+                $officer->notify(new TravelRequestHandoverNotification($travelRequest, $stage));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to notify handover officer for request '.$travelRequest->request_number, [
+                'officer_id' => $travelRequest->g_handover_officer_id,
+                'stage' => $stage,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function notifyFirstApprover(TravelRequest $travelRequest): void
