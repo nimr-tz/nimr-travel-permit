@@ -218,4 +218,6 @@ return [
     'done_on' => '· :date',
     'flow_on_hold' => 'On hold',
     'flow_not_reached' => 'Not reached',
+    'pending_request_before_new_request' => 'You already have a travel request awaiting a decision. Wait for it to be approved, rejected or returned before applying for another permit.',
+    'report_required_after_return_only' => 'The travel report can only be submitted once the trip has ended.',
 ];

@@ -218,4 +218,6 @@ return [
     'done_on' => '· :date',
     'flow_on_hold' => 'Imesimamishwa',
     'flow_not_reached' => 'Haikufikiwa',
+    'pending_request_before_new_request' => 'Tayari una ombi la safari linalosubiri uamuzi. Subiri liidhinishwe, likataliwe au lirudishwe kabla ya kuomba kibali kingine.',
+    'report_required_after_return_only' => 'Ripoti ya safari inaweza kuwasilishwa tu baada ya safari kumalizika.',
 ];

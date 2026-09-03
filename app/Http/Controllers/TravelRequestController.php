@@ -93,9 +93,9 @@ class TravelRequestController extends Controller
     {
         $user = auth()->user();
 
-        if ($missingReport = $this->missingRequiredTravelReport($user)) {
-            return redirect()->route('travel-requests.show', $missingReport)
-                ->with('error', __('travel.report_required_before_new_request'));
+        if ($blocker = $this->blockingOpenRequest($user)) {
+            return redirect()->route('travel-requests.show', $blocker)
+                ->with('error', $this->blockedMessageFor($blocker));
         }
 
         if ($this->missingSupervisor($user)) {
@@ -113,12 +113,16 @@ class TravelRequestController extends Controller
     {
         $user = $request->user();
 
-        if ($missingReport = $this->missingRequiredTravelReport($user)) {
-            return redirect()->route('travel-requests.show', $missingReport)
-                ->with('error', __('travel.report_required_before_new_request'));
+        $isDraft = $request->input('action') === 'draft';
+
+        // Blocked from *submitting*, not from saving. A form already open when
+        // the block arose can still be parked as a draft rather than losing the
+        // typing; it just cannot enter the approval chain.
+        if (! $isDraft && ($blocker = $this->blockingOpenRequest($user))) {
+            return redirect()->route('travel-requests.show', $blocker)
+                ->with('error', $this->blockedMessageFor($blocker));
         }
 
-        $isDraft = $request->input('action') === 'draft';
         $validated = $this->validateForm($request, withFile: true, isDraft: $isDraft);
 
         if (! $isDraft) {
@@ -272,9 +276,9 @@ class TravelRequestController extends Controller
 
         $isDraft = $request->input('action') === 'draft';
 
-        if (! $isDraft && ($missingReport = $this->missingRequiredTravelReport($request->user(), $travelRequest->id))) {
-            return redirect()->route('travel-requests.show', $missingReport)
-                ->with('error', __('travel.report_required_before_new_request'));
+        if (! $isDraft && ($blocker = $this->blockingOpenRequest($request->user(), $travelRequest->id))) {
+            return redirect()->route('travel-requests.show', $blocker)
+                ->with('error', $this->blockedMessageFor($blocker));
         }
 
         // A document already on the record satisfies the upload requirement.
@@ -754,16 +758,47 @@ class TravelRequestController extends Controller
             ->first();
     }
 
-    private function missingRequiredTravelReport(User $user, ?int $excludeRequestId = null): ?TravelRequest
+    /**
+     * One live request at a time.
+     *
+     * This used to block only on an *overdue* report — an approved trip whose
+     * return date had already passed — which left the rule trivial to evade:
+     * nothing stopped a traveller submitting ten future-dated requests at once,
+     * because none of them were due yet, and by the time any report was owed
+     * every trip had already been approved.
+     *
+     * A request therefore blocks the next one while it is still live:
+     *   - pending, i.e. still somewhere in the approval chain; or
+     *   - approved but not yet reported on.
+     *
+     * Drafts, rejected, returned and cancelled requests block nothing — none of
+     * them is a granted or in-flight application.
+     */
+    private function blockingOpenRequest(User $user, ?int $excludeRequestId = null): ?TravelRequest
     {
         return TravelRequest::query()
             ->where('requester_id', $user->id)
-            ->where('status', TravelRequest::STATUS_APPROVED)
-            ->whereDate('b_return_date', '<', today())
-            ->whereNull('travel_report_submitted_at')
+            ->where(function ($query) {
+                $query->where('status', TravelRequest::STATUS_PENDING)
+                    ->orWhere(function ($approved) {
+                        $approved->where('status', TravelRequest::STATUS_APPROVED)
+                            ->whereNull('travel_report_submitted_at');
+                    });
+            })
             ->when($excludeRequestId, fn ($query) => $query->where('id', '!=', $excludeRequestId))
-            ->oldest('b_return_date')
+            ->oldest('b_departure_date')
             ->first();
+    }
+
+    /**
+     * Why the traveller is blocked, so the flash message names the actual
+     * obstacle rather than always claiming a report is outstanding.
+     */
+    private function blockedMessageFor(TravelRequest $blocker): string
+    {
+        return $blocker->status === TravelRequest::STATUS_PENDING
+            ? __('travel.pending_request_before_new_request')
+            : __('travel.report_required_before_new_request');
     }
 
     /**

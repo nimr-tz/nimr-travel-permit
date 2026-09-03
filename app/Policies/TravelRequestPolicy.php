@@ -56,10 +56,18 @@ class TravelRequestPolicy
         return $this->view($user, $travelRequest);
     }
 
+    /**
+     * A report covers a trip that has happened. Without the date check the
+     * one-live-request rule is trivially escaped: file a report for a trip not
+     * yet taken and the block lifts while the travel is still ahead of you.
+     * The return day itself counts as ended, so a traveller can report the day
+     * they get back.
+     */
     public function uploadReport(User $user, TravelRequest $travelRequest): bool
     {
         return $travelRequest->requester_id === $user->id
             && $travelRequest->status === TravelRequest::STATUS_APPROVED
+            && $travelRequest->hasEnded()
             && ! $travelRequest->isTravelReportLocked();
     }
 

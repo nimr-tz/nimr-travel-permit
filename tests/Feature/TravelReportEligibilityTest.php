@@ -59,7 +59,15 @@ class TravelReportEligibilityTest extends TestCase
             ->assertOk();
     }
 
-    public function test_trip_that_has_not_returned_does_not_block_new_request(): void
+    /**
+     * Previously an approved trip that had not yet returned let a second
+     * request through, because no report was owed until the return date
+     * passed. That made the report requirement optional in practice: a
+     * traveller could stack any number of future-dated trips before a single
+     * report came due. An approved trip now blocks the next request until it
+     * has been travelled and reported on.
+     */
+    public function test_trip_that_has_not_returned_still_blocks_a_new_request(): void
     {
         $unit = Unit::factory()->hqStandalone()->create();
         $supervisor = User::factory()->manager()->create(['unit_id' => $unit->id]);
@@ -67,7 +75,7 @@ class TravelReportEligibilityTest extends TestCase
             'unit_id' => $unit->id,
             'supervisor_id' => $supervisor->id,
         ]);
-        TravelRequest::factory()->approved()->create([
+        $approved = TravelRequest::factory()->approved()->create([
             'requester_id' => $requester->id,
             'unit_id' => $unit->id,
             'b_return_date' => today()->addDay(),
@@ -75,6 +83,6 @@ class TravelReportEligibilityTest extends TestCase
 
         $this->actingAs($requester)
             ->get(route('travel-requests.create'))
-            ->assertOk();
+            ->assertRedirect(route('travel-requests.show', $approved));
     }
 }

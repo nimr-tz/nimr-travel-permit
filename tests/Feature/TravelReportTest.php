@@ -24,6 +24,10 @@ class TravelReportTest extends TestCase
         $travelRequest = TravelRequest::factory()->approved()->create([
             'requester_id' => $requester->id,
             'unit_id' => $unit->id,
+            // A report covers a trip that has happened; the factory default is
+            // a trip still ahead, which uploadReport now refuses.
+            'b_departure_date' => today()->subDays(5),
+            'b_return_date' => today()->subDays(2),
         ]);
 
         $file = UploadedFile::fake()->create('field-report.pdf', 120, 'application/pdf');
@@ -106,6 +110,10 @@ class TravelReportTest extends TestCase
         $travelRequest = TravelRequest::factory()->approved()->create([
             'requester_id' => $requester->id,
             'unit_id' => $unit->id,
+            // A report covers a trip that has happened; the factory default is
+            // a trip still ahead, which uploadReport now refuses.
+            'b_departure_date' => today()->subDays(5),
+            'b_return_date' => today()->subDays(2),
         ]);
 
         $file = UploadedFile::fake()->create('field-report.pdf', 120, 'application/pdf');
@@ -237,6 +245,10 @@ class TravelReportTest extends TestCase
         $travelRequest = TravelRequest::factory()->approved()->create([
             'requester_id' => $requester->id,
             'unit_id' => $unit->id,
+            // A report covers a trip that has happened; the factory default is
+            // a trip still ahead, which uploadReport now refuses.
+            'b_departure_date' => today()->subDays(5),
+            'b_return_date' => today()->subDays(2),
         ]);
 
         $this->actingAs($requester)->post(route('travel-requests.report.upload', $travelRequest), [
