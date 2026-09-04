@@ -177,14 +177,24 @@ class ApprovalChainService
             ],
 
             // Staff must have a supervisor set; go supervisor → centre_manager.
-            'staff', 'hr', 'system_admin' => $traveller->supervisor_id
-                ? [
-                    ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
-                    ['stage' => 'final',      'approver_id' => $centreManager->id],
-                ]
-                : throw new RuntimeException(
+            //
+            // Not everyone in a centre sits under a Supervisor — some report
+            // straight to the Centre Manager. When that is who they report to,
+            // the chain is a single step: routing supervisor → centre_manager
+            // would otherwise put the same person in two consecutive stages and
+            // ask them to approve the same request twice.
+            'staff', 'hr', 'system_admin' => match (true) {
+                ! $traveller->supervisor_id => throw new RuntimeException(
                     "You have not selected a supervisor. Please set your supervisor on the Dashboard before submitting a travel request."
                 ),
+                (int) $traveller->supervisor_id === (int) $centreManager->id => [
+                    ['stage' => 'final', 'approver_id' => $centreManager->id],
+                ],
+                default => [
+                    ['stage' => 'supervisor', 'approver_id' => $traveller->supervisor_id],
+                    ['stage' => 'final',      'approver_id' => $centreManager->id],
+                ],
+            },
 
             default => throw new RuntimeException("Unhandled role [{$traveller->role}] for research centre."),
         };

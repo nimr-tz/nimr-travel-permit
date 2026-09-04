@@ -169,8 +169,20 @@ class SupervisorService
      */
     public function supervisorRolesFor(Unit $unit, string $role): array
     {
-        if ($unit->type === 'research_centre' && in_array($role, ['staff', 'hr', 'system_admin'], true)) {
-            return ['supervisor'];
+        // Centres do not all follow one reporting line: some staff sit under a
+        // Supervisor, some report straight to the Centre Manager, and others
+        // answer to a senior colleague who holds no supervisory role at all.
+        // Rather than guess, offer every active colleague in the centre and let
+        // the reporting line be recorded as it actually is.
+        //
+        // Two consequences are handled elsewhere: ApprovalChainService collapses
+        // the chain to a single step when the Centre Manager is the one chosen,
+        // so they never approve the same request twice; and whoever is chosen
+        // becomes an approver for that person, whatever their own role.
+        if ($unit->type === 'research_centre') {
+            return in_array($role, ['staff', 'hr', 'system_admin'], true)
+                ? ['staff', 'supervisor', 'centre_manager', 'hr', 'system_admin']
+                : [];
         }
 
         if ($unit->type === 'hq_section' && in_array($role, ['staff', 'hr', 'system_admin'], true)) {

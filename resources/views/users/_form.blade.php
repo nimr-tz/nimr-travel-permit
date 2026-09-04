@@ -110,13 +110,23 @@
                 const willBeCentre = unit.type === 'research_centre';
                 return wasCentre !== willBeCentre;
             },
-            supervisorRole() {
+            // Keep in sync with SupervisorService::supervisorRolesFor().
+            // Roles that may supervise the selected role in the selected unit.
+            supervisorRoles() {
                 const unit = this.units[this.selectedUnitId];
-                if (!unit) return null;
-                if (unit.type === 'research_centre' && ['staff', 'hr', 'system_admin'].includes(this.selectedRole)) return 'supervisor';
-                if (unit.type === 'hq_section' && ['staff', 'hr', 'system_admin'].includes(this.selectedRole)) return 'head_or_manager';
-                if (unit.type === 'hq_standalone' && ['staff', 'hr', 'system_admin'].includes(this.selectedRole)) return 'manager';
-                return null;
+                if (!unit) return [];
+                const ordinary = ['staff', 'hr', 'system_admin'].includes(this.selectedRole);
+                if (!ordinary) return [];
+                // Centres do not all follow one reporting line, so offer every
+                // colleague in the centre and let the real one be recorded.
+                if (unit.type === 'research_centre') {
+                    return ['staff', 'supervisor', 'centre_manager', 'hr', 'system_admin'];
+                }
+                // A section's lead is either a 'head' (scientific sections) or a
+                // 'manager' (Corporate Services sections) — whichever leads it.
+                if (unit.type === 'hq_section') return ['head', 'manager'];
+                if (unit.type === 'hq_standalone') return ['manager'];
+                return [];
             },
             fixedSupervisor() {
                 const unit = this.units[this.selectedUnitId];
@@ -156,15 +166,12 @@
                 const fixed = this.fixedSupervisor();
                 if (fixed) return [fixed];
 
-                const role = this.supervisorRole();
-                if (!role) return [];
-                // A section's lead is either a 'head' (scientific sections) or a
-                // 'manager' (Corporate Services sections) — match whichever leads it.
-                const roles = role === 'head_or_manager' ? ['head', 'manager'] : [role];
+                const roles = this.supervisorRoles();
+                if (!roles.length) return [];
                 return this.supervisors.filter((supervisor) => supervisor.unit_id === String(this.selectedUnitId) && roles.includes(supervisor.role));
             },
             supervisorApplies() {
-                return this.fixedSupervisor() !== null || this.supervisorRole() !== null;
+                return this.fixedSupervisor() !== null || this.supervisorRoles().length > 0;
             },
             syncSupervisor() {
                 const fixed = this.fixedSupervisor();
