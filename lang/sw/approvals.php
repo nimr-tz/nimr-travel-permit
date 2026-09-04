@@ -19,4 +19,6 @@ return [
     'decided_approved'=> 'Imeidhinishwa',
     'decided_rejected'=> 'Imekataliwa',
     'decided_returned'=> 'Imerudishwa',
+    'acting_for' => 'Unamsimamia :name',
+    'acting_for_title' => ':name yupo safarini iliyoidhinishwa na amekukabidhi majukumu yake.',
 ];

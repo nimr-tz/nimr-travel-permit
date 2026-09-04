@@ -98,6 +98,7 @@ class TravelRequest extends Model
         // Section G
         'g_handover_officer_name',
         'g_handover_officer_title',
+        'g_handover_officer_id',
         'g_handover_document',
         'travel_report_document',
         'travel_report_original_name',
@@ -139,6 +140,11 @@ class TravelRequest extends Model
         return $this->belongsTo(User::class, 'current_approver_id');
     }
 
+    public function handoverOfficer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'g_handover_officer_id');
+    }
+
     public function approvalActions(): HasMany
     {
         return $this->hasMany(ApprovalAction::class)->orderBy('acted_at');
@@ -158,6 +164,16 @@ class TravelRequest extends Model
         return ! $this->approvalActions()
             ->where('decision', 'approved')
             ->exists();
+    }
+
+    /**
+     * The trip is over — the return date has arrived or passed. A trip with no
+     * return date on record cannot be shown to have ended, so it has not.
+     */
+    public function hasEnded(): bool
+    {
+        return $this->b_return_date !== null
+            && $this->b_return_date->startOfDay()->lessThanOrEqualTo(now()->startOfDay());
     }
 
     public function isTravelReportLocked(): bool

@@ -811,6 +811,10 @@
                     </p>
                     @elseif ($tr->status !== \App\Models\TravelRequest::STATUS_APPROVED)
                     <p class="text-xs text-slate-400">{{ __('travel.report_available_after_approval') }}</p>
+                    @elseif (! $tr->hasEnded())
+                    {{-- Approved, but the trip is still ahead: a report covers travel
+                         that has happened, so there is nothing to file yet. --}}
+                    <p class="text-xs text-slate-400">{{ __('travel.report_required_after_return_only') }}</p>
                     @endif
 
                     @can('unlockReport', $tr)

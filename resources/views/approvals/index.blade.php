@@ -45,6 +45,14 @@
                         <div class="flex items-center gap-2 flex-wrap mb-1.5">
                             <span class="text-sm font-bold text-slate-800 group-hover:text-amber-700 transition">{{ $tr->b_destination ?? '—' }}</span>
                             <span class="badge-pending">{{ __('approvals.needs_approval') }}</span>
+                            @if ((int) $tr->current_approver_id !== (int) $user->id)
+                            {{-- In this queue only because the named approver is away on
+                                 approved travel and handed over to this user. --}}
+                            <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-semibold"
+                                  title="{{ __('approvals.acting_for_title', ['name' => $tr->currentApprover?->name ?? '—']) }}">
+                                {{ __('approvals.acting_for', ['name' => $tr->currentApprover?->name ?? '—']) }}
+                            </span>
+                            @endif
                         </div>
                         <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                             <span class="flex items-center gap-1.5">

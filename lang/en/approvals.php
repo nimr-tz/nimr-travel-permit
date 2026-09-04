@@ -19,4 +19,6 @@ return [
     'decided_approved'=> 'Approved',
     'decided_rejected'=> 'Rejected',
     'decided_returned'=> 'Returned',
+    'acting_for' => 'Standing in for :name',
+    'acting_for_title' => ':name is away on approved travel and handed their duties to you.',
 ];

@@ -6,11 +6,13 @@ use App\Models\ApprovalAction;
 use App\Models\TravelRequest;
 use App\Models\User;
 use App\Notifications\TravelRequestApprovedNotification;
+use App\Notifications\TravelRequestHandoverNotification;
 use App\Notifications\TravelRequestHrCopyNotification;
 use App\Notifications\TravelRequestRejectedNotification;
 use App\Notifications\TravelRequestReturnedNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
+use App\Services\ApprovalDelegationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,13 +20,18 @@ use Illuminate\Support\Facades\Log;
 
 class ApprovalController extends Controller
 {
-    public function __construct(private ApprovalChainService $chainService) {}
+    public function __construct(
+        private ApprovalChainService $chainService,
+        private ApprovalDelegationService $delegation,
+    ) {}
 
     public function store(Request $request, TravelRequest $travelRequest): RedirectResponse
     {
         $user = $request->user();
 
-        abort_unless((int) $travelRequest->current_approver_id === (int) $user->id, 403);
+        // The named approver, or whoever is standing in for them while they are
+        // away on approved travel.
+        abort_unless($this->delegation->mayActOn($travelRequest, $user), 403);
         abort_unless($travelRequest->status === TravelRequest::STATUS_PENDING, 403);
 
         $validated = $request->validate([
@@ -40,11 +47,11 @@ class ApprovalController extends Controller
             // Re-fetch with a row lock to prevent concurrent approvals on the same request
             $locked = TravelRequest::lockForUpdate()->findOrFail($travelRequest->id);
 
-            abort_unless((int) $locked->current_approver_id === (int) $user->id, 403);
+            abort_unless($this->delegation->mayActOn($locked, $user), 403);
             abort_unless($locked->status === TravelRequest::STATUS_PENDING, 403);
 
             $chain = $locked->approval_chain;
-            $step  = collect($chain)->firstWhere('approver_id', $user->id);
+            $step  = collect($chain)->firstWhere('approver_id', $locked->current_approver_id);
             $stage = $step['stage'] ?? 'supervisor';
 
             ApprovalAction::create([
@@ -84,6 +91,27 @@ class ApprovalController extends Controller
             ->with('status', $statusMessage);
     }
 
+    /**
+     * The trip is confirmed, so tell the handover officer the duties actually
+     * pass to them. They were already told at submission; this is the second
+     * and final message, and only fires once the whole chain has approved.
+     */
+    private function notifyHandoverOfficer(TravelRequest $travelRequest): void
+    {
+        if (! $travelRequest->g_handover_officer_id) {
+            return;
+        }
+
+        $officer = User::find($travelRequest->g_handover_officer_id);
+
+        if ($officer && $officer->is_active) {
+            $officer->notify(new TravelRequestHandoverNotification(
+                $travelRequest,
+                TravelRequestHandoverNotification::STAGE_APPROVED,
+            ));
+        }
+    }
+
     private function sendNotifications(TravelRequest $travelRequest, string $decision): void
     {
         try {
@@ -94,6 +122,7 @@ class ApprovalController extends Controller
                     // Fully approved — notify requester and send HR a copy.
                     $requester?->notify(new TravelRequestApprovedNotification($travelRequest));
                     $this->notifyHr($travelRequest, 'approved');
+                    $this->notifyHandoverOfficer($travelRequest);
                 } elseif ($travelRequest->status === TravelRequest::STATUS_PENDING && $travelRequest->current_approver_id) {
                     // Intermediate approval — notify next approver in the chain.
                     User::find($travelRequest->current_approver_id)
