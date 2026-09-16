@@ -24,6 +24,8 @@ return [
     'deactivated'          => 'Your account has been deactivated. Please contact a System Administrator.',
     'email_domain_invalid' => 'Only :domain email addresses are allowed to register.',
     'verify_email_sent'    => 'Registration successful. Please check your email and verify your account before signing in.',
+    'email_undeliverable'  => 'The NIMR mail server has no mailbox for :email, so we could not send your verification link. Please check the address for typos, or ask ICT whether your mailbox has been created.',
+    'email_send_failed'    => 'We could not send your verification email right now. Please try again in a few minutes.',
     'no_account'           => "Don't have an account?",
     'create_account'       => 'Create one',
     'register_unit_hint'   => 'Your selected unit is used to route travel approvals. You can ask a System Administrator to correct your unit later if your posting changes.',

@@ -29,6 +29,8 @@ return [
     'deactivated'          => 'Akaunti yako imezuiwa. Tafadhali wasiliana na Msimamizi wa Mfumo.',
     'email_domain_invalid' => 'Ni barua pepe za :domain pekee zinazoruhusiwa kusajiliwa.',
     'verify_email_sent'    => 'Usajili umefanikiwa. Tafadhali angalia barua pepe yako na thibitisha akaunti yako kabla ya kuingia.',
+    'email_undeliverable'  => 'Seva ya barua pepe ya NIMR haina sanduku la barua kwa :email, kwa hiyo hatukuweza kutuma kiungo cha uthibitisho. Tafadhali hakiki anwani yako kama ina makosa, au uliza TEHAMA kama sanduku lako la barua limefunguliwa.',
+    'email_send_failed'    => 'Hatukuweza kutuma barua pepe ya uthibitisho kwa sasa. Tafadhali jaribu tena baada ya dakika chache.',
     'no_account'           => 'Huna akaunti?',
     'create_account'       => 'Fungua akaunti',
     'register_unit_hint'   => 'Kitengo ulichochagua kinatumika kupanga mtiririko wa idhini za safari. Unaweza kuomba Msimamizi wa Mfumo kukusaidia kurekebisha kitengo chako baadaye ikiwa utahamishiwa.',

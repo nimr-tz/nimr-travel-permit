@@ -5,9 +5,10 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Unit;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
+use App\Services\VerificationMailService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
@@ -40,7 +41,7 @@ class RegisteredUserController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, VerificationMailService $verificationMail): RedirectResponse
     {
         $allowedDomain = config('app.allowed_email_domain', 'nimr.or.tz');
 
@@ -63,17 +64,25 @@ class RegisteredUserController extends Controller
 
         $unit = $this->validateOrganizationalPlacement($request);
 
-        $user = User::create([
-            'name'         => $request->name,
-            'email'        => $request->email,
-            'phone'        => $request->phone,
-            'job_title'    => $request->job_title,
-            'unit_id'      => $unit->id,
-            'password'     => Hash::make($request->password),
-            'is_active'    => true,
-        ]);
+        // The verification link is sent inside the transaction so an address the
+        // mail server refuses leaves no account behind. Otherwise the half-made
+        // account would hold the email (it is unique) and the person could neither
+        // verify it nor register again with the corrected address.
+        // Registered is not fired: its only listener is Laravel's default
+        // verification mailer, which would send the link a second time.
+        DB::transaction(function () use ($request, $unit, $verificationMail) {
+            $user = User::create([
+                'name'         => $request->name,
+                'email'        => $request->email,
+                'phone'        => $request->phone,
+                'job_title'    => $request->job_title,
+                'unit_id'      => $unit->id,
+                'password'     => Hash::make($request->password),
+                'is_active'    => true,
+            ]);
 
-        event(new Registered($user));
+            $verificationMail->send($user);
+        });
 
         return redirect()->route('login')
             ->with('status', __('auth.verify_email_sent'));

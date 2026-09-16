@@ -3,7 +3,12 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Unit;
+use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\ChannelManager;
+use Illuminate\Support\Facades\Notification;
+use Symfony\Component\Mailer\Exception\UnexpectedResponseException;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -41,6 +46,63 @@ class RegistrationTest extends TestCase
             'email' => 'test@nimr.or.tz',
             'unit_id' => $unit->id,
         ]);
+    }
+
+    public function test_registration_sends_exactly_one_verification_email(): void
+    {
+        Notification::fake();
+
+        $unit = Unit::create([
+            'name' => 'Mwanza Research Centre',
+            'code' => 'MWRC',
+            'type' => 'research_centre',
+            'is_active' => true,
+        ]);
+
+        $this->post('/register', [
+            'name' => 'Test User',
+            'email' => 'test@nimr.or.tz',
+            'organizational_level' => 'research_centre',
+            'unit_id' => $unit->id,
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        Notification::assertSentToTimes(User::firstWhere('email', 'test@nimr.or.tz'), VerifyEmail::class, 1);
+    }
+
+    public function test_registration_with_an_address_the_mail_server_rejects_leaves_no_account(): void
+    {
+        // Production 2026-09-14: the NIMR mail server answered RCPT TO with
+        // "550 5.1.1 User unknown in virtual mailbox table". That used to be a
+        // 500 page, and the account was already saved, so the person could not
+        // register again with a corrected address.
+        $this->mock(ChannelManager::class, function ($mock) {
+            $mock->shouldReceive('send')->andThrow(new UnexpectedResponseException(
+                'Expected response code "250/251/252" but got code "550", with message "550 5.1.1 <typo@nimr.or.tz>: Recipient address rejected: User unknown in virtual mailbox table".',
+                550,
+            ));
+        });
+
+        $unit = Unit::create([
+            'name' => 'Mwanza Research Centre',
+            'code' => 'MWRC',
+            'type' => 'research_centre',
+            'is_active' => true,
+        ]);
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Test User',
+            'email' => 'typo@nimr.or.tz',
+            'organizational_level' => 'research_centre',
+            'unit_id' => $unit->id,
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['email' => __('auth.email_undeliverable', ['email' => 'typo@nimr.or.tz'])]);
+        $this->assertDatabaseMissing('users', ['email' => 'typo@nimr.or.tz']);
     }
 
     public function test_registration_rejects_mismatched_organizational_level_and_unit(): void
