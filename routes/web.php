@@ -67,3 +67,7 @@ Route::middleware(['auth', 'verified', PreventBackHistory::class])->group(functi
 });
 
 require __DIR__.'/auth.php';
+
+// Unknown URLs normally 404 before the web middleware runs, so the error page
+// would ignore the user's chosen language. Laravel always tries this route last.
+Route::fallback(fn () => abort(404));
