@@ -13,6 +13,7 @@ use App\Notifications\TravelRequestReturnedNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
 use App\Services\ApprovalDelegationService;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +26,7 @@ class ApprovalController extends Controller
         private ApprovalDelegationService $delegation,
     ) {}
 
-    public function store(Request $request, TravelRequest $travelRequest): RedirectResponse
+    public function store(Request $request, TravelRequest $travelRequest, AuditLogger $audit): RedirectResponse
     {
         $user = $request->user();
 
@@ -43,7 +44,9 @@ class ApprovalController extends Controller
             $request->validate(['comment' => ['required', 'string', 'min:10', 'max:2000']]);
         }
 
-        DB::transaction(function () use ($user, $travelRequest, $validated) {
+        $auditContext = [];
+
+        DB::transaction(function () use ($user, $travelRequest, $validated, &$auditContext) {
             // Re-fetch with a row lock to prevent concurrent approvals on the same request
             $locked = TravelRequest::lockForUpdate()->findOrFail($travelRequest->id);
 
@@ -53,6 +56,15 @@ class ApprovalController extends Controller
             $chain = $locked->approval_chain;
             $step  = collect($chain)->firstWhere('approver_id', $locked->current_approver_id);
             $stage = $step['stage'] ?? 'supervisor';
+
+            $auditContext = [
+                'stage'        => $stage,
+                'comment'      => $validated['comment'] ?? null,
+                // A delegate standing in for the named approver.
+                'on_behalf_of' => (int) $locked->current_approver_id !== (int) $user->id
+                    ? $locked->current_approver_id
+                    : null,
+            ];
 
             ApprovalAction::create([
                 'travel_request_id' => $locked->id,
@@ -67,6 +79,12 @@ class ApprovalController extends Controller
         });
 
         $travelRequest->refresh();
+
+        $audit->log('travel_request.'.$validated['decision'], $travelRequest, context: [
+            ...$auditContext,
+            'resulting_status' => $travelRequest->status,
+            'next_approver_id' => $travelRequest->current_approver_id,
+        ]);
 
         $this->sendNotifications($travelRequest, $validated['decision']);
 

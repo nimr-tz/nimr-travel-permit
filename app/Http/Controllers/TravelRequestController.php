@@ -9,6 +9,7 @@ use App\Notifications\TravelRequestHrCopyNotification;
 use App\Notifications\TravelRequestHandoverNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
+use App\Services\AuditLogger;
 use App\Services\SupervisorService;
 use App\Services\TravelDaysService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -27,6 +28,7 @@ class TravelRequestController extends Controller
     public function __construct(
         private ApprovalChainService $chainService,
         private SupervisorService $supervisors,
+        private AuditLogger $audit,
     ) {}
 
     public function index(Request $request): View
@@ -173,6 +175,12 @@ class TravelRequestController extends Controller
             'current_approver_id' => $currentApproverId,
             'submitted_at' => $submittedAt,
         ]);
+
+        $this->audit->log(
+            $isDraft ? 'travel_request.draft_saved' : 'travel_request.submitted',
+            $travelRequest,
+            context: $isDraft ? [] : ['first_approver_id' => $currentApproverId],
+        );
 
         if (! $isDraft && $chain) {
             $this->notifyFirstApprover($travelRequest);
@@ -321,8 +329,11 @@ class TravelRequestController extends Controller
 
         $handoverIdentity = $this->handoverIdentity($request, $user);
 
+        $auditEvent = null;
+        $auditChanges = [];
+
         try {
-            DB::transaction(function () use ($travelRequest, $validated, $isDraft, $user, $handoverIdentity) {
+            DB::transaction(function () use ($travelRequest, $validated, $isDraft, $user, $handoverIdentity, &$auditEvent, &$auditChanges) {
                 // Re-read under a row lock: a stale tab must not overwrite a
                 // request that has since been submitted, cancelled or acted on.
                 $fresh = TravelRequest::whereKey($travelRequest->getKey())
@@ -341,9 +352,15 @@ class TravelRequestController extends Controller
 
                 if ($isDraft) {
                     $fresh->update([...$payload, 'status' => TravelRequest::STATUS_DRAFT]);
+                    $auditEvent = 'travel_request.draft_updated';
+                    $auditChanges = $this->audit->changesOf($fresh);
 
                     return;
                 }
+
+                $auditEvent = $fresh->status === TravelRequest::STATUS_RETURNED
+                    ? 'travel_request.resubmitted'
+                    : 'travel_request.submitted';
 
                 // If resubmitting a returned request, resume from the approver who
                 // returned it rather than restarting the whole chain from step 1.
@@ -372,6 +389,7 @@ class TravelRequestController extends Controller
                     'current_approver_id' => $startApprover,
                     'submitted_at' => now(),
                 ]);
+                $auditChanges = $this->audit->changesOf($fresh);
             });
 
             $travelRequest->refresh();
@@ -388,6 +406,8 @@ class TravelRequestController extends Controller
 
         // Committed — the superseded documents can now safely go.
         $this->discardUploads(...$replacedDocuments);
+
+        $this->audit->log($auditEvent, $travelRequest, $auditChanges);
 
         if (! $isDraft) {
             $this->notifyFirstApprover($travelRequest);
@@ -441,6 +461,8 @@ class TravelRequestController extends Controller
 
         $travelRequest->refresh();
 
+        $this->audit->log('travel_request.cancelled', $travelRequest);
+
         return redirect()->route('travel-requests.show', $travelRequest)
             ->with('status', 'Ombi limefutwa.');
     }
@@ -482,6 +504,8 @@ class TravelRequestController extends Controller
         abort_unless($travelRequest->c_invitation_document, 404);
         abort_unless(Storage::disk('private')->exists($travelRequest->c_invitation_document), 404);
 
+        $this->audit->log('download.invitation_letter', $travelRequest);
+
         return Storage::disk('private')->download(
             $travelRequest->c_invitation_document,
             $travelRequest->c_invitation_original_name ?: $travelRequest->request_number.'-invitation.pdf',
@@ -494,6 +518,8 @@ class TravelRequestController extends Controller
 
         abort_unless($travelRequest->g_handover_document, 404);
         abort_unless(Storage::disk('private')->exists($travelRequest->g_handover_document), 404);
+
+        $this->audit->log('download.handover_document', $travelRequest);
 
         return Storage::disk('private')->download($travelRequest->g_handover_document);
     }
@@ -543,6 +569,11 @@ class TravelRequestController extends Controller
             Storage::disk('private')->delete($oldPath);
         }
 
+        $this->audit->log('travel_request.report_uploaded', $travelRequest, context: [
+            'file_name' => $file->getClientOriginalName(),
+            'replaced_previous' => $oldPath ? true : null,
+        ]);
+
         return redirect()->route('travel-requests.show', $travelRequest)
             ->with('status', __('travel.report_saved'));
     }
@@ -552,6 +583,8 @@ class TravelRequestController extends Controller
         $this->authorize('unlockReport', $travelRequest);
 
         $travelRequest->update(['travel_report_submitted_at' => null]);
+
+        $this->audit->log('travel_request.report_unlocked', $travelRequest);
 
         return redirect()->route('travel-requests.show', $travelRequest)
             ->with('status', __('travel.report_unlocked'));
@@ -564,6 +597,8 @@ class TravelRequestController extends Controller
         abort_unless($travelRequest->travel_report_document, 404);
         abort_unless(Storage::disk('private')->exists($travelRequest->travel_report_document), 404);
 
+        $this->audit->log('download.travel_report', $travelRequest);
+
         $filename = $travelRequest->travel_report_original_name
             ?: $travelRequest->request_number.'-travel-report.pdf';
 
@@ -574,6 +609,8 @@ class TravelRequestController extends Controller
     {
         $this->authorize('view', $travelRequest);
         $travelRequest->load(['requester', 'unit', 'currentApprover', 'approvalActions.actor']);
+
+        $this->audit->log('download.permit_print', $travelRequest);
 
         return view('travel-requests.print', compact('travelRequest'));
     }
@@ -587,6 +624,8 @@ class TravelRequestController extends Controller
             ->setPaper('a4', 'portrait');
 
         $filename = $travelRequest->request_number.'.pdf';
+
+        $this->audit->log('download.permit_pdf', $travelRequest);
 
         return $pdf->download($filename);
     }

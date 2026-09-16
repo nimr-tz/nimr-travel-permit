@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\TravelRequest;
+use App\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,7 @@ class CancelStaleTravelRequests extends Command
 
     protected $description = 'Cancel stale draft, pending, or returned travel requests whose departure date has passed';
 
-    public function handle(): int
+    public function handle(AuditLogger $audit): int
     {
         $before = $this->option('before');
         if (! $before) {
@@ -75,11 +76,12 @@ class CancelStaleTravelRequests extends Command
         }
 
         $cancelled = 0;
-        DB::transaction(function () use ($matches, &$cancelled) {
+        $cancelledRequests = [];
+        DB::transaction(function () use ($matches, $audit, &$cancelled, &$cancelledRequests) {
             TravelRequest::whereKey($matches->modelKeys())
                 ->lockForUpdate()
                 ->get()
-                ->each(function (TravelRequest $request) use (&$cancelled) {
+                ->each(function (TravelRequest $request) use ($audit, &$cancelled, &$cancelledRequests) {
                     if (! $request->isCancellable()) {
                         return;
                     }
@@ -90,8 +92,16 @@ class CancelStaleTravelRequests extends Command
                     ])->save();
 
                     $cancelled++;
+                    $cancelledRequests[] = [$request, $audit->changesOf($request)];
                 });
         });
+
+        foreach ($cancelledRequests as [$request, $changes]) {
+            $audit->log('travel_request.auto_cancelled', $request, $changes, [
+                'command'          => 'travel-requests:cancel-stale',
+                'departure_before' => $cutoff->toDateString(),
+            ]);
+        }
 
         $this->info("Cancelled {$cancelled} stale travel request(s).");
 

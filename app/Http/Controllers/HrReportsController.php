@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TravelRequest;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -90,6 +91,11 @@ class HrReportsController extends Controller
 
         fclose($csv);
         $content = ob_get_clean();
+
+        app(AuditLogger::class)->log('download.hr_report_export', context: [
+            'rows'    => $rows->count(),
+            'filters' => array_filter($request->query()) ?: null,
+        ]);
 
         return response($content, 200, $headers);
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\TravelRequest;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Services\SessionRevocationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,6 +52,9 @@ class ProfileController extends Controller
 
         $user->save();
 
+        app(AuditLogger::class)->log('account.profile_updated', $user,
+            app(AuditLogger::class)->changesOf($user));
+
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
@@ -79,6 +83,8 @@ class ProfileController extends Controller
 
         $user->forceFill(['is_active' => false])->save();
         $sessions->revokeAllFor($user);
+
+        app(AuditLogger::class)->log('account.closed', $user);
 
         Auth::logout();
         $request->session()->invalidate();

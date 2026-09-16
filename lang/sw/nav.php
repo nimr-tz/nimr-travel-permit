@@ -11,6 +11,7 @@ return [
     'hr_reports' => 'Ripoti za HR',
     'travel_reports' => 'Ripoti za Safari',
     'users' => 'Watumiaji',
+    'audit_log' => 'Kumbukumbu za Ukaguzi',
     'administration' => 'Usimamizi',
     'profile' => 'Wasifu Wangu',
     'logout' => 'Toka',

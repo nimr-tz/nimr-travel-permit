@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -24,7 +26,7 @@ class PasswordResetLinkController extends Controller
      *
      * @throws ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, AuditLogger $audit): RedirectResponse
     {
         $request->validate([
             'email' => ['required', 'email'],
@@ -35,6 +37,12 @@ class PasswordResetLinkController extends Controller
         // need to show to the user. Finally, we'll send out a proper response.
         $status = Password::sendResetLink(
             $request->only('email')
+        );
+
+        $audit->log(
+            'auth.password_reset_requested',
+            User::where('email', $request->input('email'))->first(),
+            context: ['email' => $request->input('email'), 'result' => $status],
         );
 
         return $status == Password::RESET_LINK_SENT

@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Services\SessionRevocationService;
 use App\Services\SupervisorService;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +20,7 @@ class UserController extends Controller
     public function __construct(
         private SupervisorService $supervisors,
         private SessionRevocationService $sessions,
+        private AuditLogger $audit,
     ) {}
 
     public function index(Request $request): View
@@ -85,7 +86,12 @@ class UserController extends Controller
 
         $user = User::create($validated);
 
-        ActivityLog::record('created', $user);
+        $this->audit->log('user.created', $user, context: [
+            'role'          => $user->role,
+            'unit_id'       => $user->unit_id,
+            'supervisor_id' => $user->supervisor_id,
+            'is_active'     => $user->is_active,
+        ]);
 
         Password::sendResetLink(['email' => $user->email]);
 
@@ -172,7 +178,15 @@ class UserController extends Controller
             $this->sessions->revokeAllFor($user);
         }
 
-        ActivityLog::record('updated', $user, ['before' => $before, 'after' => $after]);
+        $event = match (true) {
+            $wasDeactivated                                  => 'user.deactivated',
+            ! $before['is_active'] && $after['is_active']    => 'user.reactivated',
+            default                                          => 'user.updated',
+        };
+
+        $this->audit->log($event, $user, $this->audit->diff($before, $after), [
+            'password_set_by_admin' => isset($validated['password']) ?: null,
+        ]);
 
         return redirect()->route('users.index')->with('status', 'Mtumiaji amesasishwa.');
     }
@@ -282,6 +296,10 @@ class UserController extends Controller
             }
 
             $subordinate->forceFill(['supervisor_id' => null])->save();
+
+            $this->audit->log('user.updated', $subordinate, $this->audit->changesOf($subordinate), [
+                'reason' => 'supervisor_no_longer_valid',
+            ]);
         }
     }
 

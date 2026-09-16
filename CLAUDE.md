@@ -109,6 +109,17 @@ On resubmission of a `returned` request the chain resumes at the approver who re
 - Self-service account "deletion" (`ProfileController::destroy`) deactivates rather than deletes, and is refused while the user holds pending approvals or open requests. Hard deletion would null out requester/approver foreign keys and erase approval attribution.
 - Download checks requester, current approver, acted-on history, or HR/DG.
 
+### Audit Log
+
+`/audit-log` (system admins only) lists every significant activity, with filters and a CSV export. HQ system admins see everything; a centre system admin sees only entries whose `unit_id` is their centre (`ActivityLog::scopeVisibleTo()`).
+
+- Written only through `AuditLogger::log($event, $subject, $changes, $context, $actor)`, always **after** the action commits. A write failure is reported but never breaks the user's action. Passwords/tokens are scrubbed from `changes`/`context`.
+- `unit_id` is the actor's unit, or the subject's unit for system actions (no actor, e.g. `travel-requests:cancel-stale`).
+- Sign-in, sign-out, failed sign-in, lockout, password reset and email verification come from Laravel auth event listeners in `AppServiceProvider`; everything else is logged explicitly in the controller/command that performs it.
+- Every event must be listed in `ActivityLog::EVENTS` and translated under `audit.event.<group>.<name>` in both `lang/en/audit.php` and `lang/sw/audit.php` (a test enforces this).
+- Entries are append-only: the model throws on update/delete and there are no write routes.
+- Page views are deliberately not logged; downloads and exports are.
+
 ### Serving the app
 
 Only `public/` may be exposed. The project must **not** be served from a document root that contains the repository — that makes `.env`, the SQLite database, `storage/logs`, and private handover uploads directly fetchable. `docs/apache-vhost.conf` holds a ready XAMPP virtual host (port 8080); the repo-root `.htaccess` denies everything as a backstop.

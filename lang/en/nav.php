@@ -11,6 +11,7 @@ return [
     'hr_reports' => 'HR Reports',
     'travel_reports' => 'Travel Reports',
     'users' => 'Users',
+    'audit_log' => 'Audit Log',
     'administration' => 'Administration',
     'profile' => 'My Profile',
     'logout' => 'Sign Out',

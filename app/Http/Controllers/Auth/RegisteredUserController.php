@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Services\VerificationMailService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,7 +42,7 @@ class RegisteredUserController extends Controller
         ]);
     }
 
-    public function store(Request $request, VerificationMailService $verificationMail): RedirectResponse
+    public function store(Request $request, VerificationMailService $verificationMail, AuditLogger $audit): RedirectResponse
     {
         $allowedDomain = config('app.allowed_email_domain', 'nimr.or.tz');
 
@@ -70,7 +71,7 @@ class RegisteredUserController extends Controller
         // verify it nor register again with the corrected address.
         // Registered is not fired: its only listener is Laravel's default
         // verification mailer, which would send the link a second time.
-        DB::transaction(function () use ($request, $unit, $verificationMail) {
+        $user = DB::transaction(function () use ($request, $unit, $verificationMail) {
             $user = User::create([
                 'name'         => $request->name,
                 'email'        => $request->email,
@@ -82,7 +83,11 @@ class RegisteredUserController extends Controller
             ]);
 
             $verificationMail->send($user);
+
+            return $user;
         });
+
+        $audit->log('auth.registered', $user, actor: $user);
 
         return redirect()->route('login')
             ->with('status', __('auth.verify_email_sent'));

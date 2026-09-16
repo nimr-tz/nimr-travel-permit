@@ -7,6 +7,7 @@ use App\Models\TravelRequest;
 use App\Services\ApprovalDelegationService;
 use App\Models\User;
 use App\Services\ApprovalChainService;
+use App\Services\AuditLogger;
 use App\Services\SupervisorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -141,6 +142,7 @@ class DashboardController extends Controller
 
         if (!$supervisorId) {
             $user->forceFill(['supervisor_id' => null])->save();
+            $this->auditSupervisorChange($user);
 
             return redirect()->route('dashboard')
                 ->with('status', __('dashboard.supervisor_updated'));
@@ -153,8 +155,18 @@ class DashboardController extends Controller
         }
 
         $user->forceFill(['supervisor_id' => (int) $supervisorId])->save();
+        $this->auditSupervisorChange($user);
 
         return redirect()->route('dashboard')
             ->with('status', __('dashboard.supervisor_updated'));
+    }
+
+    private function auditSupervisorChange(User $user): void
+    {
+        $audit = app(AuditLogger::class);
+
+        if ($changes = $audit->changesOf($user)) {
+            $audit->log('account.supervisor_changed', $user, $changes);
+        }
     }
 }
