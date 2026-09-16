@@ -106,6 +106,7 @@
                             <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{{ __('travel_reports.travel_days') }}</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{{ __('travel_reports.submitted') }}</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{{ __('travel_reports.missing') }}</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{{ __('travel_reports.not_due') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -129,9 +130,13 @@
                                             {{ __('travel_reports.at_limit_badge') }}
                                         </span>
                                     @endif
+                                    @if ($person['upcoming_days'] > 0)
+                                        <div class="text-[11px] text-slate-400 mt-0.5 whitespace-nowrap">{{ __('travel_reports.upcoming_days', ['days' => $person['upcoming_days']]) }}</div>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-right text-emerald-700">{{ $person['submitted'] }}</td>
                                 <td class="px-4 py-3 text-right {{ $person['missing'] ? 'font-bold text-red-600' : 'text-slate-400' }}">{{ $person['missing'] }}</td>
+                                <td class="px-4 py-3 text-right text-slate-500">{{ $person['not_due'] }}</td>
                             </tr>
                         @endforeach
                     </tbody>

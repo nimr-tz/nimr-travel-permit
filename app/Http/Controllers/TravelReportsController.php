@@ -52,11 +52,16 @@ class TravelReportsController extends Controller
 
         $people = $allFilteredRequests
             ->groupBy('requester_id')
-            ->map(function ($requests) {
+            ->map(function ($requests) use ($financialYearStart, $financialYearEnd) {
                 /** @var TravelRequest $first */
                 $first = $requests->first();
 
                 $days = $requests->sum('financial_year_days');
+
+                // Trips that have not ended yet count no days and owe no report,
+                // so show them explicitly: otherwise a person with one upcoming
+                // trip reads as "1 trip, 0 days, 0 submitted, 0 missing".
+                $upcoming = $requests->filter(fn (TravelRequest $travelRequest) => $travelRequest->b_return_date?->isFuture());
 
                 return [
                     'name' => $first->requester?->name ?? $first->b_applicant_name ?? '—',
@@ -71,6 +76,14 @@ class TravelReportsController extends Controller
                     'missing' => $requests->whereNull('travel_report_submitted_at')
                         ->filter(fn (TravelRequest $travelRequest) => $travelRequest->b_return_date?->isBefore(today()))
                         ->count(),
+                    'not_due' => $requests->whereNull('travel_report_submitted_at')
+                        ->reject(fn (TravelRequest $travelRequest) => $travelRequest->b_return_date?->isBefore(today()))
+                        ->count(),
+                    'upcoming_days' => $upcoming->sum(fn (TravelRequest $travelRequest) => $this->travelDays->plannedDays(
+                        $travelRequest,
+                        $financialYearStart,
+                        $financialYearEnd,
+                    )),
                 ];
             })
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)

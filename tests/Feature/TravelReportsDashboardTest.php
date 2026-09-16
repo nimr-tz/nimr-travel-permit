@@ -60,6 +60,55 @@ class TravelReportsDashboardTest extends TestCase
             ->assertViewHas('people', fn ($people) => $people->first()['days'] === 5);
     }
 
+    public function test_per_person_report_columns_add_up_to_their_trips(): void
+    {
+        // Production, Sept 2026: people with one approved trip that had not
+        // ended yet read as "1 trip, 0 days, 0 submitted, 0 missing" — the
+        // not-yet-due trip was counted nowhere.
+        Carbon::setTestNow('2026-09-16 10:00:00');
+
+        $dg = User::factory()->directorGeneral()->create();
+        $centre = Unit::factory()->researchCentre()->create();
+        $traveller = User::factory()->staff()->create(['unit_id' => $centre->id]);
+
+        $trips = [
+            // Ended, report in: 5 days.
+            ['2026-08-01', '2026-08-05', '2026-08-06 09:00:00'],
+            // Ended, no report: 2 days, missing.
+            ['2026-09-01', '2026-09-02', null],
+            // Under way (departed, returns later): not due, 3 planned days.
+            ['2026-09-15', '2026-09-17', null],
+            // Not yet started: not due, 4 planned days.
+            ['2026-10-01', '2026-10-04', null],
+        ];
+
+        foreach ($trips as [$departure, $return, $reportedAt]) {
+            TravelRequest::factory()->approved()->create([
+                'requester_id' => $traveller->id,
+                'unit_id' => $centre->id,
+                'b_departure_date' => $departure,
+                'b_return_date' => $return,
+                'travel_report_submitted_at' => $reportedAt,
+                'travel_report_document' => $reportedAt ? 'travel-reports/r.pdf' : null,
+            ]);
+        }
+
+        $this->actingAs($dg)->withSession(['locale' => 'en'])->get(route('travel-reports.index', ['financial_year' => 2026]))
+            ->assertOk()
+            ->assertViewHas('people', function ($people) {
+                $person = $people->sole();
+
+                return $person['trips'] === 4
+                    && $person['days'] === 7
+                    && $person['upcoming_days'] === 7
+                    && $person['submitted'] === 1
+                    && $person['missing'] === 1
+                    && $person['not_due'] === 2
+                    && $person['submitted'] + $person['missing'] + $person['not_due'] === $person['trips'];
+            })
+            ->assertSee('+7 upcoming');
+    }
+
     public function test_centre_filter_limits_report_results(): void
     {
         Carbon::setTestNow('2026-07-31 10:00:00');
