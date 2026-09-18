@@ -7,6 +7,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\VerificationMailService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +47,10 @@ class RegisteredUserController extends Controller
     {
         $allowedDomain = config('app.allowed_email_domain', 'nimr.or.tz');
 
+        if ($request->filled('email')) {
+            $request->merge(['email' => strtolower($request->string('email')->trim()->toString())]);
+        }
+
         $request->validate([
             'name'         => ['required', 'string', 'max:255'],
             'email'        => [
@@ -71,21 +76,27 @@ class RegisteredUserController extends Controller
         // verify it nor register again with the corrected address.
         // Registered is not fired: its only listener is Laravel's default
         // verification mailer, which would send the link a second time.
-        $user = DB::transaction(function () use ($request, $unit, $verificationMail) {
-            $user = User::create([
-                'name'         => $request->name,
-                'email'        => $request->email,
-                'phone'        => $request->phone,
-                'job_title'    => $request->job_title,
-                'unit_id'      => $unit->id,
-                'password'     => Hash::make($request->password),
-                'is_active'    => true,
+        try {
+            $user = DB::transaction(function () use ($request, $unit, $verificationMail) {
+                $user = User::create([
+                    'name'         => $request->name,
+                    'email'        => $request->email,
+                    'phone'        => $request->phone,
+                    'job_title'    => $request->job_title,
+                    'unit_id'      => $unit->id,
+                    'password'     => Hash::make($request->password),
+                    'is_active'    => true,
+                ]);
+
+                $verificationMail->send($user);
+
+                return $user;
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'email' => __('validation.unique', ['attribute' => 'email']),
             ]);
-
-            $verificationMail->send($user);
-
-            return $user;
-        });
+        }
 
         $audit->log('auth.registered', $user, actor: $user);
 
