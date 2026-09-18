@@ -71,6 +71,34 @@ class RegistrationTest extends TestCase
         Notification::assertSentToTimes(User::firstWhere('email', 'test@nimr.or.tz'), VerifyEmail::class, 1);
     }
 
+    public function test_duplicate_registration_returns_validation_error(): void
+    {
+        $unit = Unit::create([
+            'name' => 'Mwanza Research Centre',
+            'code' => 'MWRC',
+            'type' => 'research_centre',
+            'is_active' => true,
+        ]);
+
+        User::factory()->create([
+            'email' => 'test@nimr.or.tz',
+            'unit_id' => $unit->id,
+        ]);
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Test User',
+            'email' => 'TEST@NIMR.OR.TZ',
+            'organizational_level' => 'research_centre',
+            'unit_id' => $unit->id,
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors('email');
+        $this->assertSame(1, User::where('email', 'test@nimr.or.tz')->count());
+    }
+
     public function test_registration_with_an_address_the_mail_server_rejects_leaves_no_account(): void
     {
         // Production 2026-09-14: the NIMR mail server answered RCPT TO with

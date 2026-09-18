@@ -167,8 +167,9 @@
                     Next
                 </button>
 
-                <button type="submit" x-show="currentStep === steps.length - 1" class="ml-auto inline-flex items-center rounded-md bg-[#05499c] px-5 py-2 text-sm font-semibold text-white hover:opacity-90">
-                    Create Account
+                <button type="submit" x-show="currentStep === steps.length - 1" :disabled="isSubmitting" class="ml-auto inline-flex items-center rounded-md bg-[#05499c] px-5 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+                    <span x-show="!isSubmitting">Create Account</span>
+                    <span x-show="isSubmitting" x-cloak>Creating...</span>
                 </button>
             </div>
         </form>
@@ -178,6 +179,7 @@
         function registrationWizard() {
             return {
                 currentStep: 0,
+                isSubmitting: false,
                 steps: ['Profile', 'Password', 'Unit'],
                 requiredDomain: @json(config('app.allowed_email_domain', 'nimr.or.tz')),
                 formData: {
@@ -231,7 +233,10 @@
                 handleSubmit(event) {
                     if (!this.validateStep()) {
                         event.preventDefault();
+                        return;
                     }
+
+                    this.isSubmitting = true;
                 },
             };
         }
