@@ -12,6 +12,7 @@ return [
     'travel_reports' => 'Ripoti za Safari',
     'users' => 'Watumiaji',
     'audit_log' => 'Kumbukumbu za Ukaguzi',
+    'security_policy' => 'Sera ya Usalama',
     'administration' => 'Usimamizi',
     'profile' => 'Wasifu Wangu',
     'logout' => 'Toka',

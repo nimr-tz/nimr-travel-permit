@@ -6,6 +6,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HrReportsController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SecurityPolicyController;
 use App\Http\Controllers\TravelReportsController;
 use App\Http\Controllers\TravelRequestController;
 use App\Http\Controllers\UserController;
@@ -56,6 +57,8 @@ Route::middleware(['auth', 'verified', PreventBackHistory::class])->group(functi
 
         Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
         Route::get('/audit-log/export', [AuditLogController::class, 'export'])->name('audit-log.export');
+
+        Route::get('/security-policy', SecurityPolicyController::class)->name('security-policy.index');
     });
 
     Route::delete('/travel-requests/{travelRequest}/cancel', [TravelRequestController::class, 'cancel'])->name('travel-requests.cancel');
