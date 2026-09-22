@@ -82,6 +82,7 @@ return [
             'returned'        => 'Returned a request for revision',
             'cancelled'       => 'Cancelled a travel request',
             'auto_cancelled'  => 'Stale request cancelled automatically',
+            'auto_approved'   => 'Approved automatically after the return date passed',
             'report_uploaded' => 'Uploaded a travel report',
             'report_unlocked' => 'Unlocked a travel report for changes',
         ],
@@ -135,6 +136,7 @@ return [
         'reason'                     => 'Reason',
         'command'                    => 'Scheduled task',
         'departure_before'           => 'Departure before',
+        'previous_approver_id'       => 'Was waiting on',
         'password_set_by_admin'      => 'Password set by admin',
     ],
 ];

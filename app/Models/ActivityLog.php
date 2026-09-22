@@ -48,6 +48,7 @@ class ActivityLog extends Model
             'travel_request.returned',
             'travel_request.cancelled',
             'travel_request.auto_cancelled',
+            'travel_request.auto_approved',
             'travel_request.report_uploaded',
             'travel_request.report_unlocked',
         ],
@@ -73,6 +74,7 @@ class ActivityLog extends Model
         'auth.login_failed',
         'auth.lockout',
         'travel_request.rejected',
+        'travel_request.auto_approved',
         'user.deactivated',
         'account.closed',
     ];

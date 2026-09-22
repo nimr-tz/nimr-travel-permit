@@ -68,7 +68,7 @@
                         $navItems[] = ['route' => 'approvals.index', 'label' => __('nav.approvals'), 'icon' => 'check-circle', 'badge' => $pendingCount ?: null, 'pattern' => 'approvals.*'];
                     }
                 } else {
-                    $navItems[] = ['route' => 'travel-requests.index', 'label' => __('nav.my_requests'), 'icon' => 'document-list', 'badge' => null, 'pattern' => 'travel-requests.index'];
+                    $navItems[] = ['route' => 'travel-requests.index', 'label' => $user->isSystemAdmin() ? __('nav.all_requests') : __('nav.my_requests'), 'icon' => 'document-list', 'badge' => null, 'pattern' => 'travel-requests.index'];
                     $navItems[] = ['route' => 'travel-requests.create', 'label' => __('nav.new_request'), 'icon' => 'plus-circle', 'badge' => null, 'pattern' => 'travel-requests.create'];
                     if ($user->isApprover()) {
                         $navItems[] = ['route' => 'approvals.index', 'label' => __('nav.approvals'), 'icon' => 'check-circle', 'badge' => $pendingCount ?: null, 'pattern' => 'approvals.*'];
@@ -181,7 +181,7 @@
                         request()->routeIs('travel-requests.create')  => __('nav.new_request'),
                         request()->routeIs('travel-requests.edit')    => __('nav.edit_request'),
                         request()->routeIs('travel-requests.show')    => __('nav.view_request'),
-                        request()->routeIs('travel-requests.*')       => ($topbarUser->isHr() || $topbarUser->isDirectorGeneral()) ? __('nav.all_requests') : __('nav.my_requests'),
+                        request()->routeIs('travel-requests.*')       => ($topbarUser->isHr() || $topbarUser->isDirectorGeneral() || $topbarUser->isSystemAdmin()) ? __('nav.all_requests') : __('nav.my_requests'),
                         request()->routeIs('approvals.*')             => __('nav.approvals'),
                         request()->routeIs('hr.reports.*')            => __('nav.hr_reports'),
                         request()->routeIs('travel-reports.*')        => __('nav.travel_reports'),

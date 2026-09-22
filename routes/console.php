@@ -15,3 +15,12 @@ Schedule::command('travel-reports:remind')
     ->dailyAt('08:30')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Not load-bearing: OverdueApprovalResolver already resolves a request the
+// moment it's viewed or its owner tries to submit a new one, so this doesn't
+// depend on the scheduler actually running. This is only a backstop sweep for
+// a request nobody has happened to touch, if this schedule does run.
+Schedule::command('travel-requests:auto-approve-overdue')
+    ->dailyAt('07:30')
+    ->withoutOverlapping()
+    ->runInBackground();

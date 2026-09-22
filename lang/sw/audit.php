@@ -82,6 +82,7 @@ return [
             'returned'        => 'Amerudisha ombi kwa marekebisho',
             'cancelled'       => 'Amefuta ombi la safari',
             'auto_cancelled'  => 'Ombi lililopitwa na wakati limefutwa na mfumo',
+            'auto_approved'   => 'Limeidhinishwa kiotomatiki baada ya tarehe ya kurudi kupita',
             'report_uploaded' => 'Amepakia ripoti ya safari',
             'report_unlocked' => 'Amefungua ripoti ya safari kwa marekebisho',
         ],
@@ -135,6 +136,7 @@ return [
         'reason'                     => 'Sababu',
         'command'                    => 'Kazi iliyopangwa',
         'departure_before'           => 'Kuondoka kabla ya',
+        'previous_approver_id'       => 'Alikuwa akisubiriwa',
         'password_set_by_admin'      => 'Nenosiri limewekwa na msimamizi',
     ],
 ];

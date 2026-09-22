@@ -9,7 +9,7 @@
             </div>
             <div>
                 <h1 class="text-2xl font-bold text-slate-900 tracking-tight">
-                    {{ ($user->isHr() || $user->isDirectorGeneral()) ? __('travel.list_all') : __('travel.list_mine') }}
+                    {{ ($user->isHr() || $user->isDirectorGeneral() || $user->isSystemAdmin()) ? __('travel.list_all') : __('travel.list_mine') }}
                 </h1>
                 <p class="text-sm font-medium text-blue-700 mt-0.5">
                     @if ($requests->total() > 0)
@@ -132,7 +132,7 @@
             @endphp
             <div class="h-14 w-14 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border transition"
                  style="background:{{ $iconBg }}; border-color:{{ $iconColor }}22;">
-                @if ($user->isHr() || $user->isDirectorGeneral())
+                @if ($user->isHr() || $user->isDirectorGeneral() || $user->isSystemAdmin())
                 <span class="text-sm font-bold" style="color:{{ $iconColor }};">{{ strtoupper(substr($tr->b_applicant_name ?? '?', 0, 2)) }}</span>
                 @else
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:{{ $iconColor }};stroke-width:1.7">
@@ -145,7 +145,7 @@
             <div class="flex-1 min-w-0">
                 {{-- Primary row --}}
                 <div class="flex items-center gap-2 flex-wrap">
-                    @if ($user->isHr() || $user->isDirectorGeneral())
+                    @if ($user->isHr() || $user->isDirectorGeneral() || $user->isSystemAdmin())
                     <span class="text-base font-semibold text-slate-800 group-hover:text-slate-900 transition">{{ $tr->b_applicant_name ?? '—' }}</span>
                     @else
                     <span class="text-base font-semibold text-slate-800 group-hover:text-slate-900 transition">{{ $tr->b_destination ?? '—' }}</span>
@@ -155,8 +155,8 @@
 
                 {{-- Secondary info --}}
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                    @if ($user->isHr() || $user->isDirectorGeneral())
-                    {{-- HR/DG: destination · unit --}}
+                    @if ($user->isHr() || $user->isDirectorGeneral() || $user->isSystemAdmin())
+                    {{-- HR/DG/admin: destination · unit --}}
                     @if ($tr->b_destination)
                     <span class="text-xs text-slate-400">{{ $tr->b_destination }}</span>
                     @endif
