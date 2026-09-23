@@ -82,8 +82,6 @@ return [
             'returned'        => 'Amerudisha ombi kwa marekebisho',
             'cancelled'       => 'Amefuta ombi la safari',
             'auto_cancelled'  => 'Ombi lililopitwa na wakati limefutwa na mfumo',
-            'auto_approved'   => 'Limeidhinishwa kiotomatiki baada ya tarehe ya kurudi kupita',
-            'auto_approval_confirmed' => 'Amethibitisha idhini iliyotolewa kiotomatiki',
             'report_uploaded' => 'Amepakia ripoti ya safari',
             'report_unlocked' => 'Amefungua ripoti ya safari kwa marekebisho',
         ],

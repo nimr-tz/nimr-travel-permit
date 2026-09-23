@@ -10,7 +10,6 @@ use App\Notifications\TravelRequestHandoverNotification;
 use App\Notifications\TravelRequestSubmittedNotification;
 use App\Services\ApprovalChainService;
 use App\Services\AuditLogger;
-use App\Services\OverdueApprovalResolver;
 use App\Services\SupervisorService;
 use App\Services\TravelDaysService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -30,7 +29,6 @@ class TravelRequestController extends Controller
         private ApprovalChainService $chainService,
         private SupervisorService $supervisors,
         private AuditLogger $audit,
-        private OverdueApprovalResolver $overdueApprovals,
     ) {}
 
     public function index(Request $request): View
@@ -229,12 +227,6 @@ class TravelRequestController extends Controller
     public function show(TravelRequest $travelRequest): View
     {
         $this->authorize('view', $travelRequest);
-
-        // Left pending at the final approver past its own return date? Resolve
-        // it now rather than showing a stale "awaiting approval" state — see
-        // OverdueApprovalResolver.
-        $this->overdueApprovals->resolve($travelRequest);
-
         $travelRequest->load(['requester', 'unit', 'currentApprover', 'approvalActions.actor']);
 
         // Preload all approvers from the chain to avoid N+1 queries in the view
@@ -861,14 +853,15 @@ class TravelRequestController extends Controller
      *
      * Drafts, rejected, returned and cancelled requests block nothing — none of
      * them is a granted or in-flight application.
+     *
+     * One further exception: a request stuck pending at the final approver
+     * (DG / centre manager) whose trip has already ended doesn't block —
+     * see TravelRequest::isOverdueAtFinalStage(). Nothing about the approval
+     * itself changes; the DG's decision, whenever it comes, is recorded
+     * completely normally.
      */
     private function blockingOpenRequest(User $user, ?int $excludeRequestId = null): ?TravelRequest
     {
-        // A pending request nobody ever decided on, past its own return date,
-        // resolves itself here rather than blocking the traveller forever —
-        // see OverdueApprovalResolver.
-        $this->overdueApprovals->resolveFor($user);
-
         return TravelRequest::query()
             ->where('requester_id', $user->id)
             ->where(function ($query) {
@@ -880,7 +873,8 @@ class TravelRequestController extends Controller
             })
             ->when($excludeRequestId, fn ($query) => $query->where('id', '!=', $excludeRequestId))
             ->oldest('b_departure_date')
-            ->first();
+            ->get()
+            ->first(fn (TravelRequest $request) => ! $request->isOverdueAtFinalStage());
     }
 
     /**

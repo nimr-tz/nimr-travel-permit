@@ -218,14 +218,6 @@ return [
     'done_on' => '· :date',
     'flow_on_hold' => 'Imesimamishwa',
     'flow_not_reached' => 'Haikufikiwa',
-
-    // Idhini ya kiotomatiki (tarehe ya kurudi imepita bila uamuzi wa mwidhinishaji wa mwisho)
-    'auto_approved_system_label' => 'Mfumo (idhini ya kiotomatiki)',
-    'auto_approved_badge_suffix' => ' — kiotomatiki',
-    'auto_approved_banner_title' => 'Idhini ya kiotomatiki — inasubiri uthibitisho',
-    'auto_approved_banner_body' => 'Ombi hili liliidhinishwa kiotomatiki na mfumo kwa sababu tarehe ya kurudi ilipita bila uamuzi kutoka kwa mwidhinishaji wa mwisho (:name). Msafiri alifuata utaratibu ipasavyo na hakukosea — aliyotakiwa kufanya ni kuwasilisha na kusubiri. Thibitisha hapa chini kurekodi mapitio yako mwenyewe.',
-    'confirm_auto_approval_btn' => 'Thibitisha Idhini',
-    'auto_approval_confirmed_status' => 'Umethibitisha idhini hii ya kiotomatiki.',
     'pending_request_before_new_request' => 'Tayari una ombi la safari linalosubiri uamuzi. Subiri liidhinishwe, likataliwe au lirudishwe kabla ya kuomba kibali kingine.',
     'report_required_after_return_only' => 'Ripoti ya safari inaweza kuwasilishwa tu baada ya safari kumalizika.',
     'g_no_handover_checkbox' => 'Sina mtu wa kumkabidhi majukumu yangu',

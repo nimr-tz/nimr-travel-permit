@@ -41,7 +41,6 @@ Route::middleware(['auth', 'verified', PreventBackHistory::class])->group(functi
     Route::patch('/travel-requests/{travelRequest}', [TravelRequestController::class, 'update'])->name('travel-requests.update');
 
     Route::post('/travel-requests/{travelRequest}/approve', [ApprovalController::class, 'store'])->name('travel-requests.approve');
-    Route::post('/travel-requests/{travelRequest}/confirm-auto-approval', [ApprovalController::class, 'confirmAuto'])->name('travel-requests.confirm-auto-approval');
     Route::get('/travel-requests/{travelRequest}/print', [TravelRequestController::class, 'print'])->name('travel-requests.print');
     Route::get('/travel-requests/{travelRequest}/pdf', [TravelRequestController::class, 'pdf'])->name('travel-requests.pdf');
 

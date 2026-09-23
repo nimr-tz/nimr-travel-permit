@@ -412,13 +412,11 @@
         @foreach ($lines as $line)<div class="dotted-line">{{ $line }}</div>@endforeach
         @endif
 
-        @php $isSystemAction = $action->actor_id === null; @endphp
-
         <div style="margin-top: 8px;">
             @if ($action->stage === 'final')
                 <p>Maombi ya kusafiri ndani ya Tanzania kwa mtumishi alietajwa hapo juu,</p>
                 <div class="approval-decision" style="{{ $action->decision === 'approved' ? 'color:#155724' : 'color:#721c24' }}">
-                    {{ $action->decision === 'approved' ? 'YAMEKUBALIWA' : 'YAMEKATALIWA' }}{{ $isSystemAction ? ' (KIOTOMATIKI - KINASUBIRI UTHIBITISHO)' : '' }}
+                    {{ $action->decision === 'approved' ? 'YAMEKUBALIWA' : 'YAMEKATALIWA' }}
                 </div>
             @else
                 <span class="approval-decision" style="{{ $action->decision === 'approved' ? 'color:#155724' : 'color:#721c24' }}">
@@ -427,18 +425,6 @@
             @endif
         </div>
 
-        @if ($isSystemAction)
-        <div class="sig-row" style="margin-top:8px;">
-            <div class="sig-item">
-                <span>Jina: <strong>Mfumo (Idhini ya Kiotomatiki)</strong></span>
-            </div>
-        </div>
-        <div class="sig-row" style="margin-top:6px; align-items:center;">
-            <div class="sig-item">
-                <span>Tarehe: <strong>{{ $action->acted_at->format('d/m/Y') }}</strong></span>
-            </div>
-        </div>
-        @else
         <div class="sig-row" style="margin-top:8px;">
             <div class="sig-item">
                 <span>Jina: <strong>{{ $action->actor?->name }}</strong></span>
@@ -458,7 +444,6 @@
             </div>
             @endif
         </div>
-        @endif
     </div>
     @endforeach
 

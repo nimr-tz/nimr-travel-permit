@@ -82,8 +82,6 @@ return [
             'returned'        => 'Returned a request for revision',
             'cancelled'       => 'Cancelled a travel request',
             'auto_cancelled'  => 'Stale request cancelled automatically',
-            'auto_approved'   => 'Approved automatically after the return date passed',
-            'auto_approval_confirmed' => 'Confirmed an automatic approval',
             'report_uploaded' => 'Uploaded a travel report',
             'report_unlocked' => 'Unlocked a travel report for changes',
         ],

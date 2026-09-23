@@ -188,18 +188,22 @@ class TravelRequest extends Model
     }
 
     /**
-     * The final approver never actually decided — OverdueApprovalResolver
-     * closed this out automatically once the return date passed. True only
-     * until a real person (the final approver, or whoever now holds that
-     * office) records their own review via ApprovalController::confirmAuto(),
-     * which adds a later final-stage action with a real actor and makes this
-     * false again.
+     * Still pending at the final approver (DG / centre manager), but the trip
+     * itself is already over. Nothing about the approval changes because of
+     * this — the DG's decision, whenever it comes, is recorded completely
+     * normally — it only lets TravelRequestController::blockingOpenRequest()
+     * stop treating this request as still "live" for one-request-at-a-time
+     * purposes.
      */
-    public function finalStageAutoApproved(): bool
+    public function isOverdueAtFinalStage(): bool
     {
-        $latest = $this->approvalActions->where('stage', 'final')->sortByDesc('acted_at')->first();
+        if ($this->status !== self::STATUS_PENDING || ! $this->hasEnded()) {
+            return false;
+        }
 
-        return (bool) $latest && $latest->actor_id === null;
+        $step = collect($this->approval_chain)->firstWhere('approver_id', $this->current_approver_id);
+
+        return ($step['stage'] ?? null) === 'final';
     }
 
     public function statusLabel(): string

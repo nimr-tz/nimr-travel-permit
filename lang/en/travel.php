@@ -218,14 +218,6 @@ return [
     'done_on' => '· :date',
     'flow_on_hold' => 'On hold',
     'flow_not_reached' => 'Not reached',
-
-    // Auto-approval (return date passed with no decision from the final approver)
-    'auto_approved_system_label' => 'System (auto-approved)',
-    'auto_approved_badge_suffix' => ' — auto-approved',
-    'auto_approved_banner_title' => 'Auto-approved — awaiting confirmation',
-    'auto_approved_banner_body' => 'This request was auto-approved by the system because the return date passed with no decision from the final approver (:name). The traveller followed the process correctly and was not at fault — submit and wait was all that was asked of them. Confirm below to record your own review for the file.',
-    'confirm_auto_approval_btn' => 'Confirm Approval',
-    'auto_approval_confirmed_status' => 'You have confirmed this automatic approval.',
     'pending_request_before_new_request' => 'You already have a travel request awaiting a decision. Wait for it to be approved, rejected or returned before applying for another permit.',
     'report_required_after_return_only' => 'The travel report can only be submitted once the trip has ended.',
     'g_no_handover_checkbox' => 'I have no one to hand over my duties to',
