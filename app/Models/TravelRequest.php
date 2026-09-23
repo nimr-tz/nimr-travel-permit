@@ -187,6 +187,21 @@ class TravelRequest extends Model
             && $this->travel_report_submitted_at !== null;
     }
 
+    /**
+     * The final approver never actually decided — OverdueApprovalResolver
+     * closed this out automatically once the return date passed. True only
+     * until a real person (the final approver, or whoever now holds that
+     * office) records their own review via ApprovalController::confirmAuto(),
+     * which adds a later final-stage action with a real actor and makes this
+     * false again.
+     */
+    public function finalStageAutoApproved(): bool
+    {
+        $latest = $this->approvalActions->where('stage', 'final')->sortByDesc('acted_at')->first();
+
+        return (bool) $latest && $latest->actor_id === null;
+    }
+
     public function statusLabel(): string
     {
         return __('common.status_'.$this->status, [], app()->getLocale())

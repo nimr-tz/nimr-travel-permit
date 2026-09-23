@@ -49,6 +49,7 @@ class ActivityLog extends Model
             'travel_request.cancelled',
             'travel_request.auto_cancelled',
             'travel_request.auto_approved',
+            'travel_request.auto_approval_confirmed',
             'travel_request.report_uploaded',
             'travel_request.report_unlocked',
         ],

@@ -208,11 +208,13 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
     @php $lines = $action->comment ? explode("\n", wordwrap($action->comment, 115, "\n", true)) : ['','','']; while(count($lines) < 3) $lines[] = ''; @endphp
     @foreach ($lines as $line)<div class="dotted-line">{{ $line }}</div>@endforeach
 
+    @php $isSystemAction = $action->actor_id === null; @endphp
+
     <div style="margin-top:7px;">
         @if ($action->stage === 'final')
             <p>Maombi ya kusafiri ndani ya Tanzania kwa mtumishi alietajwa hapo juu,</p>
             <p class="approval-decision {{ $action->decision === 'approved' ? 'approved-text' : 'rejected-text' }}">
-                {{ $action->decision === 'approved' ? 'YAMEKUBALIWA' : 'YAMEKATALIWA' }}
+                {{ $action->decision === 'approved' ? 'YAMEKUBALIWA' : 'YAMEKATALIWA' }}{{ $isSystemAction ? ' (KIOTOMATIKI - KINASUBIRI UTHIBITISHO)' : '' }}
             </p>
         @else
             <p class="approval-decision {{ $action->decision === 'approved' ? 'approved-text' : 'rejected-text' }}">
@@ -223,6 +225,13 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
 
     <table class="sig-table" style="margin-top:7px;">
         <tr>
+            @if ($isSystemAction)
+            <td style="width:62%;">
+                Jina: <strong>Mfumo (Idhini ya Kiotomatiki)</strong><br>
+                Tarehe: <strong>{{ $action->acted_at->format('d/m/Y') }}</strong>
+            </td>
+            <td style="width:38%;"></td>
+            @else
             <td style="width:62%;">
                 Jina: <strong>{{ $action->actor?->name }}</strong><br>
                 Cheo: <strong>{{ $action->actor?->job_title }}</strong><br>
@@ -234,6 +243,7 @@ body { font-family: DejaVu Serif, serif; font-size: 10pt; color: #000; backgroun
                          alt="{{ $action->decision }}" class="stamp">
                 @endif
             </td>
+            @endif
         </tr>
     </table>
 </div>

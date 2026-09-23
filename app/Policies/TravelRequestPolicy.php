@@ -85,4 +85,30 @@ class TravelRequestPolicy
         return $user->isGlobalSystemAdmin()
             || (int) $travelRequest->unit_id === (int) $user->unit_id;
     }
+
+    /**
+     * Whoever now holds the office that was auto-approved on behalf of — the
+     * person actually named in the chain, the sitting DG, or the centre's
+     * current manager — may record their own real decision after the fact.
+     * Not tied to the exact snapshotted user id alone, since the office is
+     * what matters for a retroactive confirmation.
+     */
+    public function confirmAutoApproval(User $user, TravelRequest $travelRequest): bool
+    {
+        if ($travelRequest->status !== TravelRequest::STATUS_APPROVED || ! $travelRequest->finalStageAutoApproved()) {
+            return false;
+        }
+
+        $finalStep = collect($travelRequest->approval_chain)->firstWhere('stage', 'final');
+
+        if ($finalStep && (int) $finalStep['approver_id'] === (int) $user->id) {
+            return true;
+        }
+
+        if ($user->isDirectorGeneral()) {
+            return true;
+        }
+
+        return $user->isCentreManager() && (int) $travelRequest->unit_id === (int) $user->unit_id;
+    }
 }

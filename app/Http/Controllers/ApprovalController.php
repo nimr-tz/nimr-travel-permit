@@ -110,6 +110,37 @@ class ApprovalController extends Controller
     }
 
     /**
+     * The final approver (or whoever now holds that office) records their own
+     * genuine decision on a request OverdueApprovalResolver already closed
+     * out automatically. Purely a record of review — the traveller was
+     * already unblocked and nothing about the request's status changes.
+     */
+    public function confirmAuto(Request $request, TravelRequest $travelRequest, AuditLogger $audit): RedirectResponse
+    {
+        $user = $request->user();
+
+        $this->authorize('confirmAutoApproval', $travelRequest);
+
+        $validated = $request->validate(['comment' => ['nullable', 'string', 'max:2000']]);
+
+        ApprovalAction::create([
+            'travel_request_id' => $travelRequest->id,
+            'actor_id'           => $user->id,
+            'stage'              => 'final',
+            'decision'           => 'approved',
+            'comment'            => $validated['comment'] ?? null,
+            'acted_at'           => now(),
+        ]);
+
+        $audit->log('travel_request.auto_approval_confirmed', $travelRequest, context: [
+            'comment' => $validated['comment'] ?? null,
+        ]);
+
+        return redirect()->route('travel-requests.show', $travelRequest)
+            ->with('status', __('travel.auto_approval_confirmed_status'));
+    }
+
+    /**
      * The trip is confirmed, so tell the handover officer the duties actually
      * pass to them. They were already told at submission; this is the second
      * and final message, and only fires once the whole chain has approved.

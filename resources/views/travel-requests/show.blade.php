@@ -105,6 +105,35 @@
                     :context="(int) $tr->requester_id === (int) auth()->id() ? 'requester' : 'approver'" />
             @endisset
 
+            {{-- Auto-approved, not yet confirmed by a real person --}}
+            @if ($tr->status === \App\Models\TravelRequest::STATUS_APPROVED && $tr->finalStageAutoApproved())
+            @php
+                $finalStep = collect($tr->approval_chain)->firstWhere('stage', 'final');
+                $finalApproverName = $finalStep ? $chainApprovers->get((int) $finalStep['approver_id'])?->name : null;
+            @endphp
+            <div class="card overflow-hidden" style="border-left: 4px solid #f59e0b;">
+                <div class="px-5 py-4 flex items-start gap-3" style="background-color:#fef3c70a;">
+                    <div class="h-8 w-8 rounded-full flex items-center justify-center shrink-0" style="background-color:#fef3c7;">
+                        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-slate-800">{{ __('travel.auto_approved_banner_title') }}</p>
+                        <p class="text-xs text-slate-600 mt-1">{{ __('travel.auto_approved_banner_body', ['name' => $finalApproverName ?? '—']) }}</p>
+
+                        @can('confirmAutoApproval', $tr)
+                        <form method="POST" action="{{ route('travel-requests.confirm-auto-approval', $tr) }}" class="mt-4">
+                            @csrf
+                            <button type="submit" class="btn-success btn-sm">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                {{ __('travel.confirm_auto_approval_btn') }}
+                            </button>
+                        </form>
+                        @endcan
+                    </div>
+                </div>
+            </div>
+            @endif
+
             {{-- Approval action form --}}
             @if ($tr->status === \App\Models\TravelRequest::STATUS_PENDING && (int)$tr->current_approver_id === (int)auth()->id())
             {{-- ▶ It's this user's turn: show the decision card --}}
@@ -473,6 +502,12 @@
                         $action  = $stageActions->last();
                         $isDone  = $stageActions->isNotEmpty();
 
+                        // The system, not the assigned approver, made the latest
+                        // decision at this stage — don't show it under their name.
+                        $isSystemAction = $isDone && $action->actor_id === null;
+                        $displayName    = $isSystemAction ? __('travel.auto_approved_system_label') : ($approver?->name ?? '—');
+                        $displayTitle   = $isSystemAction ? null : $approver?->job_title;
+
                         $isCurrent       = (int)$travelRequest->current_approver_id === (int)$step['approver_id']
                                            && $reqStatus === \App\Models\TravelRequest::STATUS_PENDING;
                         $isAfterTerminal = $terminalIndex !== null && $index > $terminalIndex;
@@ -578,15 +613,15 @@
                               style="background-color:{{ $dotBg }};"></span>
                         <div class="pl-1">
                             <p class="text-xs font-bold text-white">{{ __('common.stage_' . $step['stage']) }}</p>
-                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $approver?->name ?? '—' }}</p>
-                            @if ($approver?->job_title)
-                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $approver->job_title }}</p>
+                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $displayName }}</p>
+                            @if ($displayTitle)
+                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $displayTitle }}</p>
                             @endif
                             <div class="mt-1.5 space-y-1">
                             @foreach ($needsReturnSplit ? $preReturnActions : $stageActions as $sa)
                             <div>
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border {{ $badgeCls($sa->decision) }}">
-                                    {{ __('travel.decided_' . $sa->decision) }}&nbsp;{{ $sa->acted_at->format('d M Y') }}
+                                    {{ __('travel.decided_' . $sa->decision) }}&nbsp;{{ $sa->acted_at->format('d M Y') }}{{ $sa->actor_id === null ? __('travel.auto_approved_badge_suffix') : '' }}
                                 </span>
                                 @if ($sa->comment)
                                 <p class="text-xs mt-1 italic rounded-lg p-2" style="color:rgba(255,255,255,0.7); background-color:rgba(0,0,0,0.15);">"{{ Str::limit($sa->comment, 100) }}"</p>
@@ -635,19 +670,24 @@
                         </div>
                     </li>
                     @elseif ($hadReturnCycle)
+                    @php
+                        $postIsSystemAction = $postAction && $postAction->actor_id === null;
+                        $postDisplayName    = $postIsSystemAction ? __('travel.auto_approved_system_label') : ($approver?->name ?? '—');
+                        $postDisplayTitle   = $postIsSystemAction ? null : $approver?->job_title;
+                    @endphp
                     <li class="ml-6">
                         <span class="absolute -left-[9px] w-4 h-4 rounded-full ring-4 {{ $postRingCls }}" style="background-color:{{ $postDotBg }};"></span>
                         <div class="pl-1">
                             <p class="text-xs font-bold text-white">{{ __('common.stage_' . $step['stage']) }}</p>
-                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $approver?->name ?? '—' }}</p>
-                            @if ($approver?->job_title)
-                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $approver->job_title }}</p>
+                            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.75);">{{ $postDisplayName }}</p>
+                            @if ($postDisplayTitle)
+                            <p class="text-[10px]" style="color:rgba(255,255,255,0.5);">{{ $postDisplayTitle }}</p>
                             @endif
                             <div class="mt-1.5 space-y-1">
                             @foreach ($postReturnActions as $sa)
                             <div>
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border {{ $badgeCls($sa->decision) }}">
-                                    {{ __('travel.decided_' . $sa->decision) }}&nbsp;{{ $sa->acted_at->format('d M Y') }}
+                                    {{ __('travel.decided_' . $sa->decision) }}&nbsp;{{ $sa->acted_at->format('d M Y') }}{{ $sa->actor_id === null ? __('travel.auto_approved_badge_suffix') : '' }}
                                 </span>
                                 @if ($sa->comment)
                                 <p class="text-xs mt-1 italic rounded-lg p-2" style="color:rgba(255,255,255,0.7); background-color:rgba(0,0,0,0.15);">"{{ Str::limit($sa->comment, 100) }}"</p>
