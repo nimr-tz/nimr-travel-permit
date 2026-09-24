@@ -145,11 +145,27 @@ class TravelDaysService
         return $financialYear.'/'.substr((string) ($financialYear + 1), -2);
     }
 
-    /** Approved trips overlapping the window. */
+    /**
+     * Trips overlapping the window: approved ones, plus ones that have ended
+     * while still waiting on the final approver — the travel happened either
+     * way, so it counts toward days and reports.
+     */
     public function scopeToWindow(Builder $query, Carbon $windowStart, Carbon $windowEnd): Builder
     {
+        // Whether a request is at the final stage lives in the JSON chain, so
+        // resolve that in PHP; only pending requests that have ended are checked.
+        $endedAtFinalStage = TravelRequest::query()
+            ->where('status', TravelRequest::STATUS_PENDING)
+            ->whereNotNull('approval_chain')
+            ->whereDate('b_return_date', '<=', today())
+            ->get()
+            ->filter(fn (TravelRequest $request) => $request->isOverdueAtFinalStage())
+            ->modelKeys();
+
         return $query
-            ->where('status', TravelRequest::STATUS_APPROVED)
+            ->where(fn (Builder $q) => $q
+                ->where('status', TravelRequest::STATUS_APPROVED)
+                ->orWhereIn('id', $endedAtFinalStage))
             ->whereDate('b_departure_date', '<=', $windowEnd)
             ->whereDate('b_return_date', '>=', $windowStart);
     }
