@@ -4,6 +4,7 @@ return [
     'title'             => 'Watumiaji',
     'subtitle'          => 'Usimamizi wa akaunti za mfumo',
     'new_user'          => 'Mtumiaji Mpya',
+    'export_csv'        => 'Pakua CSV',
     'edit_user'         => 'Hariri Mtumiaji',
     'add_subtitle'      => 'Ongeza akaunti ya mtumiaji kwenye mfumo',
     'back'              => '← Rudi',

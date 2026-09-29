@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\SessionRevocationService;
 use App\Services\SupervisorService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
 {
@@ -26,16 +28,10 @@ class UserController extends Controller
     public function index(Request $request): View
     {
         $admin = auth()->user();
-        $q = $request->input('q', '');
-
-        $query = $this->scopeUsersForAdmin(User::with(['unit', 'supervisor']), $admin);
-        if ($q) {
-            $query->where(fn ($s) => $s
-                ->where('name', 'like', "%{$q}%")
-                ->orWhere('email', 'like', "%{$q}%")
-            );
-        }
-        $users = $query->orderBy('name')->paginate(20)->withQueryString();
+        $users = $this->filteredUsersQuery($request, $admin)
+            ->with(['unit', 'supervisor'])
+            ->paginate(20)
+            ->withQueryString();
 
         $allUsers = $this->scopeUsersForAdmin(User::select('is_active'), $admin)->get();
         $stats = [
@@ -45,6 +41,45 @@ class UserController extends Controller
         ];
 
         return view('users.index', compact('users', 'stats'));
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $admin = $request->user();
+        $query = $this->filteredUsersQuery($request, $admin)->with(['unit', 'supervisor']);
+
+        $this->audit->log('download.user_export', context: [
+            'rows' => (clone $query)->count(),
+            'filters' => array_filter($request->only('q')) ?: null,
+        ]);
+
+        $filename = 'users-'.now()->format('Y-m-d-His').'.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, [
+                'Name', 'Email', 'Phone', 'Job title', 'Unit', 'Role',
+                'Supervisor', 'Status', 'Date added',
+            ]);
+
+            $query->lazy(500)->each(function (User $user) use ($out) {
+                fputcsv($out, array_map($this->csvSafe(...), [
+                    $user->name,
+                    $user->email,
+                    $user->phone,
+                    $user->job_title,
+                    $user->unit?->name,
+                    __('common.role_'.$user->role, locale: 'en'),
+                    $user->supervisor?->name,
+                    $user->is_active ? 'Active' : 'Inactive',
+                    $user->created_at?->format('Y-m-d H:i:s'),
+                ]));
+            });
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function create(): View
@@ -443,6 +478,34 @@ class UserController extends Controller
         }
 
         return $query;
+    }
+
+    private function filteredUsersQuery(Request $request, User $admin): Builder
+    {
+        $request->validate([
+            'q' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $query = $this->scopeUsersForAdmin(
+            User::query()->orderBy('name')->orderBy('id'),
+            $admin,
+        );
+
+        if ($q = trim((string) $request->input('q'))) {
+            $query->where(fn (Builder $search) => $search
+                ->where('name', 'like', "%{$q}%")
+                ->orWhere('email', 'like', "%{$q}%"));
+        }
+
+        return $query;
+    }
+
+    /**
+     * Stop spreadsheet applications from treating user-controlled values as formulas.
+     */
+    private function csvSafe(mixed $value): mixed
+    {
+        return is_string($value) && preg_match('/^[=+\-@\t\r]/', $value) ? "'".$value : $value;
     }
 
     private function authorizeManagedUser(User $admin, User $target): void

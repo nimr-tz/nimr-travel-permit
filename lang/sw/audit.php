@@ -94,6 +94,7 @@ return [
             'travel_report'     => 'Amepakua ripoti ya safari',
             'hr_report_export'  => 'Amepakua ripoti ya safari ya Rasilimali Watu',
             'audit_export'      => 'Amepakua kumbukumbu za ukaguzi',
+            'user_export'       => 'Amepakua watumiaji',
         ],
 
         'user' => [

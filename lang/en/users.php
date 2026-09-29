@@ -4,6 +4,7 @@ return [
     'title'             => 'Users',
     'subtitle'          => 'System user account management',
     'new_user'          => 'New User',
+    'export_csv'        => 'Export CSV',
     'edit_user'         => 'Edit User',
     'add_subtitle'      => 'Add a user account to the system',
     'back'              => '← Back',

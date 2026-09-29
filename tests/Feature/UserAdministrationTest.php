@@ -107,4 +107,90 @@ class UserAdministrationTest extends TestCase
             ])
             ->assertSessionHasErrors('role');
     }
+
+    public function test_global_system_admin_can_export_users_as_csv(): void
+    {
+        $unit = Unit::factory()->hqStandalone()->create(['name' => 'Head Office']);
+        $admin = User::factory()->systemAdmin()->create(['unit_id' => $unit->id]);
+        $supervisor = User::factory()->manager()->create([
+            'unit_id' => $unit->id,
+            'name' => 'Export Supervisor',
+        ]);
+        $user = User::factory()->staff()->create([
+            'unit_id' => $unit->id,
+            'supervisor_id' => $supervisor->id,
+            'name' => 'Export Person',
+            'email' => 'export.person@example.com',
+            'phone' => '0712345678',
+            'job_title' => 'Researcher',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('users.export'));
+
+        $response->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+            ->assertDownload();
+
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('Name,Email,Phone,"Job title",Unit,Role,Supervisor,Status,"Date added"', $csv);
+        $this->assertStringContainsString($user->email, $csv);
+        $this->assertStringContainsString('Export Supervisor', $csv);
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'download.user_export',
+            'actor_id' => $admin->id,
+        ]);
+    }
+
+    public function test_centre_system_admin_export_is_scoped_to_their_centre(): void
+    {
+        $centreA = Unit::factory()->researchCentre()->create();
+        $centreB = Unit::factory()->researchCentre()->create();
+        $admin = User::factory()->systemAdmin()->create(['unit_id' => $centreA->id]);
+        $ownUser = User::factory()->staff()->create([
+            'unit_id' => $centreA->id,
+            'email' => 'own-centre@example.com',
+        ]);
+        $otherUser = User::factory()->staff()->create([
+            'unit_id' => $centreB->id,
+            'email' => 'other-centre@example.com',
+        ]);
+
+        $csv = $this->actingAs($admin)->get(route('users.export'))->streamedContent();
+
+        $this->assertStringContainsString($ownUser->email, $csv);
+        $this->assertStringNotContainsString($otherUser->email, $csv);
+        $this->assertStringNotContainsString($admin->email, $csv);
+    }
+
+    public function test_user_export_respects_search_and_neutralises_formulas(): void
+    {
+        $unit = Unit::factory()->hqStandalone()->create();
+        $admin = User::factory()->systemAdmin()->create(['unit_id' => $unit->id]);
+        User::factory()->staff()->create([
+            'unit_id' => $unit->id,
+            'name' => '=Dangerous Name',
+            'email' => 'matching@example.com',
+        ]);
+        User::factory()->staff()->create([
+            'unit_id' => $unit->id,
+            'email' => 'excluded@example.com',
+        ]);
+
+        $csv = $this->actingAs($admin)
+            ->get(route('users.export', ['q' => 'matching@example.com']))
+            ->streamedContent();
+
+        $this->assertStringContainsString("'=Dangerous Name", $csv);
+        $this->assertStringContainsString('matching@example.com', $csv);
+        $this->assertStringNotContainsString('excluded@example.com', $csv);
+    }
+
+    public function test_non_admin_cannot_export_users(): void
+    {
+        $staff = User::factory()->staff()->create();
+
+        $this->actingAs($staff)
+            ->get(route('users.export'))
+            ->assertForbidden();
+    }
 }

@@ -94,6 +94,7 @@ return [
             'travel_report'     => 'Downloaded travel report',
             'hr_report_export'  => 'Exported HR travel report',
             'audit_export'      => 'Exported the audit log',
+            'user_export'       => 'Exported users',
         ],
 
         'user' => [

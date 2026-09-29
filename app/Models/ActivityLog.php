@@ -59,6 +59,7 @@ class ActivityLog extends Model
             'download.travel_report',
             'download.hr_report_export',
             'download.audit_export',
+            'download.user_export',
         ],
         'admin' => [
             'user.created',
