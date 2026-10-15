@@ -16,7 +16,7 @@
             ->join('');
         $profileRows = [
             __('common.unit') => $user->unit?->name ?? __('dashboard.profile_not_set'),
-            __('common.profile_role') => __('common.role_' . $user->role),
+            __('common.profile_role') => collect($user->displayRoleNames())->map(fn ($role) => __('common.role_' . $role))->join(', '),
             __('common.profile_supervisor') => $user->supervisor?->name ?? __('dashboard.profile_not_set'),
         ];
     @endphp

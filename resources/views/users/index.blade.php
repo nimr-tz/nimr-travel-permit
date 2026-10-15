@@ -117,7 +117,6 @@
                 @forelse ($users as $user)
                 @php
                     $initials = collect(explode(' ', trim($user->name)))->filter()->take(2)->map(fn($p) => substr($p, 0, 1))->join('');
-                    $rc = $roleColors[$user->role] ?? $roleColors['staff'];
                 @endphp
                 <tr class="table-row group">
                     <td class="table-td">
@@ -148,10 +147,15 @@
                         @endif
                     </td>
                     <td class="table-td">
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold"
-                              style="background:{{ $rc['bg'] }};color:{{ $rc['text'] }};">
-                            {{ __('common.role_' . $user->role) }}
-                        </span>
+                        <div class="flex flex-wrap gap-1">
+                            @foreach ($user->displayRoleNames() as $role)
+                            @php $rc = $roleColors[$role] ?? $roleColors['staff']; @endphp
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                                  style="background:{{ $rc['bg'] }};color:{{ $rc['text'] }};">
+                                {{ __('common.role_' . $role) }}
+                            </span>
+                            @endforeach
+                        </div>
                     </td>
                     <td class="table-td hidden xl:table-cell">
                         @if ($user->supervisor)

@@ -111,6 +111,7 @@ return [
         'phone'                      => 'Simu',
         'job_title'                  => 'Cheo',
         'role'                       => 'Wadhifa',
+        'is_system_admin'            => 'Msimamizi wa mfumo',
         'unit_id'                    => 'Kitengo',
         'supervisor_id'              => 'Msimamizi',
         'is_active'                  => 'Hai',

@@ -42,18 +42,22 @@ The core domain is a multi-step travel permit approval workflow based on the off
 
 ### Roles
 
-Nine roles on `users.role`: `staff`, `head`, `manager`, `supervisor`, `director`, `centre_manager`, `director_general`, `hr`, `system_admin`.
+Eight posts on `users.role`: `staff`, `head`, `manager`, `supervisor`, `director`, `centre_manager`, `director_general`, `hr`. The role is the user's place in the organogram and is what the approval chain is built from.
 
-Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`, `isApprover()`.
+**System administration is a separate flag, `users.is_system_admin`**, held alongside any post — the ICT Manager can be a `manager` *and* an administrator, and still approves for their unit. It used to be a ninth `role` value, which forced an administrator to give up their real post; migration `2026_10_15_000001_add_is_system_admin_to_users_table` moved existing `system_admin` users to `staff` + the flag (the chain already treated the two identically). `system_admin` is still an allowed value in the `users.role` DB constraint, but nothing assigns it — any future rebuild of the `users` table can drop it and **must keep the `is_system_admin` column**. Only an HQ admin can grant or revoke the flag (the checkbox is hidden from centre admins and their submitted value is ignored), and nobody can revoke their own.
+
+Role helpers on User model: `isDirectorGeneral()`, `isCentreManager()`, `isHr()`, `isSystemAdmin()` (reads the flag), `isApprover()`, `roleNames()` (post plus `system_admin`), `displayRoleNames()` (for badges — drops `staff` when the user is also an admin).
 
 Which roles apply to which unit type is not just a convention — `UserController::rolesForUnitType()` enforces it server-side, and the create/edit form's role dropdown filters to match the selected unit client-side (`resources/views/users/_form.blade.php`), so an admin can never even see "Head of Section" as an option once they've picked a Research Centre:
 
 | Unit Type | Valid roles |
 |---|---|
-| `research_centre` | `staff`, `supervisor`, `centre_manager`, `hr`, `system_admin` |
-| `hq_standalone` | `staff`, `manager`, `hr`, `system_admin`, `director_general` |
+| `research_centre` | `staff`, `supervisor`, `centre_manager`, `hr` |
+| `hq_standalone` | `staff`, `manager`, `hr`, `director_general` |
 | `hq_directorate` | `director` only |
-| `hq_section` | `staff`, `head`, `manager`, `hr`, `system_admin` |
+| `hq_section` | `staff`, `head`, `manager`, `hr` |
+
+Administrator access (`is_system_admin`) can be added to any of these.
 
 ### Approval Chain Service
 
@@ -61,12 +65,12 @@ Which roles apply to which unit type is not just a convention — `UserControlle
 
 | Unit Type | Traveller Role | Chain |
 |---|---|---|
-| `research_centre` | `staff`/`hr`/`system_admin`, any colleague chosen | chosen colleague → centre_manager |
-| `research_centre` | `staff`/`hr`/`system_admin`, Centre Manager chosen | centre_manager (single step) |
+| `research_centre` | `staff`/`hr`, any colleague chosen | chosen colleague → centre_manager |
+| `research_centre` | `staff`/`hr`, Centre Manager chosen | centre_manager (single step) |
 | `research_centre` | `supervisor` | centre_manager |
 | `research_centre` | `centre_manager` | DG |
 | `hq_section` | `head`/`manager` (section lead) | director → DG |
-| `hq_section` | `staff`/`hr`/`system_admin` | section lead (head or manager) → director → DG |
+| `hq_section` | `staff`/`hr` | section lead (head or manager) → director → DG |
 | `hq_standalone` | `manager` | DG |
 | `hq_standalone` | `staff` | unit_manager → DG |
 | `hq_directorate` | `director` only | DG |
@@ -77,7 +81,7 @@ Stages: `supervisor`, `director`, `final`. **HR is not an active approver.** DG 
 
 A section lead's own `supervisor_id` is auto-assigned to their Directorate's active Director, the same "fixed supervisor" mechanism that gives Directors/centre managers/standalone-unit managers the DG automatically — `SupervisorService::reportsDirectlyToDirectorate()` / `fixedSupervisorForAssignment()`. Neither the admin (user create/edit form) nor the lead themselves (Dashboard) picks it manually; it's silently kept in sync on every load via `applyFixedSupervisor()`. If the Directorate has no active Director yet, user creation/update is blocked with a clear validation error (`users.director_supervisor_missing`) rather than silently leaving a bad value.
 
-**Research centres use a dedicated `supervisor` role**, not `manager` — that name was easy to confuse with an `hq_standalone` unit's Manager. A centre's Supervisor is the single person ordinary staff report to below the Centre Manager; like a section lead, they get their Centre Manager auto-assigned as their own fixed supervisor (`SupervisorService::reportsDirectlyToCentreManager()`) and never pick one themselves. **Centres do not all follow one reporting line.** Some staff sit under a Supervisor, some report straight to the Centre Manager, others answer to a senior colleague holding no supervisory role. Rather than encode a guess, `SupervisorService::supervisorRolesFor()` offers a centre's `staff`/`hr`/`system_admin` **every active colleague in their centre** and they choose for themselves — on the user form or their own Dashboard. Nothing is pinned: `fixedSupervisorForAssignment()` returns null for these roles, so the choice is always explicit.
+**Research centres use a dedicated `supervisor` role**, not `manager` — that name was easy to confuse with an `hq_standalone` unit's Manager. A centre's Supervisor is the single person ordinary staff report to below the Centre Manager; like a section lead, they get their Centre Manager auto-assigned as their own fixed supervisor (`SupervisorService::reportsDirectlyToCentreManager()`) and never pick one themselves. **Centres do not all follow one reporting line.** Some staff sit under a Supervisor, some report straight to the Centre Manager, others answer to a senior colleague holding no supervisory role. Rather than encode a guess, `SupervisorService::supervisorRolesFor()` offers a centre's `staff`/`hr` **every active colleague in their centre** and they choose for themselves — on the user form or their own Dashboard. Nothing is pinned: `fixedSupervisorForAssignment()` returns null for these roles, so the choice is always explicit.
 
 Whoever is chosen approves first and the request goes to the Centre Manager after them, whatever role the chosen person holds — so an ordinary staff member set as someone's supervisor becomes an approver for that person. The exception is choosing the Centre Manager themselves, where `chainForCentre()` collapses to a **single** `final` step; routing supervisor → centre_manager would otherwise place the same person in two consecutive stages and ask them to approve the same request twice. This also removes an old failure mode where a centre with no active Supervisor left its staff with nothing to select and unable to submit at all. Migration `2026_08_28_000001_add_supervisor_role` also migrates any pre-existing `manager`-role user inside a `research_centre` unit to `supervisor`.
 
@@ -100,7 +104,7 @@ On resubmission of a `returned` request the chain resumes at the approver who re
 
 ### Authorization
 
-- `EnsureIsAdmin` middleware guards `/users` routes — only `system_admin`.
+- `EnsureIsAdmin` middleware guards `/users` routes — only users with `is_system_admin`.
 - `EnsureAccountIsActive` runs on the whole `web` group: a user deactivated mid-session is logged out on their next request. Deactivating via `/users` also calls `SessionRevocationService` to delete their stored sessions and rotate `remember_token`.
 - HQ/global system admins can manage all users and assign all roles. Centre system admins can manage non-admin users in their own research centre only.
 - `ApprovalController` checks `current_approver_id === auth()->id()`.

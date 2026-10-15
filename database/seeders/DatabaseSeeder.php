@@ -90,7 +90,8 @@ class DatabaseSeeder extends Seeder
             'password'     => Hash::make('password'),
             'unit_id'      => $dgo->id,
             'job_title'    => 'System Administrator',
-            'role'         => 'system_admin',
+            'role'         => 'staff',
+            'is_system_admin' => true,
             'email_verified_at' => now(),
             'is_active'         => true,
         ]);
@@ -138,7 +139,8 @@ class DatabaseSeeder extends Seeder
                 'password'     => Hash::make('password'),
                 'unit_id'      => $unit->id,
                 'job_title'    => 'System Administrator',
-                'role'         => 'system_admin',
+                'role'         => 'staff',
+                'is_system_admin' => true,
                 'email_verified_at' => now(),
                 'is_active'         => true,
             ]);

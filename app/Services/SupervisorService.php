@@ -180,16 +180,16 @@ class SupervisorService
         // so they never approve the same request twice; and whoever is chosen
         // becomes an approver for that person, whatever their own role.
         if ($unit->type === 'research_centre') {
-            return in_array($role, ['staff', 'hr', 'system_admin'], true)
-                ? ['staff', 'supervisor', 'centre_manager', 'hr', 'system_admin']
+            return in_array($role, ['staff', 'hr'], true)
+                ? ['staff', 'supervisor', 'centre_manager', 'hr']
                 : [];
         }
 
-        if ($unit->type === 'hq_section' && in_array($role, ['staff', 'hr', 'system_admin'], true)) {
+        if ($unit->type === 'hq_section' && in_array($role, ['staff', 'hr'], true)) {
             return ['head', 'manager'];
         }
 
-        if ($unit->type === 'hq_standalone' && in_array($role, ['staff', 'hr', 'system_admin'], true)) {
+        if ($unit->type === 'hq_standalone' && in_array($role, ['staff', 'hr'], true)) {
             return ['manager'];
         }
 

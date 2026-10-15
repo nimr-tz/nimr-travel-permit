@@ -21,7 +21,7 @@ class UserFormMarkupTest extends TestCase
     /** @return array{0:\DOMXPath,1:string} */
     private function renderForm(string $uri): array
     {
-        $admin = User::factory()->create(['role' => 'system_admin']);
+        $admin = User::factory()->systemAdmin()->create();
         $html = $this->actingAs($admin)->get($uri)->assertOk()->getContent();
 
         $doc = new \DOMDocument();

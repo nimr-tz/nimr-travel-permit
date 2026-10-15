@@ -209,7 +209,7 @@ class ApprovalChainService
             // the chain is a single step: routing supervisor → centre_manager
             // would otherwise put the same person in two consecutive stages and
             // ask them to approve the same request twice.
-            'staff', 'hr', 'system_admin' => match (true) {
+            'staff', 'hr' => match (true) {
                 ! $traveller->supervisor_id => throw new RuntimeException(
                     "You have not selected a supervisor. Please set your supervisor on the Dashboard before submitting a travel request."
                 ),
@@ -249,7 +249,7 @@ class ApprovalChainService
                 ['stage' => 'final',    'approver_id' => $dg->id],
             ],
 
-            'staff', 'hr', 'system_admin' => $traveller->supervisor_id
+            'staff', 'hr' => $traveller->supervisor_id
                 ? [
                     ['stage' => 'supervisor', 'approver_id' => $this->assertSupervisorStillValid($traveller)],
                     ['stage' => 'director',   'approver_id' => $directorId],
@@ -274,7 +274,7 @@ class ApprovalChainService
                 ['stage' => 'final', 'approver_id' => $dg->id],
             ],
 
-            'staff', 'hr', 'system_admin' => $traveller->supervisor_id
+            'staff', 'hr' => $traveller->supervisor_id
                 ? [
                     ['stage' => 'supervisor', 'approver_id' => $this->assertSupervisorStillValid($traveller)],
                     ['stage' => 'final',      'approver_id' => $dg->id],

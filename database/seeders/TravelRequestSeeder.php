@@ -76,7 +76,8 @@ class TravelRequestSeeder extends Seeder
         $this->ensureAdditionalUsers();
 
         // Step 2: collect all eligible requesters (everyone except DG and HR)
-        $requesters = User::whereNotIn('role', ['director_general', 'hr', 'system_admin'])
+        $requesters = User::whereNotIn('role', ['director_general', 'hr'])
+            ->where('is_system_admin', false)
             ->where('is_active', true)
             ->with('unit')
             ->get();

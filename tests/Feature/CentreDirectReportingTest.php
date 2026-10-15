@@ -40,7 +40,7 @@ class CentreDirectReportingTest extends TestCase
     {
         $colleague = $this->member('staff');
         $centreHr = $this->member('hr');
-        $centreAdmin = $this->member('system_admin');
+        $centreAdmin = User::factory()->systemAdmin()->create(['unit_id' => $this->centre->id]);
 
         $outsider = User::factory()->create([
             'unit_id' => Unit::factory()->create(['type' => 'research_centre'])->id,
@@ -52,7 +52,7 @@ class CentreDirectReportingTest extends TestCase
 
         $service = app(SupervisorService::class);
 
-        foreach (['staff', 'hr', 'system_admin'] as $role) {
+        foreach (['staff', 'hr'] as $role) {
             $member = $this->member($role);
             $ids = $service->candidatesFor($member)->pluck('id')->all();
 
@@ -71,7 +71,7 @@ class CentreDirectReportingTest extends TestCase
     {
         $service = app(SupervisorService::class);
 
-        foreach (['staff', 'hr', 'system_admin'] as $role) {
+        foreach (['staff', 'hr'] as $role) {
             $member = $this->member($role);
 
             $this->assertNull($service->fixedSupervisorFor($member), "$role had a supervisor pinned for them");

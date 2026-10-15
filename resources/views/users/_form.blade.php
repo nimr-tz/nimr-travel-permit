@@ -84,10 +84,10 @@
             // make sense for a unit of this type, per the NIMR organogram.
             rolesForUnitType(type) {
                 const map = {
-                    research_centre: ['staff', 'supervisor', 'centre_manager', 'hr', 'system_admin'],
-                    hq_standalone:   ['staff', 'manager', 'hr', 'system_admin', 'director_general'],
+                    research_centre: ['staff', 'supervisor', 'centre_manager', 'hr'],
+                    hq_standalone:   ['staff', 'manager', 'hr', 'director_general'],
                     hq_directorate:  ['director'],
-                    hq_section:      ['staff', 'head', 'manager', 'hr', 'system_admin'],
+                    hq_section:      ['staff', 'head', 'manager', 'hr'],
                 };
                 return map[type] || [];
             },
@@ -115,12 +115,12 @@
             supervisorRoles() {
                 const unit = this.units[this.selectedUnitId];
                 if (!unit) return [];
-                const ordinary = ['staff', 'hr', 'system_admin'].includes(this.selectedRole);
+                const ordinary = ['staff', 'hr'].includes(this.selectedRole);
                 if (!ordinary) return [];
                 // Centres do not all follow one reporting line, so offer every
                 // colleague in the centre and let the real one be recorded.
                 if (unit.type === 'research_centre') {
-                    return ['staff', 'supervisor', 'centre_manager', 'hr', 'system_admin'];
+                    return ['staff', 'supervisor', 'centre_manager', 'hr'];
                 }
                 // A section's lead is either a 'head' (scientific sections) or a
                 // 'manager' (Corporate Services sections) — whichever leads it.
@@ -269,6 +269,25 @@
         @error('is_active')
         <p class="text-xs text-red-600 md:col-span-2">{{ $message }}</p>
         @enderror
+        {{-- Administrator access is held alongside the role above, not instead
+             of it — only an HQ administrator may grant it. --}}
+        @if (auth()->user()->isGlobalSystemAdmin())
+        <div class="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="flex items-start gap-3">
+                <input type="hidden" name="is_system_admin" value="0">
+                <input type="checkbox" name="is_system_admin" id="is_system_admin" value="1"
+                       class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 shadow-sm focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
+                       {{ old('is_system_admin', $user->is_system_admin ?? false) ? 'checked' : '' }}>
+                <label for="is_system_admin" class="cursor-pointer select-none">
+                    <span class="block text-sm font-medium text-slate-700">{{ __('users.field_is_system_admin') }}</span>
+                    <span class="block mt-0.5 text-xs text-slate-500 leading-relaxed">{{ __('users.field_is_system_admin_help') }}</span>
+                </label>
+            </div>
+            @error('is_system_admin')
+            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
+        @endif
     </div>
 </section>
 

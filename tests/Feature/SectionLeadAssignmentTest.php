@@ -28,7 +28,7 @@ class SectionLeadAssignmentTest extends TestCase
         parent::setUp();
 
         User::factory()->create(['role' => 'director_general', 'unit_id' => null]);
-        $this->admin = User::factory()->create(['role' => 'system_admin', 'unit_id' => null]);
+        $this->admin = User::factory()->systemAdmin()->create(['unit_id' => null]);
 
         $this->directorate = Unit::factory()->create(['type' => 'hq_directorate']);
         User::factory()->create(['unit_id' => $this->directorate->id, 'role' => 'director']);

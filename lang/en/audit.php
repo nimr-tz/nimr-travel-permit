@@ -111,6 +111,7 @@ return [
         'phone'                      => 'Phone',
         'job_title'                  => 'Job title',
         'role'                       => 'Role',
+        'is_system_admin'            => 'System administrator',
         'unit_id'                    => 'Unit',
         'supervisor_id'              => 'Supervisor',
         'is_active'                  => 'Active',

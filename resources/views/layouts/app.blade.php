@@ -63,8 +63,10 @@
                         $navItems[] = ['route' => 'travel-requests.create', 'label' => __('nav.new_request'), 'icon' => 'plus-circle', 'badge' => null, 'pattern' => 'travel-requests.create'];
                         $navItems[] = ['route' => 'hr.reports.index', 'label' => __('nav.hr_reports'), 'icon' => 'chart-bar', 'badge' => null, 'pattern' => 'hr.reports.*'];
                     }
-                    if ($user->isDirectorGeneral()) {
+                    if ($user->isDirectorGeneral() || $user->isSystemAdmin()) {
                         $navItems[] = ['route' => 'travel-reports.index', 'label' => __('nav.travel_reports'), 'icon' => 'chart-bar', 'badge' => null, 'pattern' => 'travel-reports.*'];
+                    }
+                    if ($user->isDirectorGeneral()) {
                         $navItems[] = ['route' => 'approvals.index', 'label' => __('nav.approvals'), 'icon' => 'check-circle', 'badge' => $pendingCount ?: null, 'pattern' => 'approvals.*'];
                     }
                 } else {
@@ -207,7 +209,6 @@
                     'hr'               => ['#f0fdf4','#15803d'],
                     'system_admin'     => ['#0f172a','#ffffff'],
                 ];
-                $hrc = $headerRoleColors[$headerUser->role] ?? $headerRoleColors['staff'];
             @endphp
             <div class="flex items-center gap-2 shrink-0">
 
@@ -252,10 +253,15 @@
                         <div class="px-4 py-3 border-b border-slate-100">
                             <div class="flex items-center justify-between gap-2 mb-1">
                                 <p class="text-sm font-bold text-slate-800 truncate">{{ $headerUser->name }}</p>
-                                <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold"
-                                      style="background:{{ $hrc[0] }};color:{{ $hrc[1] }};">
-                                    {{ __('common.role_' . $headerUser->role) }}
-                                </span>
+                                <div class="shrink-0 flex flex-wrap justify-end gap-1">
+                                    @foreach ($headerUser->displayRoleNames() as $headerRole)
+                                    @php $hrc = $headerRoleColors[$headerRole] ?? $headerRoleColors['staff']; @endphp
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold"
+                                          style="background:{{ $hrc[0] }};color:{{ $hrc[1] }};">
+                                        {{ __('common.role_' . $headerRole) }}
+                                    </span>
+                                    @endforeach
+                                </div>
                             </div>
                             <p class="text-xs text-slate-400 truncate">{{ $headerUser->email }}</p>
                         </div>

@@ -26,7 +26,6 @@
                     'hr'               => ['#f0fdf4', '#15803d'],
                     'system_admin'     => ['#0f172a', '#ffffff'],
                 ];
-                $rc = $sideRoleColors[$user->role] ?? $sideRoleColors['staff'];
             @endphp
             <aside class="space-y-5">
 
@@ -54,10 +53,15 @@
                         <div class="mt-5 space-y-3">
                             <div class="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
                                 <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">{{ __('common.profile_role') }}</p>
-                                <span class="mt-2 inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold"
-                                      style="background:{{ $rc[0] }};color:{{ $rc[1] }};">
-                                    {{ __('common.role_' . $user->role) }}
-                                </span>
+                                <div class="mt-2 flex flex-wrap gap-1">
+                                    @foreach ($user->displayRoleNames() as $role)
+                                    @php $rc = $sideRoleColors[$role] ?? $sideRoleColors['staff']; @endphp
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                                          style="background:{{ $rc[0] }};color:{{ $rc[1] }};">
+                                        {{ __('common.role_' . $role) }}
+                                    </span>
+                                    @endforeach
+                                </div>
                             </div>
                             <div class="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
                                 <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">{{ __('common.unit') }}</p>

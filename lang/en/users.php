@@ -48,6 +48,8 @@ return [
     'field_supervisor_empty'=> 'No active eligible supervisor is available for the selected unit and role.',
     'field_supervisor_ph'=> '— No supervisor —',
     'field_is_active'   => 'Active account',
+    'field_is_system_admin'      => 'System administrator',
+    'field_is_system_admin_help' => 'Can manage user accounts, the audit log and travel reports. This is in addition to the role above, which still decides where they sit in the approval chain.',
     'field_password'    => 'Password',
     'field_password_hint'=> '(Leave blank to keep unchanged)',
     'field_password_ph' => 'New password',
@@ -85,6 +87,7 @@ return [
     'role_desc_centre_manager'   => 'Final approver for research centre staff.',
     'role_desc_director_general' => 'Ultimate final approver for all HQ requests.',
     'role_desc_hr'               => 'Receives notification copies only — cannot approve.',
-    'role_desc_system_admin'     => 'Manages user accounts, roles, and unit assignments.',
+    'role_desc_system_admin'     => 'Manages user accounts, roles, and unit assignments. Granted with the checkbox below the role, so it can be held alongside any role.',
+    'cannot_revoke_own_admin'    => 'You cannot remove your own administrator access. Ask another HQ system administrator to do it.',
     'lead_post_already_held' => ':name is already the :role of :unit. A unit has one lead at a time — change their role first, then appoint the new one.',
 ];

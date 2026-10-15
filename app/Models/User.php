@@ -22,6 +22,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'job_title',
         'avatar_path',
         'role',
+        'is_system_admin',
         'supervisor_id',
         'is_active',
     ];
@@ -37,6 +38,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'is_active'         => 'boolean',
+            'is_system_admin'   => 'boolean',
         ];
     }
 
@@ -85,9 +87,13 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->role === 'hr';
     }
 
+    /**
+     * Administrator access is a flag held alongside the user's post, not a
+     * post of its own, so a Manager or Head can also run the system.
+     */
     public function isSystemAdmin(): bool
     {
-        return $this->role === 'system_admin';
+        return (bool) $this->is_system_admin;
     }
 
     public function isGlobalSystemAdmin(): bool
@@ -102,7 +108,33 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isApprover(): bool
     {
-        return !$this->isHr() && !$this->isSystemAdmin() && $this->role !== 'staff';
+        return !$this->isHr() && $this->role !== 'staff';
+    }
+
+    /**
+     * Every role this user holds: their post, plus administrator access.
+     *
+     * @return list<string>
+     */
+    public function roleNames(): array
+    {
+        return array_values(array_unique(array_filter([
+            $this->role,
+            $this->isSystemAdmin() ? 'system_admin' : null,
+        ])));
+    }
+
+    /**
+     * The roles to show as badges. An administrator with no other post is
+     * shown as just "System Administrator", not "Staff" as well.
+     *
+     * @return list<string>
+     */
+    public function displayRoleNames(): array
+    {
+        $roles = $this->roleNames();
+
+        return count($roles) > 1 ? array_values(array_diff($roles, ['staff'])) : $roles;
     }
 
     /**

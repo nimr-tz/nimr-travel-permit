@@ -108,6 +108,102 @@ class UserAdministrationTest extends TestCase
             ->assertSessionHasErrors('role');
     }
 
+    public function test_centre_system_admin_cannot_grant_administrator_access(): void
+    {
+        Notification::fake();
+
+        $centre = Unit::factory()->researchCentre()->create();
+        $admin = User::factory()->systemAdmin()->create(['unit_id' => $centre->id]);
+        User::factory()->centreManager()->create(['unit_id' => $centre->id]);
+
+        $this->actingAs($admin)
+            ->post(route('users.store'), [
+                'name' => 'Centre Admin Escalation',
+                'email' => 'centre.escalation@example.com',
+                'unit_id' => $centre->id,
+                'role' => 'supervisor',
+                'is_system_admin' => '1',
+                'is_active' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertFalse(User::where('email', 'centre.escalation@example.com')->firstOrFail()->isSystemAdmin());
+    }
+
+    public function test_system_admin_can_also_hold_a_post(): void
+    {
+        Notification::fake();
+
+        $hq = Unit::factory()->hqStandalone()->create();
+        $admin = User::factory()->systemAdmin()->create(['unit_id' => $hq->id]);
+        User::factory()->directorGeneral()->create(['unit_id' => null]);
+
+        $this->actingAs($admin)
+            ->post(route('users.store'), [
+                'name' => 'ICT Manager',
+                'email' => 'ict.manager@example.com',
+                'unit_id' => $hq->id,
+                'role' => 'manager',
+                'is_system_admin' => '1',
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('users.index'))
+            ->assertSessionHasNoErrors();
+
+        $manager = User::where('email', 'ict.manager@example.com')->firstOrFail();
+
+        $this->assertSame('manager', $manager->role);
+        $this->assertTrue($manager->isSystemAdmin());
+        $this->assertTrue($manager->isApprover(), 'administrator access took them out of the approval chain');
+        $this->assertSame(['manager', 'system_admin'], $manager->roleNames());
+
+        $manager->markEmailAsVerified();
+        $this->actingAs($manager)->get(route('users.index'))->assertOk();
+    }
+
+    public function test_global_system_admin_can_add_and_remove_administrator_access(): void
+    {
+        $hq = Unit::factory()->hqStandalone()->create();
+        $admin = User::factory()->systemAdmin()->create(['unit_id' => $hq->id]);
+        $dg = User::factory()->directorGeneral()->create(['unit_id' => null]);
+        $manager = User::factory()->manager()->create(['unit_id' => $hq->id, 'supervisor_id' => $dg->id]);
+
+        $payload = fn (bool $isAdmin) => [
+            'name' => $manager->name,
+            'email' => $manager->email,
+            'unit_id' => $hq->id,
+            'role' => 'manager',
+            'is_system_admin' => $isAdmin ? '1' : '0',
+            'is_active' => '1',
+        ];
+
+        $this->actingAs($admin)->patch(route('users.update', $manager), $payload(true))->assertSessionHasNoErrors();
+        $this->assertTrue($manager->fresh()->isSystemAdmin());
+        $this->assertSame('manager', $manager->fresh()->role);
+
+        $this->actingAs($admin)->patch(route('users.update', $manager), $payload(false))->assertSessionHasNoErrors();
+        $this->assertFalse($manager->fresh()->isSystemAdmin());
+    }
+
+    public function test_system_admin_cannot_revoke_their_own_administrator_access(): void
+    {
+        $hq = Unit::factory()->hqStandalone()->create();
+        $admin = User::factory()->systemAdmin()->create(['unit_id' => $hq->id]);
+
+        $this->actingAs($admin)
+            ->patch(route('users.update', $admin), [
+                'name' => $admin->name,
+                'email' => $admin->email,
+                'unit_id' => $hq->id,
+                'role' => 'staff',
+                'is_system_admin' => '0',
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('is_system_admin');
+
+        $this->assertTrue($admin->fresh()->isSystemAdmin());
+    }
+
     public function test_global_system_admin_can_export_users_as_csv(): void
     {
         $unit = Unit::factory()->hqStandalone()->create(['name' => 'Head Office']);
@@ -132,7 +228,7 @@ class UserAdministrationTest extends TestCase
             ->assertDownload();
 
         $csv = $response->streamedContent();
-        $this->assertStringContainsString('Name,Email,Phone,"Job title",Unit,Role,Supervisor,Status,"Date added"', $csv);
+        $this->assertStringContainsString('Name,Email,Phone,"Job title",Unit,Role,"System administrator",Supervisor,Status,"Date added"', $csv);
         $this->assertStringContainsString($user->email, $csv);
         $this->assertStringContainsString('Export Supervisor', $csv);
         $this->assertDatabaseHas('activity_logs', [

@@ -61,7 +61,7 @@ class UserController extends Controller
 
             fputcsv($out, [
                 'Name', 'Email', 'Phone', 'Job title', 'Unit', 'Role',
-                'Supervisor', 'Status', 'Date added',
+                'System administrator', 'Supervisor', 'Status', 'Date added',
             ]);
 
             $query->lazy(500)->each(function (User $user) use ($out) {
@@ -72,6 +72,7 @@ class UserController extends Controller
                     $user->job_title,
                     $user->unit?->name,
                     __('common.role_'.$user->role, locale: 'en'),
+                    $user->isSystemAdmin() ? 'Yes' : 'No',
                     $user->supervisor?->name,
                     $user->is_active ? 'Active' : 'Inactive',
                     $user->created_at?->format('Y-m-d H:i:s'),
@@ -103,6 +104,7 @@ class UserController extends Controller
             'role' => ['required', 'in:' . implode(',', $this->rolesForAdmin($request->user()))],
             'supervisor_id' => ['nullable', 'integer'],
             'is_active' => ['boolean'],
+            'is_system_admin' => ['nullable', 'boolean'],
         ]);
 
         $this->authorizeUnitForAdmin($request->user(), (int) $validated['unit_id']);
@@ -117,12 +119,14 @@ class UserController extends Controller
         );
         $validated['password'] = Hash::make(Str::random(32));
         $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['is_system_admin'] = $this->grantedSystemAdmin($request);
         $validated['email_verified_at'] = now();
 
         $user = User::create($validated);
 
         $this->audit->log('user.created', $user, context: [
             'role'          => $user->role,
+            'is_system_admin' => $user->is_system_admin,
             'unit_id'       => $user->unit_id,
             'supervisor_id' => $user->supervisor_id,
             'is_active'     => $user->is_active,
@@ -160,6 +164,7 @@ class UserController extends Controller
             'role' => ['required', 'in:' . implode(',', $this->rolesForAdmin($request->user()))],
             'supervisor_id' => ['nullable', 'integer'],
             'is_active' => ['boolean'],
+            'is_system_admin' => ['nullable', 'boolean'],
             'confirm_unit_type_change' => ['nullable', 'boolean'],
         ]);
 
@@ -186,6 +191,7 @@ class UserController extends Controller
 
         $newIsActive = $request->boolean('is_active');
         $validated['is_active'] = $newIsActive;
+        $validated['is_system_admin'] = $this->grantedSystemAdmin($request, $user);
 
         if ($user->is_active && !$newIsActive) {
             $pendingCount = \App\Models\TravelRequest::where('current_approver_id', $user->id)
@@ -200,9 +206,9 @@ class UserController extends Controller
 
         $wasDeactivated = $user->is_active && ! $newIsActive;
 
-        $before = $user->only(['name', 'email', 'role', 'unit_id', 'supervisor_id', 'is_active', 'job_title', 'phone']);
+        $before = $user->only(['name', 'email', 'role', 'is_system_admin', 'unit_id', 'supervisor_id', 'is_active', 'job_title', 'phone']);
         $user->update($validated);
-        $after = $user->fresh()->only(['name', 'email', 'role', 'unit_id', 'supervisor_id', 'is_active', 'job_title', 'phone']);
+        $after = $user->fresh()->only(['name', 'email', 'role', 'is_system_admin', 'unit_id', 'supervisor_id', 'is_active', 'job_title', 'phone']);
 
         // Their role, unit or active status may have just changed, which can
         // leave people reporting to somebody who cannot approve for them.
@@ -232,7 +238,33 @@ class UserController extends Controller
             return ['staff', 'supervisor', 'centre_manager', 'hr'];
         }
 
-        return ['staff', 'head', 'manager', 'supervisor', 'director', 'centre_manager', 'director_general', 'hr', 'system_admin'];
+        return ['staff', 'head', 'manager', 'supervisor', 'director', 'centre_manager', 'director_general', 'hr'];
+    }
+
+    /**
+     * Administrator access sits alongside the user's post rather than
+     * replacing it, so it is its own field. Only an HQ administrator may grant
+     * or revoke it — a centre administrator cannot even open an
+     * administrator's account — and nobody may revoke their own, which would
+     * lock them out of this page mid-edit.
+     */
+    private function grantedSystemAdmin(Request $request, ?User $target = null): bool
+    {
+        $admin = $request->user();
+
+        if (! $admin->isGlobalSystemAdmin()) {
+            return (bool) $target?->is_system_admin;
+        }
+
+        $granted = $request->boolean('is_system_admin');
+
+        if (! $granted && $target?->is($admin)) {
+            throw ValidationException::withMessages([
+                'is_system_admin' => __('users.cannot_revoke_own_admin'),
+            ]);
+        }
+
+        return $granted;
     }
 
     /**
@@ -244,10 +276,10 @@ class UserController extends Controller
     private function rolesForUnitType(string $unitType): array
     {
         return match ($unitType) {
-            'research_centre' => ['staff', 'supervisor', 'centre_manager', 'hr', 'system_admin'],
-            'hq_standalone'   => ['staff', 'manager', 'hr', 'system_admin', 'director_general'],
+            'research_centre' => ['staff', 'supervisor', 'centre_manager', 'hr'],
+            'hq_standalone'   => ['staff', 'manager', 'hr', 'director_general'],
             'hq_directorate'  => ['director'],
-            'hq_section'      => ['staff', 'head', 'manager', 'hr', 'system_admin'],
+            'hq_section'      => ['staff', 'head', 'manager', 'hr'],
             default => [],
         };
     }
@@ -474,7 +506,7 @@ class UserController extends Controller
     {
         if ($admin->isCentreSystemAdmin()) {
             $query->where('unit_id', $admin->unit_id)
-                ->where('role', '!=', 'system_admin');
+                ->where('is_system_admin', false);
         }
 
         return $query;

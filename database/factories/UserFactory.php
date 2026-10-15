@@ -31,6 +31,7 @@ class UserFactory extends Factory
             'password'           => static::$password ??= Hash::make('password'),
             'remember_token'     => Str::random(10),
             'role'               => 'staff',
+            'is_system_admin'    => false,
             'is_active'          => true,
         ];
     }
@@ -48,6 +49,6 @@ class UserFactory extends Factory
     public function centreManager(): static { return $this->state(['role' => 'centre_manager']); }
     public function directorGeneral(): static { return $this->state(['role' => 'director_general']); }
     public function hr(): static            { return $this->state(['role' => 'hr']); }
-    public function systemAdmin(): static   { return $this->state(['role' => 'system_admin']); }
+    public function systemAdmin(): static   { return $this->state(['is_system_admin' => true]); }
     public function inactive(): static      { return $this->state(['is_active' => false]); }
 }

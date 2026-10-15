@@ -99,7 +99,7 @@ class StaffApprovalChainSeeder extends Seeder
      */
     private function fillStructuralGaps(): void
     {
-        // Research centres: staff/hr/system_admin need a 'supervisor' in the centre.
+        // Research centres: staff/hr need a 'supervisor' in the centre.
         // The post used to be called 'manager', which was too easily confused
         // with an hq_standalone unit's Manager; the organogram never called it
         // that. A supervisor's own supervisor is fixed to the Centre Manager,

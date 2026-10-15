@@ -53,7 +53,8 @@ npm run build           # Production asset build
 | `centre_manager` | Research centre manager — approves centre requests |
 | `director_general` | DG — final authority for most chains |
 | `hr` | HR - receives request copies for records |
-| `system_admin` | Manages user identity, unit placement, and role assignment |
+
+**System administrator** is not a role but a separate permission (`users.is_system_admin`) that can be added to any of the roles above. It manages user identity, unit placement, and role assignment, so a Manager or Head can also run the system without leaving the approval chain.
 
 ## Approval Chain
 

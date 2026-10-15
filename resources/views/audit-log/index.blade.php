@@ -8,7 +8,7 @@
         if ($value === null || $value === '') {
             return '—';
         }
-        if (is_bool($value) || in_array($key, ['is_active', 'known_account', 'remember_me', 'replaced_previous', 'password_set_by_admin'], true)) {
+        if (is_bool($value) || in_array($key, ['is_active', 'is_system_admin', 'known_account', 'remember_me', 'replaced_previous', 'password_set_by_admin'], true)) {
             return $value ? __('audit.yes') : __('audit.no');
         }
         if (in_array($key, $userIdKeys, true) && is_numeric($value)) {

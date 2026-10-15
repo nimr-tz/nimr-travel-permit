@@ -36,7 +36,25 @@ class TravelRequestController extends Controller
         $user = auth()->user();
         $query = TravelRequest::with(['requester', 'unit', 'currentApprover']);
 
-        if ($user->isHr()) {
+        if ($user->isSystemAdmin()) {
+            // Full institute-wide oversight for HQ admins; a centre admin is
+            // scoped to their own centre, matching the audit log and reports
+            // pages. Every status except drafts, which are private in-progress
+            // work nobody has submitted yet. Checked before HR and the DG:
+            // administrator access is held alongside a post, and an admin who
+            // also holds one of those posts keeps this wider view.
+            $query->whereIn('status', [
+                TravelRequest::STATUS_PENDING,
+                TravelRequest::STATUS_APPROVED,
+                TravelRequest::STATUS_REJECTED,
+                TravelRequest::STATUS_RETURNED,
+                TravelRequest::STATUS_CANCELLED,
+            ]);
+
+            if ($user->isCentreSystemAdmin()) {
+                $query->where('unit_id', $user->unit_id);
+            }
+        } elseif ($user->isHr()) {
             // HR sees granted permits only, not the approval process itself.
             $query->where('status', TravelRequest::STATUS_APPROVED);
 
@@ -57,22 +75,6 @@ class TravelRequestController extends Controller
                     TravelRequest::STATUS_CANCELLED,
                 ]);
             });
-        } elseif ($user->isSystemAdmin()) {
-            // Full institute-wide oversight for HQ admins; a centre admin is
-            // scoped to their own centre, matching the audit log and reports
-            // pages. Every status except drafts, which are private in-progress
-            // work nobody has submitted yet.
-            $query->whereIn('status', [
-                TravelRequest::STATUS_PENDING,
-                TravelRequest::STATUS_APPROVED,
-                TravelRequest::STATUS_REJECTED,
-                TravelRequest::STATUS_RETURNED,
-                TravelRequest::STATUS_CANCELLED,
-            ]);
-
-            if ($user->isCentreSystemAdmin()) {
-                $query->where('unit_id', $user->unit_id);
-            }
         } else {
             $query->where('requester_id', $user->id);
         }

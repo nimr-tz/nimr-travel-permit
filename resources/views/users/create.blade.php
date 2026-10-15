@@ -48,7 +48,7 @@
                 <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                     <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">{{ __('users.role_guide') }}</p>
                     <div class="space-y-3">
-                        @foreach ($roles as $role)
+                        @foreach (auth()->user()->isGlobalSystemAdmin() ? [...$roles, 'system_admin'] : $roles as $role)
                         @php $rc = $roleColors[$role] ?? $roleColors['staff']; @endphp
                         <div class="flex items-start gap-3">
                             <span class="mt-0.5 shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold"

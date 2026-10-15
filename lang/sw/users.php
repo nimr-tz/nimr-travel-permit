@@ -48,6 +48,8 @@ return [
     'field_supervisor_empty'=> 'Hakuna msimamizi hai anayefaa kwa kitengo na wadhifu uliouchagua.',
     'field_supervisor_ph'=> '— Hakuna msimamizi —',
     'field_is_active'   => 'Akaunti hai (Active)',
+    'field_is_system_admin'      => 'Msimamizi wa mfumo',
+    'field_is_system_admin_help' => 'Anaweza kusimamia akaunti za watumiaji, kumbukumbu za ukaguzi na ripoti za safari. Hii ni nyongeza ya wadhifa ulio juu, ambao bado unaamua nafasi yake katika mnyororo wa idhini.',
     'field_password'    => 'Nenosiri',
     'field_password_hint'=> '(Acha wazi ikiwa haubadilishi)',
     'field_password_ph' => 'Nenosiri jipya',
@@ -85,6 +87,7 @@ return [
     'role_desc_centre_manager'   => 'Mtoa idhini wa mwisho kwa wafanyakazi wa kituo cha utafiti.',
     'role_desc_director_general' => 'Mtoa idhini wa mwisho kabisa kwa maombi yote ya makao makuu.',
     'role_desc_hr'               => 'Anapokea nakala za arifa tu — hawezi kutoa idhini.',
-    'role_desc_system_admin'     => 'Anasimamia akaunti za watumiaji, wadhifu, na upangaji wa vitengo.',
+    'role_desc_system_admin'     => 'Anasimamia akaunti za watumiaji, wadhifu, na upangaji wa vitengo. Hutolewa kwa kisanduku kilicho chini ya wadhifa, hivyo anaweza kuwa nao pamoja na wadhifa wowote.',
+    'cannot_revoke_own_admin'    => 'Huwezi kuondoa ruhusa yako mwenyewe ya usimamizi. Mwombe msimamizi mwingine wa mfumo wa Makao Makuu afanye hivyo.',
     'lead_post_already_held' => ':name tayari ni :role wa :unit. Kitengo kina kiongozi mmoja kwa wakati — badilisha wadhifa wake kwanza, kisha umteue mpya.',
 ];
