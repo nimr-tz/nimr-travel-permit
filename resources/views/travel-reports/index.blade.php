@@ -5,17 +5,39 @@
         <p class="mt-1 text-sm text-slate-500">{{ __('travel_reports.subtitle') }}</p>
     </div>
 
-    <form method="GET" action="{{ route('travel-reports.index') }}" class="bg-white rounded-xl border border-slate-200 p-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+    @php $customRange = $dateFrom || $dateTo; @endphp
+    <form method="GET" action="{{ route('travel-reports.index') }}" class="bg-white rounded-xl border border-slate-200 p-4"
+          x-data="{ dateFrom: {{ Js::from($dateFrom?->format('Y-m-d') ?? '') }}, dateTo: {{ Js::from($dateTo?->format('Y-m-d') ?? '') }} }">
+        @if ($errors->any())
+            <div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                @foreach ($errors->all() as $error)<div>{{ $error }}</div>@endforeach
+            </div>
+        @endif
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <div>
                 <label class="block text-xs font-medium text-slate-600 mb-1">{{ __('travel_reports.financial_year') }}</label>
-                <select name="financial_year" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                {{-- A date range replaces the financial year, so the year is
+                     greyed out (and not submitted) while one is entered. --}}
+                <select name="financial_year" :disabled="dateFrom !== '' || dateTo !== ''"
+                        class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400">
                     @foreach ($financialYears as $year)
                         <option value="{{ $year }}" @selected((int) $financialYear === (int) $year)>
                             {{ __('travel_reports.financial_year_label', ['start' => $year, 'end' => substr((string) ($year + 1), -2)]) }}
                         </option>
                     @endforeach
                 </select>
+            </div>
+
+            <div>
+                <label for="date_from" class="block text-xs font-medium text-slate-600 mb-1">{{ __('travel_reports.date_from') }}</label>
+                <input type="date" id="date_from" name="date_from" x-model="dateFrom" :max="dateTo || null"
+                       class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label for="date_to" class="block text-xs font-medium text-slate-600 mb-1">{{ __('travel_reports.date_to') }}</label>
+                <input type="date" id="date_to" name="date_to" x-model="dateTo" :min="dateFrom || null"
+                       class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
             </div>
 
             <div>
@@ -51,13 +73,15 @@
                 </select>
             </div>
 
-            <div>
+            <div class="xl:col-span-2">
                 <label class="block text-xs font-medium text-slate-600 mb-1">{{ __('common.search') }}</label>
                 <input type="text" name="search" value="{{ request('search') }}"
                        placeholder="{{ __('travel_reports.search_placeholder') }}"
                        class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
             </div>
         </div>
+
+        <p class="mt-2 text-xs text-slate-500">{{ __('travel_reports.date_range_hint') }}</p>
 
         <div class="mt-3 flex gap-2">
             <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium text-white shadow-sm" style="background-color:#05499c;">
@@ -69,12 +93,25 @@
         </div>
     </form>
 
+    <p class="text-sm text-slate-600">
+        <span class="font-semibold text-slate-800">{{ __('travel_reports.period') }}:</span>
+        @if ($dateFrom && $dateTo)
+            {{ __('travel_reports.period_between', ['from' => $dateFrom->format('d M Y'), 'to' => $dateTo->format('d M Y')]) }}
+        @elseif ($dateFrom)
+            {{ __('travel_reports.period_from', ['from' => $dateFrom->format('d M Y')]) }}
+        @elseif ($dateTo)
+            {{ __('travel_reports.period_to', ['to' => $dateTo->format('d M Y')]) }}
+        @else
+            {{ __('travel_reports.period_financial_year', ['year' => __('travel_reports.financial_year_label', ['start' => $financialYear, 'end' => substr((string) ($financialYear + 1), -2)])]) }}
+        @endif
+    </p>
+
     <div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
         @foreach ([
             ['label' => __('travel_reports.people'), 'value' => $stats['people'], 'color' => 'bg-blue-600'],
             ['label' => __('travel_reports.trips'), 'value' => $stats['trips'], 'color' => 'bg-slate-700'],
             ['label' => __('travel_reports.travel_days'), 'value' => $stats['days'], 'color' => 'bg-violet-600'],
-            ['label' => __('travel_reports.over_limit', ['limit' => $annualLimit]), 'value' => $stats['over_limit'], 'color' => 'bg-amber-500'],
+            ['label' => __('travel_reports.over_limit', ['limit' => $annualLimit]), 'value' => $stats['over_limit'] ?? '—', 'color' => 'bg-amber-500'],
             ['label' => __('travel_reports.submitted_reports'), 'value' => $stats['submitted'], 'color' => 'bg-emerald-600'],
             ['label' => __('travel_reports.missing_reports'), 'value' => $stats['missing'], 'color' => 'bg-red-500'],
         ] as $card)
@@ -91,7 +128,7 @@
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-100">
             <h3 class="text-sm font-bold text-slate-800">{{ __('travel_reports.traveller_summary') }}</h3>
-            <p class="mt-0.5 text-xs text-slate-500">{{ __('travel_reports.traveller_summary_hint') }}</p>
+            <p class="mt-0.5 text-xs text-slate-500">{{ __($customRange ? 'travel_reports.traveller_summary_hint_range' : 'travel_reports.traveller_summary_hint') }}</p>
         </div>
         @if ($people->isEmpty())
             <p class="p-8 text-center text-sm text-slate-400">{{ __('travel_reports.no_people') }}</p>

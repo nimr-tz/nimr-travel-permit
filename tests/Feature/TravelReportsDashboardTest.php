@@ -168,4 +168,86 @@ class TravelReportsDashboardTest extends TestCase
             ->get(route('travel-reports.index', ['financial_year' => 2026]))
             ->assertViewHas('stats', fn (array $stats) => $stats['days'] === 2);
     }
+
+    private function adminWithTrips(array $trips): User
+    {
+        $unit = Unit::factory()->hqStandalone()->create();
+        $admin = User::factory()->systemAdmin()->create(['unit_id' => $unit->id]);
+        $traveller = User::factory()->staff()->create(['unit_id' => $unit->id]);
+
+        foreach ($trips as [$departure, $return]) {
+            TravelRequest::factory()->approved()->create([
+                'requester_id' => $traveller->id,
+                'unit_id' => $unit->id,
+                'b_departure_date' => $departure,
+                'b_return_date' => $return,
+            ]);
+        }
+
+        return $admin;
+    }
+
+    public function test_admin_can_narrow_reports_to_a_date_range(): void
+    {
+        Carbon::setTestNow('2026-07-31 10:00:00');
+
+        $admin = $this->adminWithTrips([
+            ['2026-01-10', '2026-01-12'], // before the range
+            ['2026-01-30', '2026-02-02'], // straddles the start: 2 days inside
+            ['2026-03-01', '2026-03-05'], // inside: 5 days
+            ['2026-05-01', '2026-05-03'], // after the range
+        ]);
+
+        $this->actingAs($admin)->withSession(['locale' => 'en'])
+            ->get(route('travel-reports.index', ['date_from' => '2026-02-01', 'date_to' => '2026-04-30']))
+            ->assertOk()
+            ->assertSee('01 Feb 2026 to 30 Apr 2026')
+            ->assertViewHas('stats', fn (array $stats) => $stats['trips'] === 2 && $stats['days'] === 7)
+            ->assertViewHas('requests', fn ($requests) => $requests->total() === 2);
+    }
+
+    public function test_either_end_of_the_range_can_be_left_open(): void
+    {
+        Carbon::setTestNow('2026-07-31 10:00:00');
+
+        $admin = $this->adminWithTrips([
+            ['2025-03-01', '2025-03-02'],
+            ['2026-03-01', '2026-03-03'],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('travel-reports.index', ['date_from' => '2026-01-01']))
+            ->assertViewHas('stats', fn (array $stats) => $stats['trips'] === 1 && $stats['days'] === 3);
+
+        $this->actingAs($admin)
+            ->get(route('travel-reports.index', ['date_to' => '2025-12-31']))
+            ->assertViewHas('stats', fn (array $stats) => $stats['trips'] === 1 && $stats['days'] === 2);
+    }
+
+    public function test_day_limit_is_not_judged_across_more_than_one_financial_year(): void
+    {
+        Carbon::setTestNow('2026-07-31 10:00:00');
+
+        // 50 days in 2025/26 and 30 in 2026/27: 80 in total, but nobody
+        // has broken the 60-day-per-year limit.
+        $admin = $this->adminWithTrips([
+            ['2025-08-01', '2025-09-09'],
+            ['2026-07-01', '2026-07-30'],
+            ['2026-06-01', '2026-06-10'],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('travel-reports.index', ['date_from' => '2025-07-01', 'date_to' => '2026-07-31']))
+            ->assertViewHas('stats', fn (array $stats) => $stats['days'] === 80 && $stats['over_limit'] === null)
+            ->assertViewHas('people', fn ($people) => $people->sole()['over_limit'] === false);
+    }
+
+    public function test_a_range_that_ends_before_it_starts_is_rejected(): void
+    {
+        $admin = $this->adminWithTrips([]);
+
+        $this->actingAs($admin)
+            ->get(route('travel-reports.index', ['date_from' => '2026-05-01', 'date_to' => '2026-04-01']))
+            ->assertSessionHasErrors('date_to');
+    }
 }

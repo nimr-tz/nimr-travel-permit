@@ -32,27 +32,36 @@ class TravelReportsController extends Controller
                 ? $financialYear
                 : $currentFinancialYear;
 
-        [$financialYearStart, $financialYearEnd] = $this->travelDays->window($financialYear);
+        [$dateFrom, $dateTo] = $this->dateRange($request);
+        [$windowStart, $windowEnd] = $dateFrom || $dateTo
+            ? [$dateFrom ?? Carbon::create(1900, 1, 1)->startOfDay(), $dateTo ?? Carbon::create(9999, 12, 31)->endOfDay()]
+            : $this->travelDays->window($financialYear);
+
+        // The days limit is per financial year, so it only means anything
+        // when the period being looked at sits inside a single one.
+        $limitApplies = ! ($dateFrom || $dateTo)
+            || ($dateFrom && $dateTo
+                && $this->travelDays->financialYearFor($dateFrom) === $this->travelDays->financialYearFor($dateTo));
 
         $query = $this->travelDays->scopeToWindow(
             TravelRequest::query()->with(['requester', 'unit']),
-            $financialYearStart,
-            $financialYearEnd,
+            $windowStart,
+            $windowEnd,
         );
 
         $this->applyAccessScope($query, $user);
         $this->applyFilters($query, $request);
 
         $allFilteredRequests = (clone $query)->get()
-            ->each(fn (TravelRequest $travelRequest) => $this->setFinancialYearDays(
+            ->each(fn (TravelRequest $travelRequest) => $this->setWindowDays(
                 $travelRequest,
-                $financialYearStart,
-                $financialYearEnd,
+                $windowStart,
+                $windowEnd,
             ));
 
         $people = $allFilteredRequests
             ->groupBy('requester_id')
-            ->map(function ($requests) use ($financialYearStart, $financialYearEnd) {
+            ->map(function ($requests) use ($windowStart, $windowEnd, $limitApplies) {
                 /** @var TravelRequest $first */
                 $first = $requests->first();
 
@@ -69,8 +78,8 @@ class TravelReportsController extends Controller
                     'unit' => $first->unit?->name ?? '—',
                     'trips' => $requests->count(),
                     'days' => $days,
-                    'over_limit' => $this->travelDays->isOverLimit($days),
-                    'at_limit' => $this->travelDays->isAtLimit($days),
+                    'over_limit' => $limitApplies && $this->travelDays->isOverLimit($days),
+                    'at_limit' => $limitApplies && $this->travelDays->isAtLimit($days),
                     'remaining' => $this->travelDays->remaining($days),
                     'submitted' => $requests->whereNotNull('travel_report_submitted_at')->count(),
                     'missing' => $requests->whereNull('travel_report_submitted_at')
@@ -81,8 +90,8 @@ class TravelReportsController extends Controller
                         ->count(),
                     'upcoming_days' => $upcoming->sum(fn (TravelRequest $travelRequest) => $this->travelDays->plannedDays(
                         $travelRequest,
-                        $financialYearStart,
-                        $financialYearEnd,
+                        $windowStart,
+                        $windowEnd,
                     )),
                 ];
             })
@@ -91,7 +100,7 @@ class TravelReportsController extends Controller
 
         $stats = [
             'people' => $people->count(),
-            'over_limit' => $people->where('over_limit', true)->count(),
+            'over_limit' => $limitApplies ? $people->where('over_limit', true)->count() : null,
             'trips' => $allFilteredRequests->count(),
             'days' => $allFilteredRequests->sum('financial_year_days'),
             'submitted' => $allFilteredRequests->whereNotNull('travel_report_submitted_at')->count(),
@@ -105,8 +114,8 @@ class TravelReportsController extends Controller
             ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString()
-            ->through(function (TravelRequest $travelRequest) use ($financialYearStart, $financialYearEnd) {
-                $this->setFinancialYearDays($travelRequest, $financialYearStart, $financialYearEnd);
+            ->through(function (TravelRequest $travelRequest) use ($windowStart, $windowEnd) {
+                $this->setWindowDays($travelRequest, $windowStart, $windowEnd);
 
                 return $travelRequest;
             });
@@ -142,7 +151,30 @@ class TravelReportsController extends Controller
             'financialYears',
             'financialYear',
             'annualLimit',
+            'dateFrom',
+            'dateTo',
         ));
+    }
+
+    /**
+     * An optional date range that replaces the financial year. Either end may
+     * be left open: "from 1 March" means from then onwards, "to 31 March"
+     * means everything up to then. Trips are clipped to the range the same way
+     * they are clipped to a financial year.
+     *
+     * @return array{0: ?Carbon, 1: ?Carbon}
+     */
+    private function dateRange(Request $request): array
+    {
+        $validated = $request->validate([
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+        ]);
+
+        return [
+            isset($validated['date_from']) ? Carbon::createFromFormat('Y-m-d', $validated['date_from'])->startOfDay() : null,
+            isset($validated['date_to']) ? Carbon::createFromFormat('Y-m-d', $validated['date_to'])->endOfDay() : null,
+        ];
     }
 
     private function applyAccessScope(Builder $query, User $user): void
@@ -194,14 +226,14 @@ class TravelReportsController extends Controller
         }
     }
 
-    private function setFinancialYearDays(
+    private function setWindowDays(
         TravelRequest $travelRequest,
-        Carbon $financialYearStart,
-        Carbon $financialYearEnd,
+        Carbon $windowStart,
+        Carbon $windowEnd,
     ): void {
         $travelRequest->setAttribute(
             'financial_year_days',
-            $this->travelDays->daysInWindow($travelRequest, $financialYearStart, $financialYearEnd),
+            $this->travelDays->daysInWindow($travelRequest, $windowStart, $windowEnd),
         );
     }
 }
