@@ -157,6 +157,7 @@
                                     <label class="label"><span class="text-slate-400 mr-1.5">(vi)</span> {{ __('travel.b_departure_date') }} <span class="text-red-500">*</span></label>
                                     <input type="date" name="b_departure_date"
                                         value="{{ old('b_departure_date', $tr->b_departure_date?->format('Y-m-d')) }}"
+                                        min="{{ now()->format('Y-m-d') }}"
                                         class="input @error('b_departure_date') input-error @enderror" required>
                                 </div>
                                 <div class="field">
@@ -604,14 +605,13 @@
                     if (step === 1) {
                         const departure = form.elements['b_departure_date'];
                         const returning = form.elements['b_return_date'];
-                        const tomorrow = new Date();
-                        tomorrow.setHours(0, 0, 0, 0);
-                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
 
                         if (departure?.value) {
                             const departureDate = new Date(departure.value + 'T00:00:00');
-                            if (departureDate < tomorrow) {
-                                departure.setCustomValidity('Departure date must be in the future.');
+                            if (departureDate < today) {
+                                departure.setCustomValidity('Departure date cannot be in the past.');
                             }
                         }
 

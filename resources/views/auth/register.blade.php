@@ -1,4 +1,12 @@
 <x-guest-layout>
+    @php
+        // Flat, ordered list of selectable HQ units (standalone units first, then
+        // each directorate's sections) — mirrors the render order of the picker so
+        // the keyboard-navigation index and the displayed items stay aligned.
+        $allHqUnits = $hqStandaloneUnits->concat($hqDirectorates->flatMap(fn ($d) => $d->children->all()));
+        $hqUnitOptions = $allHqUnits->map(fn ($u) => ['id' => (string) $u->id, 'name' => $u->name])->values();
+        $selectedHqUnitName = $allHqUnits->firstWhere('id', old('unit_id', -1))?->name;
+    @endphp
     <div x-data="registrationWizard()" x-init="init()" class="space-y-5">
         <div class="text-center">
             <h2 class="text-2xl font-bold text-slate-900">Create Your Account</h2>
@@ -117,25 +125,63 @@
                     <template x-if="formData.organizational_level === 'headquarters'">
                         <div>
                             <x-input-label for="hq_unit_id" value="Headquarters Unit" />
-                            <select id="hq_unit_id" x-model="formData.unit_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" size="1">
-                                <option value="">Select your HQ unit</option>
-                                @if ($hqStandaloneUnits->isNotEmpty())
-                                    <optgroup label="Standalone Units">
+                            <div class="relative" @click.outside="hqPickerOpen = false">
+                                <button type="button" id="hq_unit_id"
+                                    @click="toggleHqPicker()"
+                                    @keydown.arrow-down.prevent="hqMove(1)"
+                                    @keydown.arrow-up.prevent="hqMove(-1)"
+                                    @keydown.enter.prevent="hqPickerOpen ? hqSelectFocused() : toggleHqPicker()"
+                                    @keydown.escape="hqPickerOpen = false"
+                                    aria-haspopup="listbox"
+                                    aria-controls="hq_unit_list"
+                                    :aria-expanded="hqPickerOpen"
+                                    class="mt-1 flex w-full items-center justify-between rounded-md border-gray-300 bg-white px-3 py-2 text-left text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <span class="truncate" :class="selectedHqLabel ? 'text-slate-800' : 'text-slate-400'" x-text="selectedHqLabel || 'Select your HQ unit'"></span>
+                                    <svg class="ml-2 h-4 w-4 flex-shrink-0 text-slate-400 transition" :class="hqPickerOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                <div x-show="hqPickerOpen" x-cloak x-transition x-ref="hqPanel" id="hq_unit_list" role="listbox" class="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                                    @php $hqFlatIndex = 0; @endphp
+                                    @if ($hqStandaloneUnits->isNotEmpty())
+                                        <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Standalone Units</div>
                                         @foreach ($hqStandaloneUnits as $unit)
-                                            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                            <button type="button" role="option" data-idx="{{ $hqFlatIndex }}"
+                                                @click='selectHqUnit({{ $unit->id }}, @json($unit->name))'
+                                                @mouseenter="hqFocusedIndex = {{ $hqFlatIndex }}"
+                                                :aria-selected="formData.unit_id == '{{ $unit->id }}'"
+                                                class="flex w-full items-center justify-between px-3 py-2 text-left text-sm"
+                                                :class="{ 'bg-[#05499c]/10 text-[#05499c]': hqFocusedIndex === {{ $hqFlatIndex }} || formData.unit_id == '{{ $unit->id }}', 'text-slate-700': !(hqFocusedIndex === {{ $hqFlatIndex }} || formData.unit_id == '{{ $unit->id }}') }">
+                                                <span class="truncate">{{ $unit->name }}</span>
+                                                <svg x-show="formData.unit_id == '{{ $unit->id }}'" class="ml-2 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </button>
+                                            @php $hqFlatIndex++; @endphp
                                         @endforeach
-                                    </optgroup>
-                                @endif
-                                @foreach ($hqDirectorates as $directorate)
-                                    <optgroup label="{{ $directorate->name }}">
-                                        {{-- The Directorate itself is not selectable: only its Director belongs there,
-                                             and that account is created by a system administrator, not self-registration. --}}
+                                    @endif
+                                    @foreach ($hqDirectorates as $directorate)
+                                        <div class="border-t border-gray-100"></div>
+                                        <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-[#05499c]">{{ $directorate->name }}</div>
                                         @foreach ($directorate->children as $section)
-                                            <option value="{{ $section->id }}">{{ $section->name }}</option>
+                                            <button type="button" role="option" data-idx="{{ $hqFlatIndex }}"
+                                                @click='selectHqUnit({{ $section->id }}, @json($section->name))'
+                                                @mouseenter="hqFocusedIndex = {{ $hqFlatIndex }}"
+                                                :aria-selected="formData.unit_id == '{{ $section->id }}'"
+                                                class="flex w-full items-center justify-between pl-6 pr-3 py-2 text-left text-sm"
+                                                :class="{ 'bg-[#05499c]/10 text-[#05499c]': hqFocusedIndex === {{ $hqFlatIndex }} || formData.unit_id == '{{ $section->id }}', 'text-slate-700': !(hqFocusedIndex === {{ $hqFlatIndex }} || formData.unit_id == '{{ $section->id }}') }">
+                                                <span class="truncate">{{ $section->name }}</span>
+                                                <svg x-show="formData.unit_id == '{{ $section->id }}'" class="ml-2 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </button>
+                                            @php $hqFlatIndex++; @endphp
                                         @endforeach
-                                    </optgroup>
-                                @endforeach
-                            </select>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <p class="mt-1 text-xs text-slate-400">Sections are grouped under their directorate. A directorate itself is managed by a System Administrator — pick your section.</p>
                             <x-input-error :messages="$errors->get('unit_id')" class="mt-2" />
                         </div>
                     </template>
@@ -192,6 +238,10 @@
                     organizational_level: @json(old('organizational_level', '')),
                     unit_id: @json((string) old('unit_id', '')),
                 },
+                hqPickerOpen: false,
+                hqFocusedIndex: -1,
+                selectedHqLabel: @json($selectedHqUnitName ?? ''),
+                hqOptions: @json($hqUnitOptions),
                 init() {
                     @if ($errors->any())
                         @if ($errors->has('password') || $errors->has('password_confirmation'))
@@ -206,6 +256,39 @@
                 },
                 clearUnit() {
                     this.formData.unit_id = '';
+                    this.selectedHqLabel = '';
+                    this.hqPickerOpen = false;
+                    this.hqFocusedIndex = -1;
+                },
+                toggleHqPicker() {
+                    this.hqPickerOpen = !this.hqPickerOpen;
+                    if (this.hqPickerOpen) {
+                        this.hqFocusedIndex = this.hqOptions.findIndex((o) => String(o.id) === String(this.formData.unit_id));
+                    }
+                },
+                hqMove(delta) {
+                    if (!this.hqPickerOpen) {
+                        this.hqPickerOpen = true;
+                        this.hqFocusedIndex = this.hqOptions.findIndex((o) => String(o.id) === String(this.formData.unit_id));
+                    }
+                    if (!this.hqOptions.length) return;
+                    const n = this.hqOptions.length;
+                    const base = this.hqFocusedIndex < 0 ? (delta > 0 ? -1 : 0) : this.hqFocusedIndex;
+                    this.hqFocusedIndex = (base + delta + n) % n;
+                    this.$nextTick(() => {
+                        const el = this.$refs.hqPanel && this.$refs.hqPanel.querySelector('[data-idx="' + this.hqFocusedIndex + '"]');
+                        if (el) el.scrollIntoView({ block: 'nearest' });
+                    });
+                },
+                hqSelectFocused() {
+                    const o = this.hqOptions[this.hqFocusedIndex];
+                    if (o) this.selectHqUnit(o.id, o.name);
+                },
+                selectHqUnit(id, name) {
+                    this.formData.unit_id = String(id);
+                    this.selectedHqLabel = name;
+                    this.hqPickerOpen = false;
+                    this.hqFocusedIndex = -1;
                 },
                 nextStep() {
                     if (this.validateStep()) {
