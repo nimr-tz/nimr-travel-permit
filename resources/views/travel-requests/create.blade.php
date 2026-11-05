@@ -185,7 +185,7 @@
                                 <div class="field">
                                     <label class="label"><span class="text-slate-400 mr-1.5">(vi)</span> {{ __('travel.b_departure_date') }} <span class="text-red-500">*</span></label>
                                     <input type="date" name="b_departure_date" value="{{ old('b_departure_date') }}"
-                                        min="{{ now()->addDays(1)->format('Y-m-d') }}"
+                                        min="{{ now()->format('Y-m-d') }}"
                                         class="input @error('b_departure_date') input-error @enderror"
                                         :class="hasError('b_departure_date') ? 'border-red-400 ring-1 ring-red-300' : ''"
                                         @change="validateDeparture($el)">
@@ -854,10 +854,9 @@
                         return;
                     }
                     const today = new Date(); today.setHours(0, 0, 0, 0);
-                    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
                     const selected = new Date(val + 'T00:00:00');
-                    if (selected < tomorrow) {
-                        this.fieldErrors[el.name] = 'Departure date must be at least one day from today.';
+                    if (selected < today) {
+                        this.fieldErrors[el.name] = 'Departure date cannot be in the past.';
                     } else {
                         delete this.fieldErrors[el.name];
                     }

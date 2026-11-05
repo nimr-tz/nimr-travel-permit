@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\StaleRequestException;
 use App\Models\TravelRequest;
+use App\Models\Unit;
 use App\Models\User;
 use App\Notifications\TravelRequestHrCopyNotification;
 use App\Notifications\TravelRequestHandoverNotification;
@@ -682,7 +683,7 @@ class TravelRequestController extends Controller
         $rules = [
             'b_phone' => ['required', 'string', 'max:50'],
             'b_destination' => ['required', 'string', 'max:500'],
-            'b_departure_date' => ['required', 'date', 'after:today'],
+            'b_departure_date' => ['required', 'date', 'after_or_equal:today'],
             'b_return_date' => ['required', 'date', 'after:b_departure_date'],
             'c_travel_source' => ['nullable', 'string'],
             'd_benefit_to_institution' => [$req, 'string'],
@@ -753,19 +754,24 @@ class TravelRequestController extends Controller
 
     /**
      * Handover only makes sense to someone who can actually absorb the duties,
-     * which means a colleague in the same unit — the list used to be every
-     * active account in the institute, so a Mwanza technician could hand over
-     * to a Dodoma finance officer. The traveller is excluded: nobody hands over
-     * to themselves.
+     * which means a colleague in the traveller's own unit. A Head of Section is
+     * an exception: they may hand over to any active colleague across their
+     * whole directorate — the parent directorate and every section under it —
+     * rather than only their own section. The list used to be every active
+     * account in the institute, so a Mwanza technician could hand over to a
+     * Dodoma finance officer. The traveller is always excluded: nobody hands
+     * over to themselves.
      */
     private function handoverUserList(User $traveller): Collection
     {
-        if (! $traveller->unit_id) {
+        $unitIds = $this->handoverUnitScope($traveller);
+
+        if (empty($unitIds)) {
             return collect();
         }
 
         return User::where('is_active', true)
-            ->where('unit_id', $traveller->unit_id)
+            ->whereIn('unit_id', $unitIds)
             ->whereKeyNot($traveller->getKey())
             ->orderBy('name')
             ->get()
@@ -774,6 +780,30 @@ class TravelRequestController extends Controller
                 'name' => $u->name,
                 'title' => $u->job_title ?? '',
             ]);
+    }
+
+    /**
+     * The unit(s) a traveller may name a handover officer from. Everyone is
+     * scoped to their own unit, except a Head of Section, who may reach across
+     * their entire directorate (the parent directorate plus every section
+     * under it). handoverUserList() and handoverIdentity() both draw on this so
+     * the picker and the binding stay in agreement.
+     *
+     * @return array<int, int>
+     */
+    private function handoverUnitScope(User $traveller): array
+    {
+        $unit = $traveller->unit;
+
+        if ($traveller->role === 'head'
+            && $unit?->type === 'hq_section'
+            && $unit->parent_id !== null) {
+            $sectionIds = Unit::where('parent_id', $unit->parent_id)->pluck('id')->all();
+
+            return array_values(array_unique(array_merge([$unit->parent_id], $sectionIds)));
+        }
+
+        return $traveller->unit_id ? [$traveller->unit_id] : [];
     }
 
     /**
@@ -806,7 +836,7 @@ class TravelRequestController extends Controller
         }
 
         $officer = User::where('is_active', true)
-            ->where('unit_id', $traveller->unit_id)
+            ->whereIn('unit_id', $this->handoverUnitScope($traveller))
             ->whereKeyNot($traveller->getKey())
             ->find($officerId);
 
